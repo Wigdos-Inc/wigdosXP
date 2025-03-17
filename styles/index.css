@@ -1,0 +1,11 @@
+main {
+    display: grid;
+    grid-template-columns: auto auto auto auto auto auto auto auto auto;
+    gap: 5px;
+
+    padding: 5px;
+}
+main div {
+    background-color: aqua;
+    border: 1px solid black;
+}

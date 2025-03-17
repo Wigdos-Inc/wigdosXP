@@ -1,0 +1,17 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+main {
+    height: 92vh;
+    background-color: rgb(62, 200, 255);
+}
+
+
+footer {
+    height: 8vh;
+    background-color: blue;
+}
