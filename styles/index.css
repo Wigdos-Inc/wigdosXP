@@ -34,6 +34,7 @@ main div * {
 }
 main div img {
     padding-bottom: 5px;
+    pointer-events: none;
 }
 main div p {
     text-overflow: ellipsis;
