@@ -18,7 +18,7 @@ class DKGridBox {
         if (this.filled) {
 
             this.content.img = this.element.appendChild(document.createElement("img"));
-            this.content.img.src = `../../assets/images/desktop/${img}`;
+            this.content.img.src = img;
 
             this.content.text = this.element.appendChild(document.createElement("p"));
             this.content.text.innerHTML = text;
@@ -37,20 +37,16 @@ class DKGridBox {
 
         if (!this.filled) {
 
-            if (oldBox) oldBox.empty();
-
             this.filled = true;
-            this.display("browser.png", "WiggleSearch");
+            this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
 
-        }
-    }
+            // Empty the Old Box
+            if (oldBox.filled) {
 
-    empty() {
+                oldBox.filled = false;
+                oldBox.display();
 
-        if (this.filled) {
-
-            this.filled = false;
-            this.display();
+            }
 
         }
     }
@@ -76,5 +72,58 @@ for (let r=0; r < 5; r++) {
     dkGridArray.push(rowArray);
 }
 
-// Display Browser Icon for Testing
-dkGridArray[0][0].fill();
+
+
+// Attach Starter Icons
+dkGridArray[0][0].filled = true;
+dkGridArray[0][0].display("../../assets/images/desktop/browser.png", "WiggleSearch");
+
+
+
+// Box x User Interaction
+let userBox;
+
+function select(box) {
+
+    box.select = true;
+    box.element.classList.add("activeBox");
+}
+function deselectAll() {
+
+    // Deselect Previous(/all) Box(es)
+    dkGridArray.forEach(r => r.forEach(b => {
+
+        b.select = false;
+        b.element.classList.remove("activeBox");
+    }));
+}
+
+dkGridArray.forEach(row => row.forEach(box => {
+
+    box.element.addEventListener("mousedown", () => {
+
+        // Deselect Previous(/all) Box(es)
+        deselectAll();
+
+        // Select the Clicked Box
+        if (box.filled) select(box);
+
+        // Attach Selected Box to User
+        userBox = box;
+    });
+
+    box.element.addEventListener("mouseup", () => {
+
+        // Move an Entry to a different Box
+        if (userBox !== undefined && userBox != box) {
+
+            box.fill(userBox);
+
+            deselectAll();
+            select(box);
+
+        }
+    });
+}));
+
+document.addEventListener("mouseup", () => userBox = undefined);
