@@ -65,16 +65,28 @@ class DKGridBox {
         if (type && !this.select.change && this.select.count > 1) {
 
             this.select.change = true;
+            console.log("open");
 
+            // Store Previous Name
             this.select.old = this.content.text.innerHTML;
             this.content.text.remove();
 
+            // Create Input Field for Renaming
             let input = this.element.appendChild(document.createElement("input"));
             input.type = "text";
             input.id = "input";
 
+
+            // Renaming Finalizes when pressing Enter
+            input.addEventListener("keydown", (event) => {
+                
+                if (event.key === "Enter") this.change(false);
+            });
+
         }
         else if (!type) {
+
+            console.log("close");
 
             let input = document.getElementById("input");
             let value = (input.value == "") ? this.select.old : input.value;
@@ -82,6 +94,7 @@ class DKGridBox {
             input.remove();
             this.select.change = false;
             this.select.old = undefined;
+            this.select.count = 0;
 
             this.display(undefined, value);
 
@@ -131,6 +144,7 @@ function deselectAll(unChange) {
     // Deselect Previous(/all) Box(es)
     dkGridArray.forEach(r => r.forEach(b => {
 
+        if (!b.select.active) b.select.count = 0;
         b.select.active = false;
         b.element.classList.remove("activeBox");
 
@@ -143,15 +157,13 @@ function deselectAll(unChange) {
 
 dkGridArray.forEach(row => row.forEach(box => {
 
-    box.element.addEventListener("mousedown", () => {
+    box.element.addEventListener("mousedown", (event) => {
 
-        // Deselect Previous(/all) Box(es)
-        deselectAll(false);
+        // Reset all Boxes
+        deselectAll((event.target.tagName !== "INPUT") ? true : false);
 
-        // Select the Clicked Box
-        if (box.filled) select(box);
-
-        // Attach Selected Box to User
+        // Select the new Box
+        select(box);
         userBox = box;
     });
 
@@ -172,8 +184,7 @@ dkGridArray.forEach(row => row.forEach(box => {
     // Allow Renaming and Activation
     box.element.addEventListener("click", (event) => {
 
-        if (event.target.tagName !== "INPUT") box.change(true);
-        console.log(event.target.tagName);
+        if (event.target.tagName == "P") box.change(true);
     });
 }));
 
