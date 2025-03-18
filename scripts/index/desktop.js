@@ -5,7 +5,12 @@ class DKGridBox {
     constructor(element) {
         this.element = element;
         this.filled  = false;
-        this.select  = false;
+        this.select  = {
+            active: false,
+            count : 0,
+            change: false,
+            old   : undefined
+        }
         this.content = {
             img : undefined,
             text: undefined
@@ -17,18 +22,20 @@ class DKGridBox {
 
         if (this.filled) {
 
-            this.content.img = this.element.appendChild(document.createElement("img"));
-            this.content.img.src = img;
+            if (img) {
+                this.content.img = this.element.appendChild(document.createElement("img"));
+                this.content.img.src = img;
+            }
 
-            this.content.text = this.element.appendChild(document.createElement("p"));
-            this.content.text.innerHTML = text;
+            if (text) {
+                this.content.text = this.element.appendChild(document.createElement("p"));
+                this.content.text.innerHTML = text;
+            }
 
         }
         else {
-
             this.content.img.remove();
             this.content.text.remove();
-
         }
     }
 
@@ -47,6 +54,36 @@ class DKGridBox {
                 oldBox.display();
 
             }
+
+        }
+    }
+
+    change(type) {
+
+        console.log(this.select.count);
+
+        if (type && !this.select.change && this.select.count > 1) {
+
+            this.select.change = true;
+
+            this.select.old = this.content.text.innerHTML;
+            this.content.text.remove();
+
+            let input = this.element.appendChild(document.createElement("input"));
+            input.type = "text";
+            input.id = "input";
+
+        }
+        else if (!type) {
+
+            let input = document.getElementById("input");
+            let value = (input.value == "") ? this.select.old : input.value;
+
+            input.remove();
+            this.select.change = false;
+            this.select.old = undefined;
+
+            this.display(undefined, value);
 
         }
     }
@@ -85,16 +122,22 @@ let userBox;
 
 function select(box) {
 
-    box.select = true;
+    box.select.active = true;
     box.element.classList.add("activeBox");
+    box.select.count++;
 }
-function deselectAll() {
+function deselectAll(unChange) {
 
     // Deselect Previous(/all) Box(es)
     dkGridArray.forEach(r => r.forEach(b => {
 
-        b.select = false;
+        b.select.active = false;
         b.element.classList.remove("activeBox");
+
+        if (unChange && b.select.change) {
+            b.change(false);
+            b.select.count = 0;
+        }
     }));
 }
 
@@ -103,7 +146,7 @@ dkGridArray.forEach(row => row.forEach(box => {
     box.element.addEventListener("mousedown", () => {
 
         // Deselect Previous(/all) Box(es)
-        deselectAll();
+        deselectAll(false);
 
         // Select the Clicked Box
         if (box.filled) select(box);
@@ -112,18 +155,27 @@ dkGridArray.forEach(row => row.forEach(box => {
         userBox = box;
     });
 
-    box.element.addEventListener("mouseup", () => {
+    // Move an Entry to a different Box
+    box.element.addEventListener("mouseup", (event) => {
 
-        // Move an Entry to a different Box
         if (userBox !== undefined && userBox != box) {
 
             box.fill(userBox);
 
-            deselectAll();
+            deselectAll(true);
             select(box);
 
         }
     });
+
+
+    // Allow Renaming and Activation
+    box.element.addEventListener("click", (event) => {
+
+        if (event.target.tagName !== "INPUT") box.change(true);
+        console.log(event.target.tagName);
+    });
 }));
 
+// Detach Box from User
 document.addEventListener("mouseup", () => userBox = undefined);

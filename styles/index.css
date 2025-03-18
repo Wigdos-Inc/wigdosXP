@@ -39,3 +39,7 @@ main div img {
 main div p {
     text-overflow: ellipsis;
 }
+
+#input {
+    width: 100%;
+}
