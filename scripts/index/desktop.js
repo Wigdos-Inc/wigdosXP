@@ -196,19 +196,6 @@ dkGridArray.forEach(row => row.forEach(box => {
         }
     });
 
-    // Track Mouse Movement for Selection Box
-    document.addEventListener("mousemove", (event) => {
-        if (selection.box) {
-            // Update the size and position of the selection box
-            const width = event.clientX - selection.start.x;
-            const height = event.clientY - selection.start.y;
-            selection.box.style.left = `${Math.min(event.clientX, selection.start.x)}px`;
-            selection.box.style.top = `${Math.min(event.clientY, selection.start.y)}px`;
-            selection.box.style.width = `${Math.abs(width)}px`;
-            selection.box.style.height = `${Math.abs(height)}px`;
-        }
-    });
-
     // Move an Entry to a different Box
     box.element.addEventListener("mouseup", (event) => {
 
@@ -219,14 +206,6 @@ dkGridArray.forEach(row => row.forEach(box => {
             deselectAll(true);
             select(box);
 
-        }
-
-        if (selection.box) {
-            // Remove selection box on mouseup
-            selection.box.remove();
-            selection.box = null;
-
-            console.log("End Selection");
         }
     });
 
@@ -250,6 +229,34 @@ dkGridArray.forEach(row => row.forEach(box => {
         }
     });
 }));
+
+// Track Mouse Movement for Selection Box
+document.addEventListener("mousemove", (event) => {
+
+    if (selection.box) {
+
+        // Update the size and position of the selection box
+        const width = event.clientX - selection.start.x;
+        const height = event.clientY - selection.start.y;
+        
+        selection.box.style.left = `${Math.min(event.clientX, selection.start.x)}px`;
+        selection.box.style.top = `${Math.min(event.clientY, selection.start.y)}px`;
+        selection.box.style.width = `${Math.abs(width)}px`;
+        selection.box.style.height = `${Math.abs(height)}px`;
+
+    }
+});
+
+// Remove selection box on mouseup
+document.addEventListener("mouseup", () => {
+
+    if (selection.box) {
+        selection.box.remove();
+        selection.box = null;
+
+        console.log("End Selection");
+    }
+})
 
 // Detach Box from User
 document.addEventListener("mouseup", () => userBox = undefined);
