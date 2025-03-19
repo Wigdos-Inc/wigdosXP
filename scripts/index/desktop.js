@@ -45,12 +45,14 @@ class DKGridBox {
         if (!this.filled) {
 
             this.filled = true;
+            this.element.classList.add("filled");
             this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
 
             // Empty the Old Box
             if (oldBox.filled) {
 
                 oldBox.filled = false;
+                oldBox.element.classList.remove("filled");
                 oldBox.display();
 
             }
@@ -85,8 +87,6 @@ class DKGridBox {
 
         }
         else if (!type) {
-
-            console.log("close");
 
             let input = document.getElementById("input");
             let value = (input.value == "") ? this.select.old : input.value;
@@ -126,12 +126,23 @@ for (let r=0; r < 5; r++) {
 
 // Attach Starter Icons
 dkGridArray[0][0].filled = true;
-dkGridArray[0][0].display("../../assets/images/desktop/browser.png", "WiggleSearch");
+dkGridArray[0][0].element.classList.add("filled");
+dkGridArray[0][0].display("../../assets/images/browser/icon.png", "WiggleSearch");
+
+dkGridArray[0][1].filled = true;
+dkGridArray[0][1].element.classList.add("filled");
+dkGridArray[0][1].display("../../assets/images/browser/icontest.png", "WiggleSearch Test");
 
 
 
 // Box x User Interaction
 let userBox;
+let prevClick = {};
+
+let selection = {
+    box  : null,
+    start: { x: 0, y: 0 }
+}
 
 function select(box) {
 
@@ -162,9 +173,40 @@ dkGridArray.forEach(row => row.forEach(box => {
         // Reset all Boxes
         deselectAll((event.target.tagName !== "INPUT") ? true : false);
 
-        // Select the new Box
-        select(box);
-        userBox = box;
+        if (box.filled) {
+
+            // Select the new Box
+            select(box);
+            userBox = box;
+
+        }
+        else {
+
+            // User Selection Box
+            selection.start = { x: event.clientX, y: event.clientY };
+
+            // Create the selection box element
+            selection.box = document.body.appendChild(document.createElement('div'));
+            selection.box.style.position = 'absolute';
+            selection.box.style.border = '1px dashed #000';
+            selection.box.style.backgroundColor = 'rgba(0, 0, 255, 0.2)';
+
+            console.log("Start Selection")
+
+        }
+    });
+
+    // Track Mouse Movement for Selection Box
+    document.addEventListener("mousemove", (event) => {
+        if (selection.box) {
+            // Update the size and position of the selection box
+            const width = event.clientX - selection.start.x;
+            const height = event.clientY - selection.start.y;
+            selection.box.style.left = `${Math.min(event.clientX, selection.start.x)}px`;
+            selection.box.style.top = `${Math.min(event.clientY, selection.start.y)}px`;
+            selection.box.style.width = `${Math.abs(width)}px`;
+            selection.box.style.height = `${Math.abs(height)}px`;
+        }
     });
 
     // Move an Entry to a different Box
@@ -178,6 +220,14 @@ dkGridArray.forEach(row => row.forEach(box => {
             select(box);
 
         }
+
+        if (selection.box) {
+            // Remove selection box on mouseup
+            selection.box.remove();
+            selection.box = null;
+
+            console.log("End Selection");
+        }
     });
 
 
@@ -185,6 +235,19 @@ dkGridArray.forEach(row => row.forEach(box => {
     box.element.addEventListener("click", (event) => {
 
         if (event.target.tagName == "P") box.change(true);
+
+        // Double Click Logic (AI)
+        if (box.filled) {
+            const cTime = Date.now();
+            const pTime = prevClick[box.id];
+            
+            if (pTime && (cTime - pTime) < 500) {
+                console.log("what");
+            }
+        
+            // Update the last click time
+            prevClick[box.id] = cTime;
+        }
     });
 }));
 
