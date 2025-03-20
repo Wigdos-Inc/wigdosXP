@@ -5,7 +5,7 @@ main {
 
     padding: 5px;
 
-    background-image: url(../assets/images/desktop/bliss.jpg);
+    background-image: url(/assets/images/desktop/bliss.jpg);
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;

@@ -1,0 +1,38 @@
+footer {
+    height: 5vh;
+    width: 100vw;
+
+    background-image: linear-gradient(to top, #1C59D1, #1C59D1, #2763DC, #2763DC, #5186D5);
+
+    display: flex;
+}
+footer div {
+    height: 100%;
+}
+
+
+#smButton {
+    width: 200px;
+    background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782);
+
+    border-top-right-radius: 20px 50px;
+    border-bottom-right-radius: 5px 50px;
+}
+#smButton:hover {
+    background-image: linear-gradient(to top, #479c58, #43ad4e, #43ad4e, #48a159, #87B782);
+    cursor: pointer;
+}
+
+#tbIconBox {
+    width: 120px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+.tbIcons {
+    height: 60%;
+    aspect-ratio: 1 / 1;
+    background-color: whitesmoke;
+}
