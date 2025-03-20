@@ -179,7 +179,7 @@ dkGridArray.forEach(row => row.forEach(box => {
             userBox = box;
 
         }
-        else {
+        else if (event.button === 0) {
 
             // User Selection Box
             selection.start = { x: event.clientX, y: event.clientY };
