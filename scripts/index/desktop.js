@@ -5,6 +5,7 @@ class DKGridBox {
     constructor(element) {
         this.element = element;
         this.filled  = false;
+        this.action  = undefined
         this.select  = {
             active: false,
             count : 0,
@@ -62,12 +63,9 @@ class DKGridBox {
 
     change(type) {
 
-        console.log(this.select.count);
-
         if (type && !this.select.change && this.select.count > 1) {
 
             this.select.change = true;
-            console.log("open");
 
             // Store Previous Name
             this.select.old = this.content.text.innerHTML;
@@ -128,10 +126,7 @@ for (let r=0; r < 5; r++) {
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
 dkGridArray[0][0].display("../../assets/images/browser/icon.png", "WiggleSearch");
-
-dkGridArray[0][1].filled = true;
-dkGridArray[0][1].element.classList.add("filled");
-dkGridArray[0][1].display("../../assets/images/browser/icontest.png", "WiggleSearch Test");
+dkGridArray[0][0].action = () => location.href = "../../pages/browser/browser1.html";
 
 
 
@@ -150,14 +145,18 @@ function select(box) {
     box.element.classList.add("activeBox");
     box.select.count++;
 }
+function deselect(box) {
+
+    if (!box.select.active) box.select.count = 0;
+    box.select.active = false;
+    box.element.classList.remove("activeBox");
+}
 function deselectAll(unChange) {
 
     // Deselect Previous(/all) Box(es)
     dkGridArray.forEach(r => r.forEach(b => {
 
-        if (!b.select.active) b.select.count = 0;
-        b.select.active = false;
-        b.element.classList.remove("activeBox");
+        deselect(b);
 
         if (unChange && b.select.change) {
             b.change(false);
@@ -191,8 +190,6 @@ dkGridArray.forEach(row => row.forEach(box => {
             selection.box.style.border = '1px dashed #000';
             selection.box.style.backgroundColor = 'rgba(0, 0, 255, 0.2)';
 
-            console.log("Start Selection")
-
         }
     });
 
@@ -220,9 +217,7 @@ dkGridArray.forEach(row => row.forEach(box => {
             const cTime = Date.now();
             const pTime = prevClick[box.id];
             
-            if (pTime && (cTime - pTime) < 500) {
-                console.log("what");
-            }
+            if (pTime && (cTime - pTime) < 500) box.action();
         
             // Update the last click time
             prevClick[box.id] = cTime;
@@ -235,14 +230,48 @@ document.addEventListener("mousemove", (event) => {
 
     if (selection.box) {
 
-        // Update the size and position of the selection box
+
+        // Update the Size and Position of the Selection Box
         const width = event.clientX - selection.start.x;
-        const height = event.clientY - selection.start.y;
-        
+        let height = event.clientY - selection.start.y;
+
+
+        // Stop the Selection Box from Intersecting the Footer
+        const footerBorders = document.getElementsByTagName('footer')[0].getBoundingClientRect();
+        const maxY = footerBorders.top;
+
+        if (selection.start.y + height > maxY) {
+            height = maxY - selection.start.y;
+        }
+
+
+        // Draw Selection Box
         selection.box.style.left = `${Math.min(event.clientX, selection.start.x)}px`;
         selection.box.style.top = `${Math.min(event.clientY, selection.start.y)}px`;
         selection.box.style.width = `${Math.abs(width)}px`;
         selection.box.style.height = `${Math.abs(height)}px`;
+
+
+        // Select Highlighted Boxes
+        dkGridArray.forEach(row => row.forEach(box => {
+
+            const boxBorders = box.element.getBoundingClientRect();
+
+            const centerX = (boxBorders.left + boxBorders.right) / 2;
+            const centerY = (boxBorders.top + boxBorders.bottom) / 2;
+
+            // Detection for if Box Center is in User Selection
+            if (
+                centerX >= Math.min(event.clientX, selection.start.x) &&
+                centerX <= Math.max(event.clientX, selection.start.x) &&
+                centerY >= Math.min(event.clientY, selection.start.y) &&
+                centerY <= Math.max(event.clientY, selection.start.y) &&
+                box.filled
+            ) {
+                select(box);
+            }
+            else deselect(box);
+        }));
 
     }
 });
@@ -253,8 +282,6 @@ document.addEventListener("mouseup", () => {
     if (selection.box) {
         selection.box.remove();
         selection.box = null;
-
-        console.log("End Selection");
     }
 })
 
