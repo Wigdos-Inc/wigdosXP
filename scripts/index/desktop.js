@@ -1,3 +1,5 @@
+/* CLASSES */
+
 // Create the Grid Boxes and Store Them
 let dkGridArray = [];
 class DKGridBox {
@@ -100,6 +102,11 @@ class DKGridBox {
     }
 }
 
+
+
+/* STARTUP CODE */
+
+// Create Grid Boxes
 for (let r=0; r < 5; r++) {
 
     // Make/Empty RowArray
@@ -121,14 +128,21 @@ for (let r=0; r < 5; r++) {
 }
 
 
-
-// Attach Starter Icons
+// Attach Browser
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
 dkGridArray[0][0].display("../../assets/images/browser/icon.png", "WiggleSearch");
 dkGridArray[0][0].action = () => location.href = "../../pages/browser/browser1.html";
 
+// Attach Fake Browser
+dkGridArray[1][0].filled = true;
+dkGridArray[1][0].element.classList.add("filled");
+dkGridArray[1][0].display("../../assets/images/browser/icon2.png", "Wiglefari");
+dkGridArray[1][0].action = () => location.href = "../../pages/browser/browser1.html";
 
+
+
+/* EVENT LISTENERS */
 
 // Box x User Interaction
 let userBox;
