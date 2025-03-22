@@ -12,7 +12,12 @@ main {
 
 
     color: whitesmoke;
-    text-shadow: 0 0 3px black;
+    text-shadow: 
+        0 0 2px black,
+        0 0 2px black,
+        0 0 1px black,
+        0 0 1px black,
+        0 1.5px 4px rgba(0, 0, 0, 0.5);
 }
 
 main div {
