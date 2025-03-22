@@ -140,6 +140,12 @@ dkGridArray[1][0].element.classList.add("filled");
 dkGridArray[1][0].display("wiglefari.png", "Wiglefari");
 dkGridArray[1][0].action = () => location.href = "../../pages/browser/browser1.html";
 
+// Attach Fake Browser
+dkGridArray[4][8].filled = true;
+dkGridArray[4][8].element.classList.add("filled");
+dkGridArray[4][8].display("files.png", "File Explorer");
+dkGridArray[4][8].action = () => location.href = "../../pages/browser/browser1.html";
+
 
 
 /* EVENT LISTENERS */
