@@ -1,10 +1,10 @@
 footer {
+    display: flex;
     height: 5vh;
     width: 100vw;
 
     background-image: linear-gradient(to top, #1C59D1, #1C59D1, #2763DC, #2763DC, #5186D5);
-
-    display: flex;
+    position: relative;
 }
 footer div {
     height: 100%;
@@ -22,6 +22,7 @@ footer div {
     background-image: linear-gradient(to top, #479c58, #43ad4e, #43ad4e, #48a159, #87B782);
     cursor: pointer;
 }
+#smButton:active { background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782); }
 
 #tbIconBox {
     width: 120px;
@@ -36,3 +37,32 @@ footer div {
     aspect-ratio: 1 / 1;
     background-color: whitesmoke;
 }
+
+#tbRightBorder {
+    position: absolute;
+    right: 120px;
+
+    height: 100%;
+    border-right: 2px solid #034db0;
+}
+#tbTimeBox {
+    position: absolute;
+    right: 0;
+
+    width: 120px;
+    height: 100%;
+
+    background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9);
+    border-left: 2px solid #0bc1f1;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: whitesmoke;
+    user-select: none;
+}
+#tbTimeBox:hover {
+    background-image: linear-gradient(to top, #0fa1f0, #0a9cfd, #0a9cfd, #0fa1f0, #06aef9);
+    cursor: pointer;
+}
+#tbTimeBox:active { background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9); }
