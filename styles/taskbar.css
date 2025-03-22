@@ -35,7 +35,16 @@ footer div {
 .tbIcons {
     height: 60%;
     aspect-ratio: 1 / 1;
-    background-color: whitesmoke;
+
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+.tbIcons:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+#tbIcon1 {
+    background-image: url(../assets/images/icons/16x/files.png);
 }
 
 #tbRightBorder {

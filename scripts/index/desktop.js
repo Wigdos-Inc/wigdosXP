@@ -27,7 +27,7 @@ class DKGridBox {
 
             if (img) {
                 this.content.img = this.element.appendChild(document.createElement("img"));
-                this.content.img.src = img;
+                this.content.img.src = `../../assets/images/icons/48x/${img}`;
             }
 
             if (text) {
@@ -131,13 +131,13 @@ for (let r=0; r < 5; r++) {
 // Attach Browser
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
-dkGridArray[0][0].display("../../assets/images/browser/icon.png", "WiggleSearch");
+dkGridArray[0][0].display("wiggleSearch.png", "WiggleSearch");
 dkGridArray[0][0].action = () => location.href = "../../pages/browser/browser1.html";
 
 // Attach Fake Browser
 dkGridArray[1][0].filled = true;
 dkGridArray[1][0].element.classList.add("filled");
-dkGridArray[1][0].display("../../assets/images/browser/icon2.png", "Wiglefari");
+dkGridArray[1][0].display("wiglefari.png", "Wiglefari");
 dkGridArray[1][0].action = () => location.href = "../../pages/browser/browser1.html";
 
 
@@ -266,7 +266,7 @@ document.addEventListener("mousemove", (event) => {
         selection.box.style.height = `${Math.abs(height)}px`;
 
 
-        // Select Highlighted Boxes
+        // Select Highlighted Boxes (AI)
         dkGridArray.forEach(row => row.forEach(box => {
 
             const boxBorders = box.element.getBoundingClientRect();

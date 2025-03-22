@@ -1,8 +1,6 @@
+/* Time Stuff */
+
 const timeBox = document.getElementById("tbTimeBox");
-
-
-
-// Time Stuff
 const baseClock = setInterval(() => update("tbClock"), 1000);
 
 function update(type) {
@@ -14,10 +12,10 @@ function update(type) {
         minutes: (cDate.getMinutes() < 10 ? "0" : "") + cDate.getMinutes()
     }
 
+    // Display the Current Time
     if (type == "tbClock") timeBox.innerHTML = `${cTime.hours}:${cTime.minutes}`;
 }
 update("tbClock");
-
 
 
 timeBox.addEventListener("click", () => {
