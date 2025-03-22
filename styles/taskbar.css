@@ -5,24 +5,50 @@ footer {
 
     background-image: linear-gradient(to top, #1C59D1, #1C59D1, #2763DC, #2763DC, #5186D5);
     position: relative;
+
+    color: whitesmoke;
+    text-shadow: 0 0 3px black;
 }
 footer div {
     height: 100%;
 }
 
 
+
 #smButton {
-    width: 200px;
+    width: 180px;
     background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782);
 
     border-top-right-radius: 20px 50px;
     border-bottom-right-radius: 5px 50px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 #smButton:hover {
     background-image: linear-gradient(to top, #479c58, #43ad4e, #43ad4e, #48a159, #87B782);
     cursor: pointer;
 }
 #smButton:active { background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782); }
+
+#smButton * {
+    max-height: 75%;
+}
+#smButton img {
+    opacity: 0.2;
+    transition: opacity 0.2s;
+}
+#smButton img:hover {
+    opacity: 0.8;
+}
+#smButton p {
+    letter-spacing: 1px;
+    font-size: 22px;
+}
+
+
 
 #tbIconBox {
     width: 120px;
@@ -32,6 +58,7 @@ footer div {
     justify-content: center;
     gap: 20px;
 }
+
 .tbIcons {
     height: 60%;
     aspect-ratio: 1 / 1;
@@ -47,6 +74,8 @@ footer div {
     background-image: url(../assets/images/icons/16x/files.png);
 }
 
+
+
 #tbRightBorder {
     position: absolute;
     right: 120px;
@@ -54,6 +83,7 @@ footer div {
     height: 100%;
     border-right: 2px solid #034db0;
 }
+
 #tbTimeBox {
     position: absolute;
     right: 0;

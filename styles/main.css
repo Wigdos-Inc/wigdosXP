@@ -9,6 +9,13 @@ html, body {
     width: 100vw;
 
     overflow: hidden;
+    font-family: Tahoma, "Segoe UI", Geneva, sans-serif;
+
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: white;
 }
 
 

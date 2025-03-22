@@ -9,6 +9,10 @@ main {
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
+
+
+    color: whitesmoke;
+    text-shadow: 0 0 3px black;
 }
 
 main div {
@@ -38,7 +42,7 @@ main div {
 
 main div * {
     max-width: 100%;
-    max-height: 100%;
+    max-height: 80%;
 }
 main div img {
     padding-bottom: 5px;
