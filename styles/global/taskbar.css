@@ -5,6 +5,7 @@ footer {
 
     background-image: linear-gradient(to top, #1C59D1, #1C59D1, #2763DC, #2763DC, #5186D5);
     position: relative;
+    user-select: none;
 
     color: whitesmoke;
     text-shadow: 
@@ -67,8 +68,11 @@ footer div {
 }
 
 .tbIcons {
-    height: 60%;
+    height: 80%;
     aspect-ratio: 1 / 1;
+
+    border: 5px solid transparent;
+    cursor: pointer;
 
     background-position: center;
     background-repeat: no-repeat;
@@ -78,7 +82,10 @@ footer div {
     background-color: rgba(0, 0, 0, 0.1);
 }
 #tbIcon1 {
-    background-image: url(../assets/images/icons/16x/files.png);
+    background-image: url(../../assets/images/icons/16x/wiggleSearch.png);
+}
+#tbIcon2 {
+    background-image: url(../../assets/images/icons/16x/files.png);
 }
 
 

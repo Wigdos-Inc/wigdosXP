@@ -27,7 +27,7 @@ class DKGridBox {
 
             if (img) {
                 this.content.img = this.element.appendChild(document.createElement("img"));
-                this.content.img.src = `../../assets/images/icons/48x/${img}`;
+                this.content.img.src = img;
             }
 
             if (text) {
@@ -131,20 +131,20 @@ for (let r=0; r < 5; r++) {
 // Attach Browser
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
-dkGridArray[0][0].display("wiggleSearch.png", "WiggleSearch");
+dkGridArray[0][0].display("../../assets/images/icons/48x/wiggleSearch.png", "WiggleSearch");
 dkGridArray[0][0].action = () => location.href = "../../pages/browser/browser1.html";
 
 // Attach Fake Browser
 dkGridArray[1][0].filled = true;
 dkGridArray[1][0].element.classList.add("filled");
-dkGridArray[1][0].display("wiglefari.png", "Wiglefari");
+dkGridArray[1][0].display("../../assets/images/icons/48x/wiglefari.png", "Wiglefari");
 dkGridArray[1][0].action = () => location.href = "../../pages/browser/browser1.html";
 
 // Attach Fake Browser
 dkGridArray[4][8].filled = true;
 dkGridArray[4][8].element.classList.add("filled");
-dkGridArray[4][8].display("files.png", "File Explorer");
-dkGridArray[4][8].action = () => location.href = "../../pages/browser/browser1.html";
+dkGridArray[4][8].display("../../assets/images/icons/48x/files.png", "File Explorer");
+dkGridArray[4][8].action = () => application("files");
 
 
 

@@ -1,0 +1,95 @@
+.appWindow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+
+    width: 600px;
+    height: 400px;
+
+    display: flex;
+    flex-direction: column;
+
+    z-index: 5;
+    background-color: #efecde;
+}
+
+
+
+
+
+.appHeader {
+    width: 100%;
+    height: 40px;
+
+    position: relative;
+    background-image: linear-gradient(to top, #005ef9, #0055e5, #0055e5, #3790fd);
+
+    display: flex;
+    align-items: center;
+}
+
+.appName {
+    width: 100%;
+    height: 100%;
+    
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+}
+
+.selectBox {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+
+    width: 160px;
+    height: 100%;
+}
+.appClose {
+    height: 30px;
+    width: 30px;
+
+    background-image: linear-gradient(to bottom right, #efa693, #e07358, #e3523f, #d64418, #d13707);
+    border: 2px solid white;
+    border-radius: 5px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-shadow: none;
+}
+
+
+
+.appMain {
+    width: 100%;
+    height: 100%;
+
+    border-color: #005ef9;
+    border-style: solid;
+    border-top: 0;
+
+    display: flex;
+    flex-direction: column;
+}
+.appMainTopBar {
+    display: flex;
+
+    border-top: 2px solid #0c4cd1;
+    border-bottom: 2px solid #dcd6c2;
+}
+.appMainBottomBar {
+    border-top: 2px solid #faf9f7;
+    height: 30px;
+}
+
+.appMainMidBar {
+    display: grid;
+    height: 100%;
+
+    background-color: #ffffff;
+    border-top: 2px solid #faf9f7;
+    border-bottom: 2px solid #dcd6c2;
+}

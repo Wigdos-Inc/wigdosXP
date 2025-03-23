@@ -1,3 +1,10 @@
+/* Icons */
+
+document.getElementById("tbIcon1").onclick = () => location.href = "../../pages/browser/browser1.html";
+document.getElementById("tbIcon2").onclick = () => application("files");
+
+
+
 /* Time Stuff */
 
 const timeBox = document.getElementById("tbTimeBox");
