@@ -5,15 +5,15 @@ let windows = {
 
 class AppWindow {
 
-    constructor() {
+    constructor(cClose, cMove, full) {
 
         this.element = document.getElementsByTagName("main")[0].appendChild(document.createElement("div"));
         this.focus   = false;
-        this.cClose  = undefined;
+        this.cClose  = cClose;
         this.index   = windows.index;
         this.nameBox = undefined;
-        this.cMove   = undefined;
-        this.full    = false;
+        this.cMove   = cMove;
+        this.full    = full;
 
         this.header  = undefined;
         this.content = undefined;
@@ -45,6 +45,7 @@ class AppWindow {
         minBtn.innerHTML = "<strong>_</strong>";
 
         minBtn.onclick = () => this.close();
+        minBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
 
 
         const screenBtn = selectBox.appendChild(document.createElement("div"));
@@ -57,9 +58,10 @@ class AppWindow {
 
                 this.full = !this.full;
                 this.screenChange();
+                screenBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
             }
 
-        } else screenBtn.disabled = true;
+        } else screenBtn.style.backgroundColor = "grey";
 
 
         const closeBtn = selectBox.appendChild(document.createElement("div"));
@@ -106,6 +108,7 @@ class AppWindow {
 
             this.element.style.left = 0;
             this.element.style.top = 0;
+            this.element.style.transform = "unset"
 
             this.element.style.height = "100%";
             this.element.style.width = "100%";
@@ -117,7 +120,7 @@ class AppWindow {
 
             this.element.style.left = "50%";
             this.element.style.top = "50%";
-            this.element.style.transform = 
+            this.element.style.transform = "translate(-50%, -50%)";
 
             this.element.style.height = "400px";
             this.element.style.width = "600px";
@@ -133,32 +136,38 @@ class AppWindow {
 // Handle Application Loading
 function application(type) {
 
-    const application = new AppWindow();
+    let cClose;
+    let cMove;
+    let full;
     let appTitle;
 
     switch (type) {
 
         case "files": 
-        
-            application.cClose = true;
-            application.cMove = true;
-            application.full = false;
 
+            app = new AppWindow(true, true, false);
+            cClose = true;
+            cMove = true;
+            full = false;
+        
             appTitle = "File Explorer";
-            
+        
             break;
 
-        case "browser":
+        case "browser": browser(); break;
 
-            application.cClose = false;
-            application.cMove = false;
-            application.full = true;
+        case "notepad":
 
-            appTitle = "WiggleSearch";
+            cClose = true;
+            cMove = true;
+            full = false;
+
+            appTitle = "Notepad"
 
             break;
     }
     
+    const application = new AppWindow(cClose, cMove. full)
     application.create();
     application.nameBox.innerHTML = appTitle;
 

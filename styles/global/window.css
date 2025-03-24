@@ -58,10 +58,7 @@
     align-items: center;
     text-shadow: none;
 
-    background-image: linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5);
-}
-.selectBtns:disabled {
-
+    cursor: pointer;
 }
 .appClose {
     background-image: linear-gradient(to bottom right, #efa693, #e07358, #e3523f, #d64418, #d13707);
