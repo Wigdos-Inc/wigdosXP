@@ -154,7 +154,15 @@ function application(type) {
         
             break;
 
-        case "browser": browser(); break;
+        case "browser": 
+
+            cClose = false;
+            cMove = false;
+            full = true;
+
+            appTitle = "WiggleSearch";
+        
+        break;
 
         case "notepad":
 
@@ -167,7 +175,7 @@ function application(type) {
             break;
     }
     
-    const application = new AppWindow(cClose, cMove. full)
+    const application = new AppWindow(cClose, cMove, full)
     application.create();
     application.nameBox.innerHTML = appTitle;
 
