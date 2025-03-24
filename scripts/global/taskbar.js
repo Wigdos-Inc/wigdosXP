@@ -1,6 +1,6 @@
 /* Icons */
 
-document.getElementById("tbIcon1").onclick = () => location.href = "../../pages/browser/browser1.html";
+document.getElementById("tbIcon1").onclick = () => application("notepad");
 document.getElementById("tbIcon2").onclick = () => application("files");
 
 
