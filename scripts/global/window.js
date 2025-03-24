@@ -14,6 +14,9 @@ class AppWindow {
         this.nameBox = undefined;
         this.cMove   = undefined;
         this.full    = false;
+
+        this.header  = undefined;
+        this.content = undefined;
     }
 
     // Create the Application Window
@@ -48,11 +51,15 @@ class AppWindow {
         screenBtn.classList.add("appScreen", "selectBtns");
         screenBtn.innerHTML = "<strong>W</strong>";
 
-        screenBtn.onclick = () => {
-            
-            this.full = !this.full;
-            this.screenChange();
-        }
+        if (this.cClose) {
+
+            screenBtn.onclick = () => {
+
+                this.full = !this.full;
+                this.screenChange();
+            }
+
+        } else screenBtn.disabled = true;
 
 
         const closeBtn = selectBox.appendChild(document.createElement("div"));
@@ -69,13 +76,13 @@ class AppWindow {
 
 
         // Top Bar (Content Depends on Application)
-        const topBar = appMain.appendChild(document.createElement("div"));
-        topBar.classList.add("appMainTopBar");
+        this.header = appMain.appendChild(document.createElement("div"));
+        this.header.classList.add("appMainTopBar");
 
 
         // Mid Bar (Content Depends on Application)
-        const midBar = appMain.appendChild(document.createElement("div"));
-        midBar.classList.add("appMainMidBar");
+        this.content = appMain.appendChild(document.createElement("div"));
+        this.content.classList.add("appMainMidBar");
 
 
         // Bottom Bar
@@ -139,6 +146,16 @@ function application(type) {
 
             appTitle = "File Explorer";
             
+            break;
+
+        case "browser":
+
+            application.cClose = false;
+            application.cMove = false;
+            application.full = true;
+
+            appTitle = "WiggleSearch";
+
             break;
     }
     

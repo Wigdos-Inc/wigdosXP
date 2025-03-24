@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizzy WiggleWagers - FuzzyExplosions</title>
+
+    <link rel="stylesheet" href="../../styles/global/main.css">
+    <link rel="stylesheet" href="../../styles/global/taskbar.css">
+    <link rel="stylesheet" href="../../styles/global/window.css">
+    
+    <link rel="stylesheet" href="../../styles/pages/fuzzy.css">
+</head>
+<body>
+    <main>
+        <div id="fakeUrl"></div>
+        
+        <div id="content">
+            <!-- Page Content -->
+        </div>
+    </main>
+
+    <footer>
+        <div id="smButton">
+            <img src="../../assets/images/icons/16x/creature.png">
+            <p><strong><i>start</i></strong></p>
+        </div>
+
+        <div id="tbIconBox">
+            <div class="tbIcons" id="tbIcon1"></div>
+            <div class="tbIcons" id="tbIcon2"></div>
+        </div>
+
+        <div id="tbRightBorder"></div>
+        <div id="tbTimeBox"></div>
+    </footer>
+    
+    
+    <!-- Prep Scripts -->
+    <script src="../../scripts/global/window.js"></script>
+
+    <!-- Content Scripts -->
+    <script src="../../scripts/global/taskbar.js"></script>
+    <script>
+        application("browser");
+        windows.object[0].content.appendChild(document.getElementById("content"));
+    </script>
+</body>
+</html>
