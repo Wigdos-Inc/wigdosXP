@@ -150,6 +150,18 @@ dkGridArray[4][8].element.classList.add("filled");
 dkGridArray[4][8].display("../../assets/images/icons/48x/files.png", "File Explorer");
 dkGridArray[4][8].action = () => application("files");
 
+// Attach Fake Browser
+dkGridArray[2][0].filled = true;
+dkGridArray[2][0].element.classList.add("filled");
+dkGridArray[2][0].display("../../assets/images/icons/48x/notepad.png", "Notepad");
+dkGridArray[2][0].action = () => application("notepad");
+
+// Attach Fake Browser
+dkGridArray[3][0].filled = true;
+dkGridArray[3][0].element.classList.add("filled");
+dkGridArray[3][0].display("../../assets/images/icons/48x/recycle.png", "Recycling Bin");
+dkGridArray[3][0].action = () => application("notepad");
+
 
 
 /* EVENT LISTENERS */
