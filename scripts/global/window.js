@@ -103,6 +103,9 @@ class AppWindow {
             this.element.style.height = "100%";
             this.element.style.width = "100%";
 
+            this.element.style.borderTopLeftRadius = 0;
+            this.element.style.borderTopRightRadius = 0;
+
         } else {
 
             this.element.style.left = "50%";
@@ -111,6 +114,9 @@ class AppWindow {
 
             this.element.style.height = "400px";
             this.element.style.width = "600px";
+
+            this.element.style.borderTopLeftRadius = "5px";
+            this.element.style.borderTopRightRadius = "5px";
 
         }
     }

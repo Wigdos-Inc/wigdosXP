@@ -47,12 +47,16 @@ class DKGridBox {
 
         if (!this.filled) {
 
+            this.action = oldBox ? oldBox.action : null;
+
             this.filled = true;
             this.element.classList.add("filled");
             this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
 
             // Empty the Old Box
             if (oldBox.filled) {
+
+                oldBox.action = null;
 
                 oldBox.filled = false;
                 oldBox.element.classList.remove("filled");
@@ -237,7 +241,7 @@ dkGridArray.forEach(row => row.forEach(box => {
             const cTime = Date.now();
             const pTime = prevClick[box.id];
             
-            if (pTime && (cTime - pTime) < 500) box.action();
+            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text) box.action();
         
             // Update the last click time
             prevClick[box.id] = cTime;

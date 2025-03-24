@@ -23,4 +23,6 @@ main {
     height: 95vh;
     width: 100vw;
     background-color: rgb(62, 200, 255);
+
+    position: relative;
 }

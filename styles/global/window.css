@@ -1,17 +1,14 @@
 .appWindow {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-
-    width: 600px;
-    height: 400px;
 
     display: flex;
     flex-direction: column;
 
     z-index: 5;
     background-color: #efecde;
+    overflow: hidden;
+
+    transition: all 0.1s;
 }
 
 
@@ -49,11 +46,10 @@
     width: 160px;
     height: 100%;
 }
-.appClose {
+.selectBtns {
     height: 30px;
     width: 30px;
 
-    background-image: linear-gradient(to bottom right, #efa693, #e07358, #e3523f, #d64418, #d13707);
     border: 2px solid white;
     border-radius: 5px;
 
@@ -61,6 +57,14 @@
     justify-content: center;
     align-items: center;
     text-shadow: none;
+
+    background-image: linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5);
+}
+.selectBtns:disabled {
+
+}
+.appClose {
+    background-image: linear-gradient(to bottom right, #efa693, #e07358, #e3523f, #d64418, #d13707);
 }
 
 
