@@ -334,15 +334,16 @@ document.addEventListener("mouseup", () => userBox = undefined);
 /* STARTUP */
 
 window.onload = () => {
-    setTimeout(() => {
-        document.getElementsByTagName("main")[0].style.opacity = 1;
-        document.getElementsByTagName("footer")[0].style.opacity = 1;
-    }, 500);    
 
     const loader = document.querySelector(".loader");
     loader.style.visibility = "unset";
 
     if (!sessionStorage.getItem("loaded")) {
+        
+        setTimeout(() => {
+            document.getElementsByTagName("main")[0].style.opacity = 1;
+            document.getElementsByTagName("footer")[0].style.opacity = 1;
+        }, 500);    
 
         setTimeout(() => {
             loader.classList.add("loader-hidden");
@@ -352,5 +353,11 @@ window.onload = () => {
         }, 3700); 
 
     }
-    else loader.remove();
+    else {
+
+        loader.remove();
+        document.getElementsByTagName("main")[0].style.opacity = 1;
+        document.getElementsByTagName("footer")[0].style.opacity = 1;
+        
+    }
 };
