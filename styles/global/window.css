@@ -1,3 +1,4 @@
+/* Application Window */
 .appWindow {
     position: absolute;
 
@@ -10,8 +11,6 @@
 
     transition: all 0.1s;
 }
-
-
 
 
 
@@ -76,12 +75,27 @@
 
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 .appMainTopBar {
     display: flex;
+    position: relative;
+
+    height: 50px;
 
     border-top: 2px solid #0c4cd1;
     border-bottom: 2px solid #dcd6c2;
+}
+.appOS {
+    height: 100%;
+    position: absolute;
+    right: 0;
+    background-color: white;
+
+    transition: background-color 0.1s;
+}
+.appOS:hover {
+    background-color: black;
 }
 .appMainBottomBar {
     border-top: 2px solid #faf9f7;
@@ -89,10 +103,34 @@
 }
 
 .appMainMidBar {
-    display: grid;
+    position: relative;
     height: 100%;
 
     background-color: #ffffff;
     border-top: 2px solid #faf9f7;
     border-bottom: 2px solid #dcd6c2;
+
+    overflow: hidden;
+}
+
+
+/* Application Content */
+.appender {
+    height: 100%;
+    width: 100%;
+}
+
+.filesBox {
+    display: flex;
+    flex-wrap: wrap;
+
+    width: 100%;
+    padding: 5px;
+}
+.filesItem {
+    height: 80px;
+    width: 80px;
+}
+.filesItem:hover {
+    background-color: #0054e525;
 }

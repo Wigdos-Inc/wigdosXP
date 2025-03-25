@@ -11,6 +11,9 @@ footer {
     text-shadow: 
         0 0 2px black,
         0 0 1px black;
+
+
+    z-index: 20;
 }
 footer div {
     height: 100%;
