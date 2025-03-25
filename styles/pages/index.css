@@ -5,6 +5,7 @@
     width: 100vw;
     height: 100vh;
     background-color: black;
+    visibility: hidden;
     transition: opacity 0.75s ease, visibility 0.75s ease;
     z-index: 9999;
 

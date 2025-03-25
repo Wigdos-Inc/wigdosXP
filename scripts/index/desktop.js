@@ -326,28 +326,22 @@ document.addEventListener("mouseup", () => userBox = undefined);
 
 
 
-// loader 
+/* STARTUP */
+
 window.onload = () => {
-        const loader = document.querySelector(".loader");
-        const content = document.querySelector(".content");
+
+    const loader = document.querySelector(".loader");
+    loader.style.visibility = "unset";
 
     if (!sessionStorage.getItem("loaded")) {
-        console.log(sessionStorage.getItem("loaded"));
 
         setTimeout(() => {
             loader.classList.add("loader-hidden");
 
-        
-            loader.addEventListener("transitionend", () => {
-                loader.remove();
-                content.style.display = "block"; 
-            });
+            loader.addEventListener("transitionend", () => loader.remove());
             sessionStorage.setItem("loaded", true);
         }, 3700); 
-    }
-    else {
 
-        loader.remove();
-        content.style.display = "block"; 
     }
+    else loader.remove();
 };
