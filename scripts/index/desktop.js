@@ -363,3 +363,13 @@ window.onload = () => {
     }
 };
 
+function playerrorSound() {
+    const audio = new Audio('../../assets/sfx/Windows XP Error Sound.mp3');
+    audio.play();
+}
+
+try {
+} catch (error) {
+    console.error(error.message);
+    playerrorSound(); 
+}
