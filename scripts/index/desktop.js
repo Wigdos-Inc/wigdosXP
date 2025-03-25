@@ -334,6 +334,10 @@ document.addEventListener("mouseup", () => userBox = undefined);
 /* STARTUP */
 
 window.onload = () => {
+    setTimeout(() => {
+        document.getElementsByTagName("main")[0].style.opacity = 1;
+        document.getElementsByTagName("footer")[0].style.opacity = 1;
+    }, 500);    
 
     const loader = document.querySelector(".loader");
     loader.style.visibility = "unset";

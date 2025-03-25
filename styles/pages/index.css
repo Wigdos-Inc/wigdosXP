@@ -20,6 +20,10 @@
     visibility: hidden;
 }
 
+main, footer {
+    opacity: 0;
+}
+
 
 
 main {
