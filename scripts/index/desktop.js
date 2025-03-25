@@ -1,5 +1,6 @@
 /* CLASSES */
-
+/* variables (global edition) */
+var  audio = new Audio('../../assets/sfx/Windows XP Startup.mp3');
 // Create the Grid Boxes and Store Them
 let dkGridArray = [];
 class DKGridBox {
@@ -339,7 +340,7 @@ window.onload = () => {
     loader.style.visibility = "unset";
 
     if (!sessionStorage.getItem("loaded")) {
-        
+        audio.play();
         setTimeout(() => {
             document.getElementsByTagName("main")[0].style.opacity = 1;
             document.getElementsByTagName("footer")[0].style.opacity = 1;
@@ -361,3 +362,4 @@ window.onload = () => {
         
     }
 };
+
