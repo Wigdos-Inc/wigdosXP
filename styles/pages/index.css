@@ -21,6 +21,7 @@
 }
 
 
+
 main {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
@@ -73,6 +74,7 @@ main {
 .dk-grid-box img {
     padding-bottom: 5px;
     pointer-events: none;
+    max-width: 80%;
 }
 .dk-grid-box p {
     text-overflow: ellipsis;

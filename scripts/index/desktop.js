@@ -132,6 +132,9 @@ for (let r=0; r < 5; r++) {
 }
 
 
+
+
+
 // Attach Browser
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
@@ -144,23 +147,25 @@ dkGridArray[1][0].element.classList.add("filled");
 dkGridArray[1][0].display("../../assets/images/icons/48x/wiglefari.png", "Wiglefari");
 dkGridArray[1][0].action = () => location.href = "../../pages/browser/fuzzy1.html";
 
-// Attach Fake Browser
+// Attach File Explorer
 dkGridArray[4][8].filled = true;
 dkGridArray[4][8].element.classList.add("filled");
 dkGridArray[4][8].display("../../assets/images/icons/48x/files.png", "File Explorer");
 dkGridArray[4][8].action = () => application("files");
 
-// Attach Fake Browser
-dkGridArray[2][0].filled = true;
-dkGridArray[2][0].element.classList.add("filled");
-dkGridArray[2][0].display("../../assets/images/icons/48x/notepad.png", "Notepad");
-dkGridArray[2][0].action = () => application("notepad");
+// Attach Notepad
+dkGridArray[0][1].filled = true;
+dkGridArray[0][1].element.classList.add("filled");
+dkGridArray[0][1].display("../../assets/images/icons/48x/notepad.png", "Notepad");
+dkGridArray[0][1].action = () => application("notepad");
 
-// Attach Fake Browser
-dkGridArray[3][0].filled = true;
-dkGridArray[3][0].element.classList.add("filled");
-dkGridArray[3][0].display("../../assets/images/icons/48x/recycle.png", "Recycling Bin");
-dkGridArray[3][0].action = () => application("notepad");
+// Attach Recycling Bin
+dkGridArray[4][0].filled = true;
+dkGridArray[4][0].element.classList.add("filled");
+dkGridArray[4][0].display("../../assets/images/icons/48x/recycle.png", "Recycling Bin");
+dkGridArray[4][0].action = () => application("bin");
+
+
 
 
 
