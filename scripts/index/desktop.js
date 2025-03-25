@@ -323,3 +323,31 @@ document.addEventListener("mouseup", () => {
 
 // Detach Box from User
 document.addEventListener("mouseup", () => userBox = undefined);
+
+
+
+// loader 
+window.onload = () => {
+        const loader = document.querySelector(".loader");
+        const content = document.querySelector(".content");
+
+    if (!sessionStorage.getItem("loaded")) {
+        console.log(sessionStorage.getItem("loaded"));
+
+        setTimeout(() => {
+            loader.classList.add("loader-hidden");
+
+        
+            loader.addEventListener("transitionend", () => {
+                loader.remove();
+                content.style.display = "block"; 
+            });
+            sessionStorage.setItem("loaded", true);
+        }, 3700); 
+    }
+    else {
+
+        loader.remove();
+        content.style.display = "block"; 
+    }
+};

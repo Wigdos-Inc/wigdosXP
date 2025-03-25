@@ -1,3 +1,25 @@
+.loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: black;
+    transition: opacity 0.75s ease, visibility 0.75s ease;
+    z-index: 9999;
+
+    background-image: url("../../assets/gifs/WindowsXPStartupandShutdown-ezgif.com-video-to-gif-converter.gif");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.loader-hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+
 main {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
