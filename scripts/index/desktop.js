@@ -166,6 +166,12 @@ dkGridArray[4][0].element.classList.add("filled");
 dkGridArray[4][0].display("../../assets/images/icons/48x/recycle.png", "Recycling Bin");
 dkGridArray[4][0].action = () => application("bin");
 
+// Attach Creature
+dkGridArray[0][8].filled = true;
+dkGridArray[0][8].element.classList.add("filled");
+dkGridArray[0][8].display("../../assets/images/icons/48x/creature.png", "Let's Play A Game.exe");
+dkGridArray[0][8].action = () => location.href = "../../pages/creature.html";
+
 
 
 
@@ -175,6 +181,7 @@ dkGridArray[4][0].action = () => application("bin");
 // Box x User Interaction
 let userBox;
 let prevClick = {};
+let prevBox;
 
 let selection = {
     box  : null,
@@ -256,13 +263,16 @@ dkGridArray.forEach(row => row.forEach(box => {
 
         // Double Click Logic (AI)
         if (box.filled) {
+
             const cTime = Date.now();
             const pTime = prevClick[box.id];
             
-            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text) box.action();
+            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text && event.target === prevBox) box.action();
         
             // Update the last click time
             prevClick[box.id] = cTime;
+            prevBox = event.target;
+            
         }
     });
 }));

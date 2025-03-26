@@ -122,11 +122,46 @@ class AppWindow {
                 ) {return} else {
 
                     this.move.current = true;
+                    this.element.style.transition = "unset";
 
-                    this.move.xOffset = event.clientX - this.element.offsetLeft;
-                    this.move.yOffset = event.clientY - this.element.offsetTop;
-                    
-                    this.element.style.transition = "none";
+                    if (this.full) { 
+                        
+                        // ALL THIS IS FULLY AI, though I had to re-arrange some of it because it got confused.
+                        // I justify copying AI here because it is a niche QoL feature that would not have been worth the time investment
+                        // In a professional setting I would not have done this.
+
+                        // Use the event's currentTarget (appHeader) for measurement.
+                        const headerRect = event.currentTarget.getBoundingClientRect();
+                        const headerRectFull = this.header.getBoundingClientRect();
+                        
+                        // Exit full screen.
+                        this.full = false;
+                        this.screenChange();
+                        this.element.style.transform = "unset";
+                        
+                        const offsetX = ((event.clientX - headerRectFull.left) / headerRectFull.width) * this.move.storage.w;
+                        const offsetY = event.clientY - headerRect.top;
+                        
+                        // (Optional) If you expect the header size to change in windowed mode,
+                        // you can re-measure. In many cases the draggable area remains the same.
+                        // Here we simply re-use the same offsets.
+                        const newLeft = event.clientX - offsetX;
+                        const newTop  = event.clientY - offsetY;
+                        
+                        // Update stored positions and offsets.
+                        this.move.storage.x = newLeft;
+                        this.move.storage.y = newTop;
+                        this.move.xOffset = offsetX;
+                        this.move.yOffset = offsetY;
+
+                    } else {
+
+                        // Normal dragging.
+                        this.move.xOffset = event.clientX - this.element.offsetLeft;
+                        this.move.yOffset = event.clientY - this.element.offsetTop;
+
+                    }
+
 
                 }
             });
@@ -134,24 +169,28 @@ class AppWindow {
             document.addEventListener("mousemove", (event) => {
 
                 if (this.move.current) {
+
                     this.element.style.left = `${event.clientX - this.move.xOffset}px`;
                     this.element.style.top = `${event.clientY - this.move.yOffset}px`;
 
                     // Requires Debugging
-                    //this.element.style.width = `${this.move.storage.w}px`;
-                    //this.element.style.height = `${this.move.storage.h}px`;
+                    this.element.style.width = `${this.move.storage.w}px`;
+                    this.element.style.height = `${this.move.storage.h}px`;
+
                 }
             });
     
             document.addEventListener("mouseup", () => {
 
                 if (this.move.current) {
+
                     this.move.current = false;
                     this.element.style.transition = "all 0.1s";
 
                     const pos = this.element.getBoundingClientRect();
                     this.move.storage.x = pos.x;
                     this.move.storage.y = pos.y;
+                    
                 }
             });
 
@@ -292,10 +331,77 @@ function files(appContentBox) {
 
     appContentBox.classList.add("filesBox");
 
-    for (let i=0; i < 5; i++) {
+    // Store Box Content
+    const itemInfo = {
+        images: 
+        [
+            "../../assets/images/icons/32x/creature.png",
+            "../../assets/images/icons/32x/files.png",
+            "../../assets/images/icons/32x/files.png"
+        ],
+
+        text  :
+        [
+            "Let's play a game.exe",
+            "Bomb Instructions",
+            "Credits"
+        ],
+
+        action:
+        [
+            () => location.href = "../../pages/creature.html",
+            () => console.log("click"),
+            () => console.log("click")
+        ]
+    }
+
+
+    for (let i=0; i < 3; i++) {
 
         const filesItem = appContentBox.appendChild(document.createElement("div"));
         filesItem.classList.add("filesItem");
+
+        // Create and Assign Content to Box
+        let item = {
+            image : filesItem.appendChild(document.createElement("img")),
+            text  : filesItem.appendChild(document.createElement("p")),
+            action: itemInfo.action[i],
+            index : i,
+
+            select: {
+                count : 0,
+                change: false
+            },
+
+            change: (type) => {
+
+                if (type && !this.select.change && this.select.count > 1) {
+
+                    this.select.change
+
+                }
+            }
+        }
+        item.image.src = itemInfo.images[i];
+        item.text.innerHTML = itemInfo.text[i];
+
+        
+        // Renaming and Activation Detection
+        let prevClick = {};
+        filesItem.addEventListener("click", (event) => {
+
+            // Renaming
+            item.select.count++;
+            if (event.target.tagName == "P") item.change(true);
+
+            // Activation
+            const cTime = Date.now();
+            const pTime = prevClick[i];
+
+            if (pTime && (cTime - pTime) < 500 && event.target !== item.text) item.action();
+
+            prevClick[i] = cTime;
+        });
     }
 
     return appContentBox;
