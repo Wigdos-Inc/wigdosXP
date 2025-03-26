@@ -231,3 +231,34 @@ footer div {
 #powerBtn         { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }
 #powerBtn:hover   { background-image: linear-gradient(to top, #d85c52, #f88677, #f88677, #f88677, #fbae9d); }
 #powerBtn:active  { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }
+
+
+/* Shut Down */
+.sdBar {
+    position: absolute;
+    left: 0;
+
+    width: 100vw;
+    height: 20vh;
+}
+#sdTopBar {
+    top: 0;
+    background-color: #003199;
+}
+#sdTopBorder {
+    position: absolute;
+    top: 20vh;
+
+    background-image: linear-gradient(to right, #5583da, #75a0e6, #bbd7ff, #bcd5ff, #acccfa, #8fb5f2, #86abed, #5e8ade, #4673d4);
+    height: 5px;
+    width: 100vw;
+}
+#sdBottomBar {
+    bottom: 0;
+    background-image: linear-gradient(to right, #2c308b, #003199);
+}
+#sdBottomBorder {
+    background-image: linear-gradient(to right, #062d7c, #896b5a, #bb815a, #a2775f, #746367, #484f6e, #1f3e7c, #092f7d, #003199);
+    height: 5px;
+    width: 100vw;
+}

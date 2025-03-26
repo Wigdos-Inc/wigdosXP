@@ -1,3 +1,10 @@
+/* Global Variables */
+
+const taskbar = document.getElementsByTagName("footer")[0];
+const desktop = document.getElementsByTagName("main")[0];
+
+
+
 /* Icons */
 
 document.getElementById("tbIcon1").onclick = () => application("notepad");
@@ -78,8 +85,8 @@ document.getElementById("smButton").addEventListener("click", (event) => {
         powerText.innerHTML = "Power Off"
 
         // Functions
-        restartBtn.onclick = () => power(false);
-        powerBtn.onclick = () => power(true);
+        restartBtn.onclick = () => power.stage1(false);
+        powerBtn.onclick = () => power.stage1(true);
 
     }
     else if (smActive && document.getElementById("smButton").contains(event.target)) {
@@ -103,31 +110,115 @@ document.addEventListener("mousedown", (event) => {
 
 
 /* Power Options */
-function power(off) {
+let power = {
+    type   : undefined,
+    overlay: document.createElement("div"),
 
-    if (!document.title.includes("Desktop")) {
-        sessionStorage.setItem("shutdown", off);
-        index();
-    }
+    stage1 : function(off) {
 
-    // Remove Start Menu
-    smActive = false;
-    document.getElementById("smBox").remove();
+        // Redirect to Desktop for Shutdown
+        if (!document.title.includes("Desktop")) {
 
-    // Remove User Agency
-    document.body.style.pointerEvents = "none";
+            sessionStorage.setItem("shutdown", off);
+            index();
 
-    // Prepare Overlay
-    const overlay = document.body.appendChild(document.createElement("div"));
-    overlay.style.width = "100vw"; overlay.style.width = "100vh";
+            return;
 
+        }
 
-    // Stage 2 (Flash & Remove UI)
-    setTimeout(() => {
+        this.type = off;
 
+        // Remove Start Menu
+        smActive = false;
+        document.getElementById("smBox").remove();
+
+        // Remove User Agency
+        document.body.style.pointerEvents = "none";
+        
+        // Prepare Overlay
+        document.body.appendChild(this.overlay);
+        this.overlay.style.width = "100vw"; this.overlay.style.height = "100vh";
+        this.overlay.style.position = "absolute"; this.overlay.style.top = 0; this.overlay.style.left = 0;
+
+        // Cursor Change
+        document.body.style.cursor = "wait";
+
+        setTimeout(() => this.stage2(), 500);
+    },
+
+    stage2: function() {
+
+        // Remove Desktop Icons
+        taskbar.style.position = "absolute";
+        taskbar.style.bottom = 0;
         document.getElementsByTagName("main")[0].remove();
-    }, 500);
 
+        // Shutdown Effects (1st Flash)
+        this.overlay.style.backgroundColor = "#080c14";
+
+        setTimeout(() => {
+
+            // Shutdown Effects (2nd Flash)
+            this.overlay.style.backgroundColor = "#466bc2";
+
+            setTimeout(() => {
+
+                // Make Overlay Transparent
+                this.overlay.style.backgroundColor = "transparent";
+
+                setTimeout(() => {
+
+                    // Remove Taskbar
+                    taskbar.remove();
+
+                    setTimeout(() => this.stage3(), 1500);
+                }, 500);
+            }, 100);
+        }, 100);
+    },
+
+    stage3: function() {
+
+        // Shutdown Screen
+        this.overlay.style.backgroundImage = "linear-gradient(to right, #739be4, #5480da, #5480da)";
+        
+        const topBar = this.overlay.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
+        const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";
+        const bottomBar = this.overlay.appendChild(document.createElement("div")); bottomBar.classList.add("sdBar"); bottomBar.id = "sdBottomBar";
+        const bottomBorder = bottomBar.appendChild(document.createElement("div")); bottomBorder.id = "sdBottomBorder";
+
+
+        // Shutdown Sound
+        const shutDownSFX = new Audio("../../assets/sfx/Windows XP Shutdown Sound.mp3");
+        shutDownSFX.play();
+
+        shutDownSFX.onended = () => {
+
+            // Remove Shutdown Screen
+            topBar.remove();
+            topBorder.remove();
+            bottomBar.remove();
+            bottomBorder.remove();
+
+            // Clear Session Data
+            sessionStorage.clear();
+
+            // Shutdown
+            this.overlay.style.backgroundColor = "black";
+            setTimeout(() => (this.type ? window.close() : index()), 2000);
+        }
+    }
 }
 
-if (sessionStorage.getItem("shutdown")) power(sessionStorage.getItem("shutdown"));
+if (sessionStorage.getItem("shutdown")) power.stage1(sessionStorage.getItem("shutdown"));
+
+
+/* Wayyyy too funny
+const shutDownSFX = new Audio("../../assets/sfx/Windows XP Shutdown Sound.mp3");
+shutDownSFX.play();
+
+shutDownSFX.onended = () => {
+
+playerrorSound();
+}
+*/
