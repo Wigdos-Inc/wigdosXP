@@ -282,7 +282,6 @@ document.addEventListener("mousemove", (event) => {
 
     if (selection.box) {
 
-
         // Update the Size and Position of the Selection Box
         const width = event.clientX - selection.start.x;
         let height = event.clientY - selection.start.y;
