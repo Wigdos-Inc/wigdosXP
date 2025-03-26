@@ -126,11 +126,11 @@ let power = {
 
         }
 
-        this.type = off;
+        this.type = sessionStorage.getItem("shutdown") ? sessionStorage.getItem("shutdown") : off;
 
         // Remove Start Menu
         smActive = false;
-        document.getElementById("smBox").remove();
+        if (document.getElementById("smBox")) document.getElementById("smBox").remove();
 
         // Remove User Agency
         document.body.style.pointerEvents = "none";
@@ -143,7 +143,7 @@ let power = {
         // Cursor Change
         document.body.style.cursor = "wait";
 
-        setTimeout(() => this.stage2(), 500);
+        setTimeout(() => this.stage2(), 1000);
     },
 
     stage2: function() {
@@ -173,13 +173,14 @@ let power = {
 
                     setTimeout(() => this.stage3(), 1500);
                 }, 500);
-            }, 100);
-        }, 100);
+            }, 50);
+        }, 50);
     },
 
     stage3: function() {
 
         // Shutdown Screen
+        document.body.style.backgroundImage = "none";
         this.overlay.style.backgroundImage = "linear-gradient(to right, #739be4, #5480da, #5480da)";
         
         const topBar = this.overlay.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
@@ -204,8 +205,14 @@ let power = {
             sessionStorage.clear();
 
             // Shutdown
+            this.overlay.style.backgroundImage = "none";
             this.overlay.style.backgroundColor = "black";
-            setTimeout(() => (this.type ? window.close() : index()), 2000);
+
+            // Make the Cursor Invisible
+            this.overlay.style.pointerEvents = "auto";
+            this.overlay.style.cursor = "none"
+
+            setTimeout(() => (this.type === "true" ? window.close() : index()), 2000);
         }
     }
 }
