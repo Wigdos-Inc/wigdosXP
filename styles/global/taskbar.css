@@ -37,7 +37,7 @@ footer div {
     background-image: linear-gradient(to top, #479c58, #43ad4e, #43ad4e, #48a159, #87B782);
     cursor: pointer;
 }
-#smButton:active { background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782); }
+#smButton:active { background-image: linear-gradient(to top, #186414, #239b20, #239b20, #148717, #186414); }
 
 #smButton * {
     max-height: 75%;
@@ -123,3 +123,111 @@ footer div {
     cursor: pointer;
 }
 #tbTimeBox:active { background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9); }
+
+
+
+/* Start Menu */
+#smBox {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+
+    width: 380px;
+    height: 450px;
+
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    box-shadow: 3px 2px 2px rgba(0, 0, 0, 0.400);
+
+    z-index: 200;
+    overflow: hidden;
+}
+
+
+#smHeader {
+    width: 100%;
+    height: 20%;
+    background-image: linear-gradient(to top, #488fee, #3181e4, #1b6dd3, #0d5eca, #0d5eca, #1c6dd6, #64a2e7);
+
+    display: flex;
+    align-items: center;
+}
+#smHeader img {
+    max-height: 100%;
+    max-width: 100px;
+    margin-left: 10px;
+
+    border: 3px solid white;
+    background-color: black;
+    border-radius: 5px;
+}
+#smHeader p {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 20px;
+    text-shadow: 
+        3px 2px 3px rgba(0, 0, 0, 0.5);
+
+    margin-left: 10px;
+}
+
+
+#smMain {
+    width: 100%;
+    height: 68%;
+
+    background-color: white;
+    border: 2px solid #488fee;
+    border-top: 1px solid #0c4cd1;
+    border-bottom: 1px solid #0c4cd1;
+
+    text-shadow: none;
+}
+
+
+#smFooter {
+    width: 100%;
+    height: 12%;
+    background-image: linear-gradient(to bottom, #488fee, #3584e3, #2878e1, #176cd9, #0f64d1);
+    
+    display: flex;
+    position: relative;
+
+    text-shadow: none;
+}
+#smFooter div {
+    height: 100%;
+}
+#smFooterRight {
+    position: absolute;
+    right: 0;
+    width: 70%;
+
+    display: flex;
+
+}
+
+.powerOptionBox {
+    width: fit-content;
+    padding: 10px;
+
+    display: flex;
+    align-items: center;
+}
+.powerOptionBox img {
+    max-width: 100%;
+    max-height: 100%;
+
+    padding: 5px;
+    margin-right: 8px;
+
+    border: 2px solid white;
+    border-radius: 5px;
+
+    cursor: pointer;
+}
+#restartBtn       { background-image: linear-gradient(to top, #2c7f38, #3c983d, #3c983d, #3c983d, #8fcd8f); }
+#restartBtn:hover { background-image: linear-gradient(to top, #2c7f38, #49b64b, #49b64b, #49b64b, #8fcd8f); }
+#restartBtn:active{ background-image: linear-gradient(to top, #2c7f38, #3c983d, #3c983d, #3c983d, #8fcd8f); }
+#powerBtn         { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }
+#powerBtn:hover   { background-image: linear-gradient(to top, #d85c52, #f88677, #f88677, #f88677, #fbae9d); }
+#powerBtn:active  { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }

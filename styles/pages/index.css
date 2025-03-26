@@ -20,6 +20,12 @@
     visibility: hidden;
 }
 
+body { 
+    background-image: url(../../assets/images/background/desktop.jpg);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
 
 
 
@@ -36,19 +42,13 @@ main {
 
     padding: 5px;
 
-    background-image: url(../../assets/images/background/desktop.jpg);
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-
-
     color: whitesmoke;
     text-shadow: 
         0 0 2px black,
         0 0 2px black,
-        0 1.5px 4px rgba(0, 0, 0, 0.5);
+        1px 1.5px 2px rgba(0, 0, 0, 0.5);
 
-        cursor: url("../../assets/cursor/cursor.cur");
+    cursor: url("../../assets/cursor/cursor.cur");
 }
 
 
