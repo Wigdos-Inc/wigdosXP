@@ -20,6 +20,9 @@
     visibility: hidden;
 }
 
+
+
+
 main, footer {
     opacity: 0;
 }
@@ -44,6 +47,8 @@ main {
         0 0 2px black,
         0 0 2px black,
         0 1.5px 4px rgba(0, 0, 0, 0.5);
+
+        cursor: url("../../assets/cursor/cursor.cur");
 }
 
 .dk-grid-box {
