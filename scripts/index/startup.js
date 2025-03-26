@@ -11,7 +11,7 @@ window.onload = () => {
 
         const creature = powerOn.appendChild(document.createElement("img"));
         creature.src = "../../assets/images/icons/48x/creature.png";
-        creature.style.position = "absolute"; creature.style.top
+        creature.style.position = "absolute";
         creature.style.width = "80%";
         creature.style.opacity = "0.02";
         creature.style.pointerEvents = "none";
@@ -59,14 +59,3 @@ function load() {
         document.getElementsByTagName("footer")[0].style.opacity = 1;
     }
 };
-
-function playerrorSound() {
-    const audio = new Audio('../../assets/sfx/Windows XP Error Sound.mp3');
-    audio.play();
-}
-
-try {
-} catch (error) {
-    console.error(error.message);
-    playerrorSound(); 
-}
