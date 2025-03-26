@@ -259,6 +259,7 @@ function application(type) {
     let cMove;
     let full;
     let appTitle;
+    let appIcon;
 
     let appender = document.createElement("div");
 
@@ -269,6 +270,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
+            appIcon = "../../assets/images/icons/16x/files.png";
             appTitle = "File Explorer";
 
             appender = files(appender);
@@ -280,6 +282,7 @@ function application(type) {
             cClose = false;
             cMove = false;
             full = true;
+            appIcon = "../../assets/images/icons/16x/wiggleSearch.png";
             appTitle = "WiggleSearch";
 
             appender = null;
@@ -291,6 +294,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
+            appIcon = "../../assets/images/icons/16x/notepad.png";
             appTitle = "Notepad";
 
             appender = notes(appender);
@@ -302,6 +306,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
+            appIcon = "../../assets/images/icons/16x/recycle.png";
             appTitle = "Recycling Bin";
 
             appender = bin(appender);
@@ -313,8 +318,13 @@ function application(type) {
     
     const application = new AppWindow(cClose, cMove, full)
     application.create();
-    application.nameBox.innerHTML = appTitle;
     application.screenChange();
+
+    const appImg = application.nameBox.appendChild(document.createElement("img"));
+    appImg.classList.add("appIcon"); appImg.src = appIcon;
+
+    const appName = application.nameBox.appendChild(document.createElement("p"));
+    appName.classList.add("appName"); appName.innerHTML = appTitle;
 
     if (appender) {
         appender.classList.add("appender");
@@ -342,7 +352,7 @@ function files(appContentBox) {
 
         text  :
         [
-            "Let's play a game.exe",
+            "Let's Play A Game.exe",
             "Bomb Instructions",
             "Credits"
         ],
