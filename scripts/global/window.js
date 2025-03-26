@@ -204,7 +204,7 @@ class AppWindow {
             this.element.remove();
             windows.object[this.index] = null;
         }
-        else location.href = "../../index.html";
+        else index();
     }
 
     screenChange() {
@@ -359,7 +359,7 @@ function files(appContentBox) {
 
         action:
         [
-            () => location.href = "../../pages/creature.html",
+            () => creature(),
             () => console.log("click"),
             () => console.log("click")
         ]

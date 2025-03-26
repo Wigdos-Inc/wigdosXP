@@ -107,7 +107,7 @@ function power(off) {
 
     if (!document.title.includes("Desktop")) {
         sessionStorage.setItem("shutdown", off);
-        location.href
+        index();
     }
 
     // Remove Start Menu
