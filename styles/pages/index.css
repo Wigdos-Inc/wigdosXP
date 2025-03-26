@@ -51,6 +51,17 @@ main {
         cursor: url("../../assets/cursor/cursor.cur");
 }
 
+
+.filled:hover, 
+.filled:active, 
+.activeBox:hover, 
+.dk-grid-box img:hover, 
+.dk-grid-box p:hover {
+    cursor: url("../../assets/cursor/pointy.cur"), auto;
+}
+   
+
+
 .dk-grid-box {
     border: 4px solid transparent;
     padding: 15px;
