@@ -4,17 +4,25 @@ const taskbar = document.getElementsByTagName("footer")[0];
 const desktop = document.getElementsByTagName("main")[0];
 
 
+/* HTML Setup */
 
-/* Icons */
+const smButtonElement = taskbar.appendChild(document.createElement("div")); smButtonElement.id = "smButton";
+const smCreature = smButtonElement.appendChild(document.createElement("img")); smCreature.src = "../../assets/images/icons/16x/creature.png";
+const smStart = smButtonElement.appendChild(document.createElement("p")); smStart.innerHTML = "<i><strong>start</strong></i>";
 
-document.getElementById("tbIcon1").onclick = () => application("notepad");
-document.getElementById("tbIcon2").onclick = () => application("files");
+const tbIconBox = taskbar.appendChild(document.createElement("div")); tbIconBox.id = "tbIconBox";
+const tbIcon1 = tbIconBox.appendChild(document.createElement("div")); tbIcon1.classList.add("tbIcons"); tbIcon1.id = "tbIcon1";
+const tbIcon2 = tbIconBox.appendChild(document.createElement("div")); tbIcon2.classList.add("tbIcons"); tbIcon2.id = "tbIcon2";
+tbIcon1.onclick = () => application("notepad");
+tbIcon2.onclick = () => application("files");
+
+const tbBorder = taskbar.appendChild(document.createElement("div")); tbBorder.id = "tbRightBorder";
+const tbTimeBox = taskbar.appendChild(document.createElement("div")); tbTimeBox.id = "tbTimeBox";
 
 
 
 /* Time Stuff */
 
-const timeBox = document.getElementById("tbTimeBox");
 const baseClock = setInterval(() => update("tbClock"), 1000);
 
 function update(type) {
@@ -27,12 +35,12 @@ function update(type) {
     }
 
     // Display the Current Time
-    if (type == "tbClock") timeBox.innerHTML = `${cTime.hours}:${cTime.minutes}`;
+    if (type == "tbClock") tbTimeBox.innerHTML = `${cTime.hours}:${cTime.minutes}`;
 }
 update("tbClock");
 
 
-timeBox.addEventListener("click", () => {
+tbTimeBox.addEventListener("click", () => {
 
     // Expanded Time Stuff
 });
@@ -41,13 +49,13 @@ timeBox.addEventListener("click", () => {
 
 /* Start Menu */
 let smActive;
-document.getElementById("smButton").addEventListener("click", (event) => {
+smButtonElement.addEventListener("click", (event) => {
 
     if (!smActive) {
         
         smActive = true;
 
-        const startMenu = document.getElementsByTagName("main")[0].appendChild(document.createElement("div"));
+        const startMenu = desktop.appendChild(document.createElement("div"));
         startMenu.id = "smBox";
         startMenu.style.opacity = 1;
 
@@ -89,7 +97,7 @@ document.getElementById("smButton").addEventListener("click", (event) => {
         powerBtn.onclick = () => power.stage1(true);
 
     }
-    else if (smActive && document.getElementById("smButton").contains(event.target)) {
+    else if (smActive && smButtonElement.contains(event.target)) {
         smActive = false;
         document.getElementById("smBox").remove();
     }
@@ -99,7 +107,7 @@ document.getElementById("smButton").addEventListener("click", (event) => {
 
 document.addEventListener("mousedown", (event) => {
 
-    if (smActive && !document.getElementById("smBox").contains(event.target) && !document.getElementById("smButton").contains(event.target)) {
+    if (smActive && !document.getElementById("smBox").contains(event.target) && !smButtonElement.contains(event.target)) {
 
         smActive = false;
         document.getElementById("smBox").remove();
@@ -151,7 +159,7 @@ let power = {
         // Remove Desktop Icons
         taskbar.style.position = "absolute";
         taskbar.style.bottom = 0;
-        document.getElementsByTagName("main")[0].remove();
+        desktop.remove();
 
         // Shutdown Effects (1st Flash)
         this.overlay.style.backgroundColor = "#080c14";

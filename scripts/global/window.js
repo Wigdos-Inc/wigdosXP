@@ -96,6 +96,7 @@ class AppWindow {
         const os = this.header.appendChild(document.createElement("img"));
         os.classList.add("appOS");
         os.src = "../../assets/images/icons/16x/creature.png";
+        os.onclick = () => creature();
 
 
         // Mid Bar (Content Depends on Application)
