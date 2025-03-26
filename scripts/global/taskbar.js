@@ -220,7 +220,7 @@ let power = {
             this.overlay.style.pointerEvents = "auto";
             this.overlay.style.cursor = "none"
 
-            setTimeout(() => (this.type === "true" ? window.close() : index()), 2000);
+            setTimeout(() => (!this.type ? index() : window.close()), 2000);
         }
     }
 }
