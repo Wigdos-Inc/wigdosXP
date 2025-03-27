@@ -83,8 +83,8 @@ class AppWindow {
 
         const screenBtn = selectBox.appendChild(document.createElement("div"));
         screenBtn.classList.add("appScreen", "selectBtns");
-        screenBtn.innerHTML = "<strong>W</strong>";
-        // BUTTON ICON DO NOW RECENT CUM
+        const screenImg = screenBtn.appendChild(document.createElement("img")); screenImg.classList.add("screenImg");
+        screenImg.src = "../../assets/images/icons/16x/screen.png"
 
         if (this.cClose) {
 
@@ -92,8 +92,9 @@ class AppWindow {
 
                 this.full = !this.full;
                 this.screenChange();
-                screenBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
             }
+            
+            screenBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
 
         } else screenBtn.style.backgroundColor = "grey";
 

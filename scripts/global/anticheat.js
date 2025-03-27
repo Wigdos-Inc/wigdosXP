@@ -41,7 +41,6 @@ function stopCheating() {
             // Wait for Error Sound to Finish before Booting User back to Index
             let audio = await playerrorSound();
             setTimeout(() => index(), 1000);
-
         }
     });
 }
