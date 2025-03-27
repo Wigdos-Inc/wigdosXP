@@ -3,6 +3,8 @@
     background-color: black;
 }
 
+
+
 #bombus {
     position: absolute;
     left: 50%;
@@ -73,3 +75,57 @@
 }
 .buttons:hover  { background-color: rgba(255, 255, 255, 0.1); }
 .buttons:active { background-color: rgba(0, 0, 0, 0.2); }
+
+
+
+#sticky {
+    position: absolute;
+    left: 20%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+
+    pointer-events: none;
+}
+
+#stickyBox {
+    width: 426px;
+    height: 564px;
+
+    background-color: rgba(255, 0, 0, 0.2);
+
+    position: absolute;
+    left: 20%;
+    top: 50%;
+    transform: translate(-32.5%, -57%) scale(0.65);
+    rotate: -14deg;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stickyInnerBox {
+    background-color: rgba(0, 0, 255, 0.2);
+
+    width: 70%;
+    user-select: none;
+
+    font-size: 30px;
+}
+#stickyQbox {
+    height: 15%;
+    margin-top: 8%;
+}
+#stickyAbox {
+    height: 40%;
+    margin-top: 8%;
+}
+#stickyNbox {
+    margin-top: 10%;
+    height: 19%;
+}
+#qnr {
+    position: absolute;
+    bottom: 6%;
+    right: 8%;
+}

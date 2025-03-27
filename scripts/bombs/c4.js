@@ -5,3 +5,6 @@ document.getElementsByClassName("appMainTopBar")[0].remove();
 
 
 
+/* HTML Elements */
+
+// 
