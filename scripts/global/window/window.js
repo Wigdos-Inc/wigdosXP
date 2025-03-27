@@ -6,16 +6,16 @@ try {
         bin  : document.body.appendChild(document.createElement("script")),
     }
 
-    Object.entries(js).forEach(entry => entry.type = "text/javascript");
-
     js.files.type = "text/javascript";
+    js.notes.type = "text/javascript";
+    js.bin.type = "text/javascript";
 
-    js.files.src = "files.js";
-    js.notes.src = "notes.js";
-    js.bin.src = "bin.js";
+    js.files.src = "../../scripts/global/window/files.js";
+    js.notes.src = "../../scripts/global/window/notes.js";
+    js.bin.src = "../../scripts/global/window/bin.js";
 }
 catch {
-    //playerrorSound();
+    playerrorSound();
 }
 
 
