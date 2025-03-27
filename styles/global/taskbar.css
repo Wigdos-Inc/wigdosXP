@@ -281,11 +281,11 @@ footer div {
 }
 #sdGraphic {
     position: absolute;
-    right: 40vw;
+    right: 6vw;
     top: 50vh;
     transform: translateY(-50%);;
 
-    
+    height: 80%;
 }
 #sdTopBar {
     top: 0;

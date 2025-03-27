@@ -197,7 +197,6 @@ class AppWindow {
                     this.element.style.left = `${event.clientX - this.move.xOffset}px`;
                     this.element.style.top = `${event.clientY - this.move.yOffset}px`;
 
-                    // Requires Debugging
                     this.element.style.width = `${this.move.storage.w}px`;
                     this.element.style.height = `${this.move.storage.h}px`;
 

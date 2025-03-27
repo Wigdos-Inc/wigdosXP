@@ -266,6 +266,7 @@ let power = {
             topBorder.remove();
             bottomBar.remove();
             bottomBorder.remove();
+            graphic.remove();
 
             // Clear Session Data
             sessionStorage.clear();
