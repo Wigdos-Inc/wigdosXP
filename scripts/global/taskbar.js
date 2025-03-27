@@ -73,6 +73,61 @@ smButtonElement.addEventListener("click", (event) => {
         // Main
         const smMain = startMenu.appendChild(document.createElement("div")); smMain.id = "smMain";
 
+        const smLeftHalf = {
+            element: smMain.appendChild(document.createElement("div")),
+            images : 
+            [
+                "../../assets/images/icons/32x/wiggleSearch.png",
+                "../../assets/images/icons/32x/wiglefari.png"
+            ],
+            titles : ["WiggleSearch", "Wiglefari"],
+            actions:
+            [
+                () => wiggleSearch(),
+                () => wiggleSearch()
+            ]
+        }
+        smLeftHalf.element.classList.add("smHalf"); smLeftHalf.element.id = "smLeftHalf";
+        for (let i=0; i < 2; i++) {
+
+            const item = smLeftHalf.element.appendChild(document.createElement("div")); item.classList.add("smLeftItem");
+            const itemImg = item.appendChild(document.createElement("img")); itemImg.classList.add("smItemImg");
+            itemImg.src = smLeftHalf.images[i];
+            
+            const itemText = item.appendChild(document.createElement("p")); itemText.classList.add("smItmText");
+            itemText.innerHTML = smLeftHalf.titles[i];
+
+            item.onclick = smLeftHalf.actions[i];
+        }
+
+        
+        const smRightHalf = {
+            element: smMain.appendChild(document.createElement("div")),
+            images : 
+            [
+                "../../assets/images/icons/32x/files.png",
+                "../../assets/images/icons/32x/notepad.png"
+            ],
+            titles : ["File Explorer", "Notepad"],
+            actions:
+            [
+                () => application("files"),
+                () => application("notes")
+            ]
+        }
+        smRightHalf.element.classList.add("smHalf"); smRightHalf.element.id = "smRightHalf";
+        for (let i=0; i < 2; i++) {
+
+            const item = smRightHalf.element.appendChild(document.createElement("div")); item.classList.add("smRightItem");
+            const itemImg = item.appendChild(document.createElement("img")); itemImg.classList.add("smItemImg");
+            itemImg.src = smRightHalf.images[i];
+            
+            const itemText = item.appendChild(document.createElement("p")); itemText.classList.add("smItmText");
+            itemText.innerHTML = smRightHalf.titles[i];
+
+            item.onclick = smRightHalf.actions[i];
+        }
+
 
         // Footer
         const smFooter = startMenu.appendChild(document.createElement("div")); smFooter.id = "smFooter";
