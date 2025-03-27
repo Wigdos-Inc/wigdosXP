@@ -29,6 +29,7 @@
 
 .appIcon {
     height: 70%;
+    pointer-events: none;
 }
 .appName {
     width: 100%;
