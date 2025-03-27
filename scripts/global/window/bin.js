@@ -1,0 +1,4 @@
+function bin() {
+
+    return null;
+}
