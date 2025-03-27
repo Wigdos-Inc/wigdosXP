@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizzy WiggleWagers - FuzzyExplosions</title>
+
+    <link rel="stylesheet" href="../../styles/global/main.css">
+    <link rel="stylesheet" href="../../styles/global/taskbar.css">
+    <link rel="stylesheet" href="../../styles/global/window.css">
+    
+    <link rel="stylesheet" href="../../styles/bombs/c4.css">
+</head>
+<body>
+    <main>
+        <div id="content">
+            <!-- Page Content -->
+            <img src="../../assets/images/bombs/c4.png" id="bombus">
+
+            <div id="numberBox">
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+                <div class="digits">x</div>
+            </div>
+
+            <div id="buttonBox">
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+                <div class="buttons">x</div>
+            </div>
+        </div>
+    </main>
+
+    <footer></footer> <!-- Filled By taskbar.js -->
+    
+
+    <!-- Prep Scripts -->
+    <script src="../../scripts/global/global.js"></script>
+    <script src="../../scripts/global/window/window.js"></script>
+    <script src="../../scripts/global/anticheat.js"></script>
+
+    <!-- Content Scripts -->
+    <script src="../../scripts/global/taskbar.js"></script>
+    <script src="../../scripts/bombs/c4.js"></script>
+    <script>
+        windows.object[0].content.appendChild(document.getElementById("content"));
+    </script>
+</body>
+</html>

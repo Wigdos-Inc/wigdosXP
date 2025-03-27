@@ -336,6 +336,19 @@ function application(type) {
     
             break;
 
+
+        case "c4":
+    
+            cClose = false;
+            cMove = false;
+            full = true;
+            appIcon = "";
+            appTitle = "C4 Defusal";
+
+            appender = null;
+    
+            break;
+
         default: return;
     }
     

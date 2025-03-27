@@ -1,0 +1,75 @@
+#content {
+    position: relative;
+    background-color: black;
+}
+
+#bombus {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1.25);
+
+    pointer-events: none;
+}
+
+#numberBox {
+    width: 234px;
+    height: 54px;
+
+    background-color: rgba(255, 0, 0, 0.200);
+
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1.25);
+
+    margin-top: -206px;
+    padding: 6px;
+
+    display: grid;
+    grid-template-columns: auto auto auto auto auto auto auto auto;
+    gap: 6px;
+}
+.digits {
+    width: 100%;
+    height: 100%;
+
+    background-color: rgba(0, 0, 255, 0.2);
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#buttonBox {
+    height: 246px;
+    width: 186px;
+
+    /* background-color: rgba(255, 0, 0, 0.200); */
+
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1.25);
+    
+    margin-top: 63.75px;
+    padding: 6px;
+
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap: 6px;
+}
+.buttons {
+    width: 54px;
+    height: 54px;
+
+    /* background-color: rgba(0, 0, 255, 0.200); */
+
+    cursor: pointer;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.buttons:hover  { background-color: rgba(255, 255, 255, 0.1); }
+.buttons:active { background-color: rgba(0, 0, 0, 0.2); }
