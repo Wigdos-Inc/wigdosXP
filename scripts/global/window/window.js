@@ -84,6 +84,7 @@ class AppWindow {
         const screenBtn = selectBox.appendChild(document.createElement("div"));
         screenBtn.classList.add("appScreen", "selectBtns");
         screenBtn.innerHTML = "<strong>W</strong>";
+        // BUTTON ICON DO NOW RECENT CUM
 
         if (this.cClose) {
 
