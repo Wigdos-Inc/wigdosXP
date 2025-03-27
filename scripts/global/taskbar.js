@@ -245,6 +245,9 @@ let power = {
         // Shutdown Screen
         document.body.style.backgroundImage = "none";
         this.overlay.style.backgroundImage = "linear-gradient(to right, #739be4, #5480da, #5480da)";
+
+        const graphic = this.overlay.appendChild(document.createElement("img")); graphic.id = "sdGraphic";
+        graphic.src = "../../assets/images/background/shutdownGraphic.png";
         
         const topBar = this.overlay.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
         const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";

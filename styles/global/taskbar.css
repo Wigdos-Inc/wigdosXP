@@ -279,6 +279,14 @@ footer div {
     width: 100vw;
     height: 20vh;
 }
+#sdGraphic {
+    position: absolute;
+    right: 40vw;
+    top: 50vh;
+    transform: translateY(-50%);;
+
+    
+}
 #sdTopBar {
     top: 0;
     background-color: #003199;
