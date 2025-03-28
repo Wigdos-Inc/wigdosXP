@@ -7,8 +7,6 @@ document.getElementsByClassName("appMainTopBar")[0].remove();
 
 /* Variables */
 
-let cQuestion;
-
 // HTML Elements
 const element = {
     main  : document.getElementById("content"),
@@ -28,6 +26,12 @@ const element = {
 
         insert   : function(digit) {
 
+            // Store User Code
+            for (let i=0; i < 15; i++) {
+    
+                if (this.numbers[i].innerHTML) quiz.uCode[i] ? quiz.uCode[i] = this.numbers[i].innerHTML : quiz.uCode += this.numbers[i].innerHTML;
+            }
+
             // Digit Correction
             if (digit == 11) digit = 0;
             else if (digit == 12) digit = 11;
@@ -41,15 +45,23 @@ const element = {
             }
             else if (digit == 10) {
 
-                // Return to Previous Question
-                quiz.index = (quiz.index == 0 ? 14 : quiz.index - 1);
+                // Remove Timer
+                clearTimeout(quiz.timer);
+
+                // Return to Previous Question (or show Results)
+                if (quiz.completionCheck()) quiz.index = (quiz.index == 0 ? 15 : quiz.index - 1);
+                else quiz.index = (quiz.index == 0 ? 14 : quiz.index - 1);
                 quiz.display();
 
             }
             else if (digit == 11) {
 
-                // Continue to Next Question
-                quiz.index = (quiz.index == 14 ? 0 : quiz.index + 1);
+                // Remove Timer
+                clearTimeout(quiz.timer);
+
+                // Continue to Next Question (or show Results)
+                if (quiz.completionCheck()) quiz.index = (quiz.index == 14 ? 15 : quiz.index + 1)
+                else quiz.index = (quiz.index == 14 ? 0 : quiz.index + 1);
                 quiz.display();
 
             }
@@ -73,7 +85,7 @@ const element = {
         nBox : document.getElementById("stickyNbox"),
         qnr  : document.getElementById("qnr"),
 
-        notes:
+        yestes:
         [
             "",
             "",
@@ -91,14 +103,50 @@ const element = {
             "",
             ""
         ]
+    },
+
+    results: function() {
+
+        let correct = 0;
+
+        for (let i=0; i < quiz.code.length; i++) {
+
+            if (quiz.uCode[i] == quiz.code[i]) correct++;
+        }
+
+        // Lock Answer Boxes
+        for (let i = 0; i < 4; i++) {
+
+            if (!quiz.finished) element.sticky.aBox.multi.input[i].checked = false;
+        }
+
+        // Remove Answer Boxes
+        element.sticky.aBox.multi.element.style.display = "none";
+        element.sticky.aBox.open.style.display = "none";
+        element.sticky.aBox.output.style.display = "none";
+
+        // Display Result
+        element.sticky.qBox.innerHTML = "You finished!";
+        element.sticky.aBox.element.innerHTML = 
+        `
+            Results: <br/><br/>
+
+            Defusal Code: ${quiz.code} <br/>
+            Your Code: ${quiz.uCode} <br/><br/>
+
+            Correct: ${correct}/${quiz.code.length}
+        `;
     }
 }
 
 // Quiz Info
 const quiz = {
+    finished: false,
     index   : 0,
+    timer   : null,
 
     code    : "",
+    uCode   : "",
 
     question: 
     [
@@ -122,18 +170,18 @@ const quiz = {
     answers: {
         multi:  {
             option: [
-                ["no", "no", "yes", "no"],
-                ["no", "yes", "no", "no"],
-                ["no", "yes", "no", "no"],
-                ["yes","no", "no",  "no"],
-                ["no", "no", "yes", "no"],
-                ["no", "no", "yes", "no"],
-                ["no", "yes", "no", "no"],
-                ["no", "no", "no", "yes"],
-                ["no", "no", "yes", "no"],
-                ["no", "no", "no", "yes"]
+                ["yes", "yes", "no", "yes"],
+                ["yes", "no", "yes", "yes"],
+                ["yes", "no", "yes", "yes"],
+                ["no","yes", "yes",  "yes"],
+                ["yes", "yes", "no", "yes"],
+                ["yes", "no", "yes", "yes"],
+                ["yes", "yes", "yes", "no"],
+                ["yes", "yes", "no", "yes"],
+                ["yes", "yes", "yes", "no"],
+                ["no", "yes", "yes", "yes"]
             ],
-            correct: [2, 1, 1, 0, 2, 1, 3, 2, 3],
+            correct: [2, 1, 1, 0, 2, 1, 3, 2, 3, 0],
             output :
             [
                 [0,0,0,0],
@@ -149,14 +197,19 @@ const quiz = {
             ],
             input  : [null, null, null, null, null, null, null, null, null, null]
         },
-        open :
-        [
-            "incorrect",
-            "incorrect",
-            "incorrect",
-            "incorrect",
-            "incorrect"
-        ]
+        open : {
+            correct:
+            [
+                "incorrect",
+                "incorrect",
+                "incorrect",
+                "incorrect",
+                "incorrect"
+            ],
+            input  : [null, null, null, null, null],
+            output : [null, null, null, null, null],
+            pOutput: [null, null, null, null, null]
+        }
     },
 
     ini    : function() {
@@ -180,6 +233,11 @@ const quiz = {
                 this.answers.multi.output[i][this.answers.multi.correct[i]] = digit;
 
             }
+            else {
+
+                this.answers.open.output[i-10] = digit;
+
+            }
         }
 
         console.log(this.code);
@@ -196,7 +254,7 @@ const quiz = {
                 // Make sure only one can be checked at a time
                 for (let i2 = 0; i2 < 4; i2++) {
 
-                    element.sticky.aBox.multi.input[i2].checked = false;
+                    if (!quiz.finished) element.sticky.aBox.multi.input[i2].checked = false;
                 }
 
                 element.sticky.aBox.multi.input[i].checked = true;
@@ -208,56 +266,112 @@ const quiz = {
 
 
         // Open Answer Typing Recognition
-        let cooldown;
-        element.sticky.aBox.open.addEventListener("keydown", () => undefined)
+        element.sticky.aBox.open.addEventListener("keydown", () => {
+
+            // Remove Previous Timer
+            clearTimeout(this.timer);
+
+            // Start Timer for Validation
+            this.timer = setTimeout(() => {
+
+                // Store Input & Answer without Spaces
+                const input = element.sticky.aBox.open.value.replaceAll(" ", "");
+                const cAnswer = this.answers.open.correct[this.index-10].replaceAll(" ", "");
+                let correct = {
+                    full : cAnswer.length,
+                    total: 0,
+
+                    calc : function() {
+
+                        return Math.round(this.total / this.full * 100);
+                    }
+                };
+
+                console.log(input);
+
+                if (input != "") {
+
+                    // Validate Answer
+                    for (let i=0; i < input.length; i++) {
+
+                        if (cAnswer[i] && input[i] == cAnswer[i]) correct.total++;
+                    }
+
+                    // Store & Display Digit
+                    console.log(correct.calc());
+                    const digit = `Digit: ${correct.calc() >= 80 ? this.answers.open.output[this.index-10] : Math.floor(Math.random() * 10)}`;
+                    element.sticky.aBox.output.innerHTML = digit;
+
+                    // Store User Answer & Received Digit
+                    this.answers.open.input[this.index-10] = element.sticky.aBox.open.value;
+                    this.answers.open.pOutput[this.index-10] = digit;
+
+                }
+            }, 1000);
+        });
     },
         
     display: function() {
 
-        // Highlight Active Digit Box
-        for (let i=0; i < element.bomb.numbers.length; i++) element.bomb.numbers[i].classList.remove("highlight");
-        element.bomb.numbers[this.index].classList.add("highlight");
+        // If the Quiz isn't finished yet
+        if (this.index < 15) {
 
-        element.sticky.qnr.innerHTML = this.index+1;
-        element.sticky.qBox.innerHTML = `<strong>${this.question[this.index]}</strong>`;
+            // Highlight Active Digit Box
+            for (let i=0; i < element.bomb.numbers.length; i++) element.bomb.numbers[i].classList.remove("highlight");
+            element.bomb.numbers[this.index].classList.add("highlight");
 
-        // Empty Digit Output
-        element.sticky.aBox.output.innerHTML = "Digit: ";
+            element.sticky.qnr.innerHTML = this.index+1;
+            element.sticky.qBox.innerHTML = `<strong>${this.question[this.index]}</strong>`;
 
-        if (this.index < 10) {
+            // Empty Digit Output
+            element.sticky.aBox.output.innerHTML = "Digit: ";
 
-            element.sticky.aBox.open.style.display = "none";
-            element.sticky.aBox.multi.element.style.display = "unset";
+            if (this.index < 10) {
 
-            // Display Multiple Choice Answers
-            for (let i=0; i < 4; i++) {
+                element.sticky.aBox.open.style.display = "none";
+                element.sticky.aBox.multi.element.style.display = "unset";
 
-                // Uncheck Boxes
-                element.sticky.aBox.multi.input[i].checked = false;
+                // Display Multiple Choice Answers
+                for (let i=0; i < 4; i++) {
 
-                // Display Answers
-                element.sticky.aBox.multi.labels[i].innerHTML = this.answers.multi.option[this.index][i] + this.answers.multi.output[this.index][i];
+                    // Uncheck Boxes
+                    element.sticky.aBox.multi.input[i].checked = false;
+
+                    // Display Answers
+                    element.sticky.aBox.multi.labels[i].innerHTML = this.answers.multi.option[this.index][i] + this.answers.multi.output[this.index][i];
+                }
+
+                // Check previously Checked Box
+                if (this.answers.multi.input[this.index]) {
+
+                    element.sticky.aBox.multi.input[this.answers.multi.input[this.index]].checked = true;
+                    element.sticky.aBox.output.innerHTML = `Digit: ${this.answers.multi.output[this.index][this.answers.multi.input[this.index]]}`;
+
+                }
+
             }
+            else {
 
-            // Check previously Checked Box
-            if (this.answers.multi.input[this.index]) {
+                element.sticky.aBox.multi.element.style.display = "none";
+                element.sticky.aBox.open.style.display = "unset";
 
-                element.sticky.aBox.multi.input[this.answers.multi.input[this.index]].checked = true;
-                element.sticky.aBox.output.innerHTML = `Digit: ${this.answers.multi.output[this.index][this.answers.multi.input[this.index]]}`;
+
+                // Empty/Refill the Textarea & Output
+                element.sticky.aBox.open.value = this.answers.open.input[this.index-10] ? this.answers.open.input[this.index-10] : "";
+                if (this.answers.open.pOutput[this.index-10]) element.sticky.aBox.output.innerHTML = this.answers.open.pOutput[this.index-10];
 
             }
 
         }
-        else {
+        else element.results();
+    },
 
-            element.sticky.aBox.multi.element.style.display = "none";
-            element.sticky.aBox.open.style.display = "unset";
+    completionCheck: function() {
 
-
-            // Empty the textarea
-            element.sticky.aBox.open.innerHTML = "";
-
-        }
+        // AI (Needs to be replaced)
+        return Array.from(element.bomb.numbers)
+                .slice(0, 15)
+                .every(digitBox => digitBox.innerHTML.trim() !== "");
     }
 }
 
@@ -266,3 +380,26 @@ const quiz = {
 element.bomb.ini();
 quiz.ini();
 quiz.display();
+
+
+document.addEventListener("keydown", (event) => {
+
+    switch (event.key) {
+        case "1": element.bomb.insert(1); break;
+        case "2": element.bomb.insert(2); break;
+        case "3": element.bomb.insert(3); break;
+        case "4": element.bomb.insert(4); break;
+        case "5": element.bomb.insert(5); break;
+        case "6": element.bomb.insert(6); break;
+        case "7": element.bomb.insert(7); break;
+        case "8": element.bomb.insert(8); break;
+        case "9": element.bomb.insert(9); break;
+        case "0": element.bomb.insert(0); break;
+        
+        case "ArrowLeft": element.bomb.insert(10); break;
+        case "ArrowRight": element.bomb.insert(12); break;
+    
+        default:
+            break;
+    }
+});
