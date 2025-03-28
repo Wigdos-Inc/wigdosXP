@@ -26,6 +26,8 @@ const element = {
 
         insert   : function(digit) {
 
+            if (quiz.finished) return;
+
             // Store User Code
             for (let i=0; i < 15; i++) {
     
@@ -85,7 +87,7 @@ const element = {
         nBox : document.getElementById("stickyNbox"),
         qnr  : document.getElementById("qnr"),
 
-        yestes:
+        notes:
         [
             "",
             "",
@@ -107,8 +109,11 @@ const element = {
 
     results: function() {
 
-        let correct = 0;
+        // Lock the Quiz
+        quiz.finished = true;
 
+        // Calculate how many Answers were Correct
+        let correct = 0;
         for (let i=0; i < quiz.code.length; i++) {
 
             if (quiz.uCode[i] == quiz.code[i]) correct++;
@@ -117,13 +122,33 @@ const element = {
         // Lock Answer Boxes
         for (let i = 0; i < 4; i++) {
 
-            if (!quiz.finished) element.sticky.aBox.multi.input[i].checked = false;
+            element.sticky.aBox.multi.input[i].disabled = true;
         }
+        element.sticky.aBox.open.disabled = true;
 
-        // Remove Answer Boxes
+        // Hide Answer Boxes
         element.sticky.aBox.multi.element.style.display = "none";
         element.sticky.aBox.open.style.display = "none";
         element.sticky.aBox.output.style.display = "none";
+        element.sticky.qnr.innerHTML = "Fin";
+        element.sticky.nBox.style.display = "none";
+
+        // Styling Changes
+        document.getElementById("bombus").style.transition = "all 0.5s ease";
+        element.bomb.buttonBox.style.transition = "all 0.5s ease";
+        element.bomb.numberBox.style.transition = "all 0.5s ease";
+        document.getElementById("sticky").style.transition = "all 0.5s ease";
+        element.sticky.pBox.style.transition = "all 0.5s ease";
+
+        document.getElementById("bombus").style.opacity = 0.5;
+        element.bomb.buttonBox.style.opacity = 0.5;
+        element.bomb.buttonBox.style.pointerEvents = "none";
+        element.bomb.numberBox.style.opacity = 0.5;
+        element.bomb.numberBox.style.pointerEvents = "none";
+
+        document.getElementById("sticky").style.left = "50%";
+        element.sticky.pBox.style.left = "50%";
+
 
         // Display Result
         element.sticky.qBox.innerHTML = "You finished!";
@@ -150,38 +175,88 @@ const quiz = {
 
     question: 
     [
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?",
-        "is a fish a soup?"
+        "What does neurodivergence mean?",
+        "What is NOT considered a form of neurodivergence?",
+        "What does ADHD stand for?",
+        "What's the difference between ADD and ADHD?",
+        "Which of these is a common symptom of Autism?",
+        "What does masking mean?",
+        "What does sensory overload mean?",
+        "What neurodivergence deals with obsessive thoughts?",
+        "What is time blindness?",
+        "What does body doubling mean?",
+        "What type of neurodivergence perceives numbers, letters or words in colour?",
+        "Is epilepsy considered a neurodivergence?",
+        "What do you call repetitive behaviours that people with ASD often engage in?",
+        "What is the full name of ASD?",
+        "What does autism have to do with vaccines?"
     ],
 
     answers: {
         multi:  {
             option: [
-                ["yes", "yes", "no", "yes"],
-                ["yes", "no", "yes", "yes"],
-                ["yes", "no", "yes", "yes"],
-                ["no","yes", "yes",  "yes"],
-                ["yes", "yes", "no", "yes"],
-                ["yes", "no", "yes", "yes"],
-                ["yes", "yes", "yes", "no"],
-                ["yes", "yes", "no", "yes"],
-                ["yes", "yes", "yes", "no"],
-                ["no", "yes", "yes", "yes"]
+                [
+                    "A neurological condition that differs from typical people.",
+                    "Being extremely intelligent.",
+                    "A neurological condition that causes difficulty in focusing.",
+                    "Permanent brain damage."
+                ],
+                [
+                    "ADHD",
+                    "Dyslexia",
+                    "ASD",
+                    "BPD"
+                ],
+                [
+                    "Awareness Divergent Hyperactivity Disorder",
+                    "Attention Defecit Hyperactivity Disorder",
+                    "Attention Defecit High-functioning Disorder",
+                    "Active Development Hyperfocus Disorder"
+                ],
+                [
+                    "Ability to function",
+                    "High energy levels",
+                    "Ability to hyperfocus",
+                    "Increased motivation"
+                ],
+                [
+                    "Lack of emotions",
+                    "Lack of social awareness",
+                    "Lack of empathy",
+                    "Special Talents"
+                ],
+                [
+                    "Avoiding eye contact.",
+                    "Conforming to social norms.",
+                    "Avoiding social situations.",
+                    "Putting on a mask to avoid sensory overload."
+                ],
+                [
+                    "Stress caused by excessive input.",
+                    "Ability to filer senses.",
+                    "Increase in energy.",
+                    "An increased ability to focus on a sense."
+                ],
+                [
+                    "BPD",
+                    "ADD",
+                    "OCD",
+                    "TS"
+                ],
+                [
+                    "Being unable to read a clock.",
+                    "Not being able to tell how much time has passed.",
+                    "Being acutely aware of every passing second.",
+                    "Looking at clocks causes sensory overload."
+                ],
+                [
+                    "Needing the presence of another to finish a task.",
+                    "The ability to copy behaviours",
+                    "Mimicing emotions you don't actually feel",
+                    "A technique to remember physical movements better"
+                ]
             ],
-            correct: [2, 1, 1, 0, 2, 1, 3, 2, 3, 0],
+            correct: [0, 3, 1, 1, 1, 1, 0, 2, 1, 0],
             output :
             [
                 [0,0,0,0],
@@ -200,11 +275,11 @@ const quiz = {
         open : {
             correct:
             [
-                "incorrect",
-                "incorrect",
-                "incorrect",
-                "incorrect",
-                "incorrect"
+                "Synesthesia",
+                "Yes",
+                "Stimming",
+                "Autism Spectrum Disorder",
+                "Nothing"
             ],
             input  : [null, null, null, null, null],
             output : [null, null, null, null, null],
@@ -246,6 +321,8 @@ const quiz = {
         // Multi-Choice Question Answer Recognition
         for (let i=0; i < 4; i++) {
 
+            if (this.finished) return;
+
             element.sticky.aBox.multi.input[i].addEventListener("click", () => {
 
                 // Display Output if Checked
@@ -267,6 +344,8 @@ const quiz = {
 
         // Open Answer Typing Recognition
         element.sticky.aBox.open.addEventListener("keydown", () => {
+
+            if (this.finished) return;
 
             // Remove Previous Timer
             clearTimeout(this.timer);
@@ -338,7 +417,7 @@ const quiz = {
                     element.sticky.aBox.multi.input[i].checked = false;
 
                     // Display Answers
-                    element.sticky.aBox.multi.labels[i].innerHTML = this.answers.multi.option[this.index][i] + this.answers.multi.output[this.index][i];
+                    element.sticky.aBox.multi.labels[i].innerHTML = this.answers.multi.option[this.index][i];
                 }
 
                 // Check previously Checked Box
@@ -362,6 +441,9 @@ const quiz = {
 
             }
 
+            // Display Notes
+            //element.sticky.nBox.value = element.sticky.notes[this.index];
+
         }
         else element.results();
     },
@@ -384,6 +466,8 @@ quiz.display();
 
 document.addEventListener("keydown", (event) => {
 
+    if (quiz.finished) return;
+
     switch (event.key) {
         case "1": element.bomb.insert(1); break;
         case "2": element.bomb.insert(2); break;
@@ -399,7 +483,6 @@ document.addEventListener("keydown", (event) => {
         case "ArrowLeft": element.bomb.insert(10); break;
         case "ArrowRight": element.bomb.insert(12); break;
     
-        default:
-            break;
+        default: break;
     }
 });
