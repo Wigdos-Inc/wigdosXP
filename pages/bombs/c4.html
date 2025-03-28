@@ -33,7 +33,7 @@
                 <div class="digits">x</div>
                 <div class="digits">x</div>
                 <div class="digits">x</div>
-                <div class="digits">x</div>
+                <div class="digits"></div>
             </div>
 
             <div id="buttonBox">
@@ -58,9 +58,33 @@
             <div id="stickyBox">
                 <div id="stickyQbox" class="stickyInnerBox">Question</div>
 
-                <div id="stickyAbox" class="stickyInnerBox">Answers</div>
+                <div id="stickyAbox" class="stickyInnerBox">
+                    <table id="multiAnswerBox">
+                        <tr>
+                            <td><input type="checkbox" name="a0" id="a0" class="answers"></td>
+                            <td><label for="a0" id="l0">placeholder</label></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" name="a1" id="a1" class="answers"></td>
+                            <td><label for="a1" id="l1">placeholder</label></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" name="a2" id="a2" class="answers"></td>
+                            <td><label for="a2" id="l2">placeholder</label></td>
+                        </tr>
+                        <tr>
+                            <td><input type="checkbox" name="a3" id="a3" class="answers"></td>
+                            <td><label for="a3" id="l3">placeholder</label></td>
+                        </tr>
+                    </table>
 
-                <div id="stickyNbox" class="stickyInnerBox">f</div>
+                    <textarea id="openAnswerBox"></textarea>
+                </div>
+
+                <div id="stickyNbox" class="stickyInnerBox">
+                    Notes: <br>
+                    <textarea id="userNotes"></textarea>
+                </div>
 
                 <div id="qnr">x</div>
             </div>

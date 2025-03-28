@@ -1,6 +1,8 @@
 #content {
     position: relative;
     background-color: black;
+
+    user-select: none;
 }
 
 
@@ -42,6 +44,7 @@
     justify-content: center;
     align-items: center;
 }
+.highlight { background-color: rgba(218, 165, 32, 0.2); }
 
 #buttonBox {
     height: 246px;
@@ -117,12 +120,12 @@
     margin-top: 8%;
 }
 #stickyAbox {
-    height: 40%;
+    height: 35%;
     margin-top: 8%;
 }
 #stickyNbox {
     margin-top: 10%;
-    height: 19%;
+    height: 24%;
 }
 #qnr {
     position: absolute;
