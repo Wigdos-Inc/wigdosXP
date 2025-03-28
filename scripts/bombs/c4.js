@@ -207,7 +207,8 @@ const quiz = {
         }
 
 
-        // Prepare Open Answer Typing Recognition
+        // Open Answer Typing Recognition
+        let cooldown;
         element.sticky.aBox.open.addEventListener("keydown", () => undefined)
     },
         
@@ -219,6 +220,9 @@ const quiz = {
 
         element.sticky.qnr.innerHTML = this.index+1;
         element.sticky.qBox.innerHTML = `<strong>${this.question[this.index]}</strong>`;
+
+        // Empty Digit Output
+        element.sticky.aBox.output.innerHTML = "Digit: ";
 
         if (this.index < 10) {
 
@@ -236,7 +240,12 @@ const quiz = {
             }
 
             // Check previously Checked Box
-            if (this.answers.multi.input[this.index]) element.sticky.aBox.multi.input[null]
+            if (this.answers.multi.input[this.index]) {
+
+                element.sticky.aBox.multi.input[this.answers.multi.input[this.index]].checked = true;
+                element.sticky.aBox.output.innerHTML = `Digit: ${this.answers.multi.output[this.index][this.answers.multi.input[this.index]]}`;
+
+            }
 
         }
         else {
