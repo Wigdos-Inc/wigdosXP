@@ -7,10 +7,10 @@ window.onload = () => {
 
         const powerOn = document.body.appendChild(document.createElement("div")); powerOn.classList.add("powerOn");
         const powerOnBtn = powerOn.appendChild(document.createElement("img")); powerOnBtn.classList.add("powerOptionBox"); powerOnBtn.id = "powerOnBtn";
-        powerOnBtn.src = "../../assets/images/icons/32x/power.png";
+        powerOnBtn.src = "assets/images/icons/32x/power.png";
 
         const creature = powerOn.appendChild(document.createElement("img"));
-        creature.src = "../../assets/images/icons/48x/creature.png";
+        creature.src = "assets/images/icons/48x/creature.png";
         creature.style.position = "absolute";
         creature.style.width = "80%";
         creature.style.opacity = "0.05";

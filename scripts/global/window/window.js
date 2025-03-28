@@ -10,9 +10,9 @@ try {
     js.notes.type = "text/javascript";
     js.bin.type = "text/javascript";
 
-    js.files.src = "../../scripts/global/window/files.js";
-    js.notes.src = "../../scripts/global/window/notes.js";
-    js.bin.src = "../../scripts/global/window/bin.js";
+    js.files.src = "scripts/global/window/files.js";
+    js.notes.src = "scripts/global/window/notes.js";
+    js.bin.src = "scripts/global/window/bin.js";
 }
 catch {
     playerrorSound();
@@ -84,7 +84,7 @@ class AppWindow {
         const screenBtn = selectBox.appendChild(document.createElement("div"));
         screenBtn.classList.add("appScreen", "selectBtns");
         const screenImg = screenBtn.appendChild(document.createElement("img")); screenImg.classList.add("screenImg");
-        screenImg.src = "../../assets/images/icons/16x/screen.png"
+        screenImg.src = "assets/images/icons/16x/screen.png"
 
         if (this.cClose) {
 
@@ -118,7 +118,7 @@ class AppWindow {
 
         const os = this.header.appendChild(document.createElement("img"));
         os.classList.add("appOS");
-        os.src = "../../assets/images/icons/16x/creature.png";
+        os.src = "assets/images/icons/16x/creature.png";
         os.onclick = () => creature();
 
 
@@ -293,7 +293,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
-            appIcon = "../../assets/images/icons/16x/files.png";
+            appIcon = "assets/images/icons/16x/files.png";
             appTitle = "File Explorer";
 
             appender = files(appender);
@@ -305,7 +305,7 @@ function application(type) {
             cClose = false;
             cMove = false;
             full = true;
-            appIcon = "../../assets/images/icons/16x/wiggleSearch.png";
+            appIcon = "assets/images/icons/16x/wiggleSearch.png";
             appTitle = "WiggleSearch";
 
             appender = null;
@@ -317,7 +317,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
-            appIcon = "../../assets/images/icons/16x/notepad.png";
+            appIcon = "assets/images/icons/16x/notepad.png";
             appTitle = "Notepad";
 
             appender = notes(appender);
@@ -329,7 +329,7 @@ function application(type) {
             cClose = true;
             cMove = true;
             full = false;
-            appIcon = "../../assets/images/icons/16x/recycle.png";
+            appIcon = "assets/images/icons/16x/recycle.png";
             appTitle = "Recycling Bin";
 
             appender = bin(appender);
