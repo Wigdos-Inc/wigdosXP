@@ -189,7 +189,8 @@ let power = {
 
         }
 
-        this.type = sessionStorage.getItem("shutdown") ? sessionStorage.getItem("shutdown") : off;
+        const sessionOff = sessionStorage.getItem("shutdown")
+        this.type = sessionOff === null ? off : (sessionOff === "true");
 
         // Remove Start Menu
         smActive = false;

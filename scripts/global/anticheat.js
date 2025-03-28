@@ -24,12 +24,12 @@ function stopCheating() {
     creature.src = "../../assets/images/icons/48x/creature.png";
     creature.style.position = "absolute"; creature.style.top = "50vh", creature.style.left = "50vw"; creature.style.transform = "translate(-50%, -50%)";
     creature.style.width = "80%";
-    creature.style.opacity = "0.02";
+    creature.style.opacity = "0.05";
     creature.style.userSelect = "none";
     creature.style.transition = "opacity 1s";
     
-    creature.onmouseover = () => creature.style.opacity = "0.05";
-    creature.onmouseout  = () => creature.style.opacity = "0.02";
+    creature.onmouseover = () => creature.style.opacity = "0.1";
+    creature.onmouseout  = () => creature.style.opacity = "0.05";
 
 
     document.body.addEventListener("click", async (event) => {

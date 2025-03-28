@@ -13,7 +13,7 @@ window.onload = () => {
         creature.src = "../../assets/images/icons/48x/creature.png";
         creature.style.position = "absolute";
         creature.style.width = "80%";
-        creature.style.opacity = "0.02";
+        creature.style.opacity = "0.05";
         creature.style.pointerEvents = "none";
 
 
