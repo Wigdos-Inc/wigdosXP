@@ -7,7 +7,7 @@ const desktop = document.getElementsByTagName("main")[0];
 /* HTML Setup */
 
 const smButtonElement = taskbar.appendChild(document.createElement("div")); smButtonElement.id = "smButton";
-const smCreature = smButtonElement.appendChild(document.createElement("img")); smCreature.src = "../../assets/images/icons/16x/creature.png";
+const smCreature = smButtonElement.appendChild(document.createElement("img")); smCreature.src = "assets/images/icons/16x/creature.png";
 const smStart = smButtonElement.appendChild(document.createElement("p")); smStart.innerHTML = "<i><strong>start</strong></i>";
 
 const tbIconBox = taskbar.appendChild(document.createElement("div")); tbIconBox.id = "tbIconBox";
@@ -64,7 +64,7 @@ smButtonElement.addEventListener("click", (event) => {
         const smHeader = startMenu.appendChild(document.createElement("div")); smHeader.id = "smHeader";
 
         const headerImg = smHeader.appendChild(document.createElement("img"));
-        headerImg.src = "../../assets/images/icons/32x/creature.png";
+        headerImg.src = "assets/images/icons/32x/creature.png";
 
         const headerText = smHeader.appendChild(document.createElement("p"));
         headerText.innerHTML = "<strong>Creature Name</strong>";
@@ -77,8 +77,8 @@ smButtonElement.addEventListener("click", (event) => {
             element: smMain.appendChild(document.createElement("div")),
             images : 
             [
-                "../../assets/images/icons/32x/wiggleSearch.png",
-                "../../assets/images/icons/32x/wiglefari.png"
+                "assets/images/icons/32x/wiggleSearch.png",
+                "assets/images/icons/32x/wiglefari.png"
             ],
             titles : ["WiggleSearch", "Wiglefari"],
             actions:
@@ -105,8 +105,8 @@ smButtonElement.addEventListener("click", (event) => {
             element: smMain.appendChild(document.createElement("div")),
             images : 
             [
-                "../../assets/images/icons/32x/files.png",
-                "../../assets/images/icons/32x/notepad.png"
+                "assets/images/icons/32x/files.png",
+                "assets/images/icons/32x/notepad.png"
             ],
             titles : ["File Explorer", "Notepad"],
             actions:
@@ -137,13 +137,13 @@ smButtonElement.addEventListener("click", (event) => {
 
         const restartBox = smFooterRight.appendChild(document.createElement("div")); restartBox.classList.add("powerOptionBox");
         const restartBtn = restartBox.appendChild(document.createElement("img")); restartBtn.id = "restartBtn";
-        restartBtn.src = "../../assets/images/icons/32x/restart.png";
+        restartBtn.src = "assets/images/icons/32x/restart.png";
         const restartText = restartBox.appendChild(document.createElement("p"));
         restartText.innerHTML = "Restart"
 
         const powerBox = smFooterRight.appendChild(document.createElement("div")); powerBox.classList.add("powerOptionBox");
         const powerBtn = powerBox.appendChild(document.createElement("img")); powerBtn.id = "powerBtn";
-        powerBtn.src = "../../assets/images/icons/32x/power.png";
+        powerBtn.src = "assets/images/icons/32x/power.png";
         const powerText = powerBox.appendChild(document.createElement("p"));
         powerText.innerHTML = "Power Off"
 
@@ -248,7 +248,7 @@ let power = {
         this.overlay.style.backgroundImage = "linear-gradient(to right, #739be4, #5480da, #5480da)";
 
         const graphic = this.overlay.appendChild(document.createElement("img")); graphic.id = "sdGraphic";
-        graphic.src = "../../assets/images/background/shutdownGraphic.png";
+        graphic.src = "assets/images/background/shutdownGraphic.png";
         
         const topBar = this.overlay.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
         const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";
@@ -257,7 +257,7 @@ let power = {
 
 
         // Shutdown Sound
-        const shutDownSFX = new Audio("../../assets/sfx/Windows XP Shutdown Sound.mp3");
+        const shutDownSFX = new Audio("assets/sfx/Windows XP Shutdown Sound.mp3");
         shutDownSFX.play();
 
         shutDownSFX.onended = () => {
@@ -289,7 +289,7 @@ if (sessionStorage.getItem("shutdown")) power.stage1(sessionStorage.getItem("shu
 
 
 /* Wayyyy too funny
-const shutDownSFX = new Audio("../../assets/sfx/Windows XP Shutdown Sound.mp3");
+const shutDownSFX = new Audio("assets/sfx/Windows XP Shutdown Sound.mp3");
 shutDownSFX.play();
 
 shutDownSFX.onended = () => {

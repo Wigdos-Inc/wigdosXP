@@ -6,9 +6,9 @@ function files(appContentBox) {
     const itemInfo = {
         images: 
         [
-            "../../assets/images/icons/32x/creature.png",
-            "../../assets/images/icons/32x/files.png",
-            "../../assets/images/icons/32x/files.png"
+            "assets/images/icons/32x/creature.png",
+            "assets/images/icons/32x/files.png",
+            "assets/images/icons/32x/files.png"
         ],
 
         text  :

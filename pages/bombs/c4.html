@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizzy WiggleWagers - FuzzyExplosions</title>
 
-    <link rel="stylesheet" href="../../styles/global/main.css">
-    <link rel="stylesheet" href="../../styles/global/taskbar.css">
-    <link rel="stylesheet" href="../../styles/global/window.css">
+    <base href="../../">
+    <link rel="stylesheet" href="styles/global/main.css">
+    <link rel="stylesheet" href="styles/global/taskbar.css">
+    <link rel="stylesheet" href="styles/global/window.css">
     
-    <link rel="stylesheet" href="../../styles/bombs/c4.css">
+    <link rel="stylesheet" href="styles/bombs/c4.css">
 </head>
 <body>
     <main>
         <div id="content">
             <!-- Page Content -->
-            <img src="../../assets/images/bombs/c4.png" id="bombus">
+            <img src="assets/images/bombs/c4.png" id="bombus">
 
             <div id="numberBox">
                 <div class="digits"></div>
@@ -53,7 +54,7 @@
 
 
 
-            <img src="../../assets/images/bombs/sticky.png" id="sticky">
+            <img src="assets/images/bombs/sticky.png" id="sticky">
 
             <div id="stickyBox">
                 <div id="stickyQbox" class="stickyInnerBox">Question</div>
@@ -96,13 +97,13 @@
     
 
     <!-- Prep Scripts -->
-    <script src="../../scripts/global/global.js"></script>
-    <script src="../../scripts/global/window/window.js"></script>
-    <script src="../../scripts/global/anticheat.js"></script>
+    <script src="scripts/global/global.js"></script>
+    <script src="scripts/global/window/window.js"></script>
+    <script src="scripts/global/anticheat.js"></script>
 
     <!-- Content Scripts -->
-    <script src="../../scripts/global/taskbar.js"></script>
-    <script src="../../scripts/bombs/c4.js"></script>
+    <script src="scripts/global/taskbar.js"></script>
+    <script src="scripts/bombs/c4.js"></script>
     <script>
         windows.object[0].content.appendChild(document.getElementById("content"));
     </script>

@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizzy WiggleWagers - FuzzyExplosions</title>
 
-    <link rel="stylesheet" href="../../styles/global/main.css">
-    <link rel="stylesheet" href="../../styles/global/taskbar.css">
-    <link rel="stylesheet" href="../../styles/global/window.css">
+    <base href="../../">
+    <link rel="stylesheet" href="styles/global/main.css">
+    <link rel="stylesheet" href="styles/global/taskbar.css">
+    <link rel="stylesheet" href="styles/global/window.css">
     
-    <link rel="stylesheet" href="../../styles/pages/fuzzy.css">
+    <link rel="stylesheet" href="styles/pages/fuzzy.css">
 </head>
 <body>
     <main>
@@ -23,12 +24,12 @@
     
 
     <!-- Prep Scripts -->
-    <script src="../../scripts/global/global.js"></script>
-    <script src="../../scripts/global/window/window.js"></script>
-    <script src="../../scripts/global/anticheat.js"></script>
+    <script src="scripts/global/global.js"></script>
+    <script src="scripts/global/window/window.js"></script>
+    <script src="scripts/global/anticheat.js"></script>
 
     <!-- Content Scripts -->
-    <script src="../../scripts/global/taskbar.js"></script>
+    <script src="scripts/global/taskbar.js"></script>
     <script>
         application("browser");
         windows.object[0].content.appendChild(document.getElementById("content"));

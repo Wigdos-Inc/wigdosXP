@@ -21,7 +21,7 @@ function stopCheating() {
 
 
     const creature = nope.appendChild(document.createElement("img"));
-    creature.src = "../../assets/images/icons/48x/creature.png";
+    creature.src = "assets/images/icons/48x/creature.png";
     creature.style.position = "absolute"; creature.style.top = "50vh", creature.style.left = "50vw"; creature.style.transform = "translate(-50%, -50%)";
     creature.style.width = "80%";
     creature.style.opacity = "0.05";

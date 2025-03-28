@@ -1,6 +1,6 @@
 /* CLASSES */
 /* variables (global edition) */
-var  audio = new Audio('../../assets/sfx/Windows XP Startup.mp3');
+var  audio = new Audio('assets/sfx/Windows XP Startup.mp3');
 // Create the Grid Boxes and Store Them
 let dkGridArray = [];
 class DKGridBox {
@@ -139,37 +139,37 @@ for (let r=0; r < 5; r++) {
 // Attach Browser
 dkGridArray[0][0].filled = true;
 dkGridArray[0][0].element.classList.add("filled");
-dkGridArray[0][0].display("../../assets/images/icons/48x/wiggleSearch.png", "WiggleSearch");
+dkGridArray[0][0].display("assets/images/icons/48x/wiggleSearch.png", "WiggleSearch");
 dkGridArray[0][0].action = () => wiggleSearch();
 
 // Attach Fake Browser
 dkGridArray[1][0].filled = true;
 dkGridArray[1][0].element.classList.add("filled");
-dkGridArray[1][0].display("../../assets/images/icons/48x/wiglefari.png", "Wiglefari");
+dkGridArray[1][0].display("assets/images/icons/48x/wiglefari.png", "Wiglefari");
 dkGridArray[1][0].action = () => wiggleSearch();
 
 // Attach File Explorer
 dkGridArray[4][8].filled = true;
 dkGridArray[4][8].element.classList.add("filled");
-dkGridArray[4][8].display("../../assets/images/icons/48x/files.png", "File Explorer");
+dkGridArray[4][8].display("assets/images/icons/48x/files.png", "File Explorer");
 dkGridArray[4][8].action = () => application("files");
 
 // Attach Notepad
 dkGridArray[0][1].filled = true;
 dkGridArray[0][1].element.classList.add("filled");
-dkGridArray[0][1].display("../../assets/images/icons/48x/notepad.png", "Notepad");
+dkGridArray[0][1].display("assets/images/icons/48x/notepad.png", "Notepad");
 dkGridArray[0][1].action = () => application("notepad");
 
 // Attach Recycling Bin
 dkGridArray[4][0].filled = true;
 dkGridArray[4][0].element.classList.add("filled");
-dkGridArray[4][0].display("../../assets/images/icons/48x/recycle.png", "Recycling Bin");
+dkGridArray[4][0].display("assets/images/icons/48x/recycle.png", "Recycling Bin");
 dkGridArray[4][0].action = () => application("bin");
 
 // Attach Creature
 dkGridArray[0][8].filled = true;
 dkGridArray[0][8].element.classList.add("filled");
-dkGridArray[0][8].display("../../assets/images/icons/48x/creature.png", "Let's Play A Game.exe");
+dkGridArray[0][8].display("assets/images/icons/48x/creature.png", "Let's Play A Game.exe");
 dkGridArray[0][8].action = () => creature();
 
 
