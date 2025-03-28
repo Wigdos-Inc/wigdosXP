@@ -85,22 +85,22 @@
     position: absolute;
     left: 20%;
     top: 50%;
-    transform: translate(-50%, -50%) scale(0.8);
+    transform: translate(-50%, -50%) scale(1);
 
     pointer-events: none;
 }
 
 #stickyBox {
     width: 426px;
-    height: 564px;
+    height: 570px;
 
     background-color: rgba(255, 0, 0, 0.2);
 
     position: absolute;
     left: 20%;
     top: 50%;
-    transform: translate(-32.5%, -57%) scale(0.65);
-    rotate: -14deg;
+    transform: translate(-32.0%, -57%) scale(0.8);
+    rotate: -14.5deg;
 
     display: flex;
     flex-direction: column;
@@ -115,18 +115,31 @@
 
     font-size: 30px;
 }
+
 #stickyQbox {
     height: 15%;
     margin-top: 8%;
+
+    letter-spacing: 1px;
 }
+
 #stickyAbox {
-    height: 35%;
+    height: 25%;
     margin-top: 8%;
 }
+#multiAnswerBox {
+    display: flex;
+    flex-direction: column;
+}
+#multiAnswerBox tr {
+    height: 100%;
+}
+
 #stickyNbox {
     margin-top: 10%;
-    height: 24%;
+    height: 34%;
 }
+
 #qnr {
     position: absolute;
     bottom: 6%;

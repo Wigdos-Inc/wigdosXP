@@ -41,6 +41,7 @@ function load() {
         loader.style.visibility = "unset";
 
         setTimeout(() => {
+            document.body.style.backgroundImage = "url(../../assets/images/background/desktop.jpg)";
             document.getElementsByTagName("main")[0].style.opacity = 1;
             document.getElementsByTagName("footer")[0].style.opacity = 1;
         }, 500);    
@@ -55,6 +56,7 @@ function load() {
 
     }
     else {
+        document.body.style.backgroundImage = "url(../../assets/images/background/desktop.jpg)";
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
     }
