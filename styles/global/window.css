@@ -86,126 +86,12 @@
     flex-direction: column;
     overflow: hidden;
 }
-.appMainTopBar {
-    display: flex;
-    position: relative;
 
-    height: 50px;
-
-    border-top: 2px solid #0c4cd1;
-    border-bottom: 2px solid #dcd6c2;
-}
-.appOS {
-    height: 100%;
-    position: absolute;
-    right: 0;
-    background-color: white;
-
-    border-left: 2px solid #e2e2d6;
-    padding: 2px;
-
-    transition: background-color 0.1s;
-    user-select: none;
-}
-.appOS:hover {
-    background-color: black;
-}
-.appMainBottomBar {
-    border-top: 2px solid #faf9f7;
-    height: 30px;
-}
-
-.appMainMidBar {
-    position: relative;
-    height: 100%;
-
-    background-color: #ffffff;
-
-    padding: 0;
-
-    overflow: hidden;
-}
-
-
-/* Files */
-.appender {
+.appContent {
     height: 100%;
     width: 100%;
-}
-
-.filesBox {
-    display: flex;
-    flex-wrap: wrap;
-
-    width: 100%;
-    padding: 5px;
-}
-.filesItem {
-    height: 120px;
-    width: 100px;
-
-    padding: 10px;
-    border: 1px solid transparent;
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    user-select: none;
-}
-.filesItem:hover {
-    background-color: #0054e525;
-    border: 1px solid transparent;
-}
-.filesItem:active {
-    background-color: #0054e549;
-    border: 1px solid #0141af54;
-}
-.filesItemSelected {
-    background-color: #0054e538;
-    border: 1px solid #0141af54;
-}
-.filesItemSelected:hover {
-    background-color: #0054e538;
-    border: 1px solid #0141af54;
-}
-.filesItem * {
-    max-width: 100%;
-    max-height: 80%;
-}
-.filesItem img {
-    padding-bottom: 5px;
-    pointer-events: none;
-    max-width: 80%;
-}
-.filesItem p {
-    text-overflow: ellipsis;
-    text-align: center;
-}
-.appInput {
-    width: 100%;
-}
-
-
-#content {
-    width: 100%;
-    height: 100%;
 
     padding: 0;
     margin: 0;
-}
-
-/* Notes */
-.notesField {
-    width: 100%;
-    height: 100%;
-
     border: none;
-    padding: 5px;
-    resize: none;
-    outline: 0px none transparent;
-
-    font-family: "Windows XP Tahoma";
-    font-size: 20px;
 }

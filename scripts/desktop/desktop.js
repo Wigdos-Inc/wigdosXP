@@ -158,7 +158,7 @@ dkGridArray[4][8].action = () => application("files");
 dkGridArray[0][1].filled = true;
 dkGridArray[0][1].element.classList.add("filled");
 dkGridArray[0][1].display("assets/images/icons/48x/notepad.png", "Notepad");
-dkGridArray[0][1].action = () => application("notepad");
+dkGridArray[0][1].action = () => application("notes");
 
 // Attach Recycling Bin
 dkGridArray[4][0].filled = true;
