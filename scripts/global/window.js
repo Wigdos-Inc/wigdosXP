@@ -1,24 +1,3 @@
-/* Load Application Functions */
-try {
-    const js = {
-        files: document.body.appendChild(document.createElement("script")),
-        notes: document.body.appendChild(document.createElement("script")),
-        bin  : document.body.appendChild(document.createElement("script")),
-    }
-
-    js.files.type = "text/javascript";
-    js.notes.type = "text/javascript";
-    js.bin.type = "text/javascript";
-
-    js.files.src = "scripts/global/window/files.js";
-    js.notes.src = "scripts/global/window/notes.js";
-    js.bin.src = "scripts/global/window/bin.js";
-}
-catch {
-    playerrorSound();
-}
-
-
 let windows = {
     index : 0,
     object: []

@@ -1,14 +1,14 @@
 /* Redirects */
 
 index = () => location.href = "index.html";
-creature = () => location.href = "pages/creature.html";
-wiggleSearch = () => location.href = "pages/browser/fuzzy1.html";
+creature = () => location.href = "apps/bombs/creature.html";
+wiggleSearch = () => location.href = "apps/browser/fuzzy1.html";
 
 // Bombs
-c4       = () => location.href = "pages/bombs/c4.html";
-dynamite = () => location.href = "pages/bombs/dynamite.html";
-modular  = () => location.href = "pages/bombs/modular.html";
-nuke     = () => location.href = "pages/bombs/nuke.html";
+c4       = () => location.href = "apps/bombs/c4.html";
+dynamite = () => location.href = "apps/bombs/dynamite.html";
+modular  = () => location.href = "apps/bombs/modular.html";
+nuke     = () => location.href = "apps/bombs/nuke.html";
 
 
 
