@@ -13,7 +13,7 @@ const smStart = smButtonElement.appendChild(document.createElement("p")); smStar
 const tbIconBox = taskbar.appendChild(document.createElement("div")); tbIconBox.id = "tbIconBox";
 const tbIcon1 = tbIconBox.appendChild(document.createElement("div")); tbIcon1.classList.add("tbIcons"); tbIcon1.id = "tbIcon1";
 const tbIcon2 = tbIconBox.appendChild(document.createElement("div")); tbIcon2.classList.add("tbIcons"); tbIcon2.id = "tbIcon2";
-tbIcon1.onclick = () => application("notepad");
+tbIcon1.onclick = () => application("notes");
 tbIcon2.onclick = () => application("files");
 
 const tbBorder = taskbar.appendChild(document.createElement("div")); tbBorder.id = "tbRightBorder";
@@ -286,14 +286,3 @@ let power = {
 }
 
 if (sessionStorage.getItem("shutdown")) power.stage1(sessionStorage.getItem("shutdown"));
-
-
-/* Wayyyy too funny
-const shutDownSFX = new Audio("assets/sfx/Windows XP Shutdown Sound.mp3");
-shutDownSFX.play();
-
-shutDownSFX.onended = () => {
-
-playerrorSound();
-}
-*/
