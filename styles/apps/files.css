@@ -1,0 +1,55 @@
+#appMain {
+    display: flex;
+    flex-wrap: wrap;
+    
+    padding: 5px;
+
+    background-color: #ffffff;
+}
+
+.filesItem {
+    height: 120px;
+    width: 100px;
+
+    padding: 10px;
+    border: 1px solid transparent;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    user-select: none;
+}
+.filesItem:hover {
+    background-color: #0054e525;
+    border: 1px solid transparent;
+}
+.filesItem:active {
+    background-color: #0054e549;
+    border: 1px solid #0141af54;
+}
+.filesItemSelected {
+    background-color: #0054e538;
+    border: 1px solid #0141af54;
+}
+.filesItemSelected:hover {
+    background-color: #0054e538;
+    border: 1px solid #0141af54;
+}
+.filesItem * {
+    max-width: 100%;
+    max-height: 80%;
+}
+.filesItem img {
+    padding-bottom: 5px;
+    pointer-events: none;
+    max-width: 80%;
+}
+.filesItem p {
+    text-overflow: ellipsis;
+    text-align: center;
+}
+.appInput {
+    width: 100%;
+}

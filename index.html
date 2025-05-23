@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizzy WiggleWagers - Desktop</title>
 
+    <!-- Global Stylesheets -->
     <link rel="stylesheet" href="styles/global/main.css">
-    <link rel="stylesheet" href="styles/global/taskbar.css">
-    <link rel="stylesheet" href="styles/global/window.css">
     
-    <link rel="stylesheet" href="styles/pages/index.css">
+    <!-- Page Stylesheets -->
+    <link rel="stylesheet" href="styles/desktop/taskbar.css">
+    <link rel="stylesheet" href="styles/desktop/window.css">
+    <link rel="stylesheet" href="styles/desktop/startup.css">
+    <link rel="stylesheet" href="styles/desktop/desktop.css">
 </head>
 <body>
      
@@ -19,17 +22,31 @@
 
     <main></main> <!-- Filled in by desktop.js -->
 
-    <footer></footer> <!-- Filled in by taskbar.js -->
+
+    <footer> <!-- Taskbar -->
+        <div id="sm_btn"> <!-- sm = Start Menu -->
+            <img src="assets/images/icons/16x/creature.png" id="sm_btnImg">
+            <p id="sm_btnText"><i><strong>start</strong></i></p>
+        </div>
+
+        <div id="qa_iconBox"> <!-- qa = Quick Access -->
+            <div class="qa_icon" id="qa_icon1"></div>
+            <div class="qa_icon" id="qa_icon2"></div>
+        </div>
+
+        <div id="ts_divider"></div> <!-- ts = Time Stuff -->
+        <div id="ts_btn"></div>
+    </footer>
     
 
     <!-- Prep Scripts -->
     <script src="scripts/global/global.js"></script>
-    <script src="scripts/global/window/window.js"></script>
+    <script src="scripts/apps/appWindow.js"></script>
     <script src="scripts/global/anticheat.js"></script>
 
     <!-- Content Scripts -->
-    <script src="scripts/global/taskbar.js"></script>
-    <script src="scripts/index/desktop.js"></script>
-    <script src="scripts/index/startup.js"></script>
+    <script src="scripts/desktop/taskbar.js"></script>
+    <script src="scripts/desktop/desktop.js"></script>
+    <script src="scripts/desktop/startup.js"></script>
 </body>
 </html>

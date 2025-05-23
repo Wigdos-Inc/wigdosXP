@@ -1,54 +1,3 @@
-.powerOn {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: black;
-    z-index: 501;
-
-    user-select: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-#powerOnBtn {
-    background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); 
-    width: 100px;
-    height: 100px;
-
-    border: 2px solid white;
-    border-radius: 5px;
-
-    cursor: pointer;
-}
-#powerOnBtn:hover   { background-image: linear-gradient(to top, #d85c52, #f88677, #f88677, #f88677, #fbae9d); }
-#powerOnBtn:active  { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }
-
-.loader {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: black;
-    visibility: hidden;
-    transition: opacity 0.75s ease, visibility 0.75s ease;
-    z-index: 500;
-
-    background-image: url("../../assets/gifs/WindowsXPStartupandShutdown-ezgif.com-video-to-gif-converter copy.gif");
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-
-    cursor: none;
-}
-
-.loader-hidden {
-    opacity: 0;
-    visibility: hidden;
-}
-
 body { 
     background-position: center;
     background-repeat: no-repeat;
@@ -64,6 +13,11 @@ main, footer {
 
 
 main {
+    height: 95vh;
+    width: 100vw;
+
+    position: relative;
+
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     grid-template-rows: repeat(5, minmax(0, 1fr)); /* Ensures uniform row height */
