@@ -21,7 +21,7 @@ footer div {
 
 
 
-#smButton {
+#sm_btn {
     width: 180px;
     background-image: linear-gradient(to top, #459855, #3D9D47, #3D9D47, #459855, #87B782);
 
@@ -33,23 +33,23 @@ footer div {
     justify-content: center;
     gap: 10px;
 }
-#smButton:hover {
+#sm_btn:hover {
     background-image: linear-gradient(to top, #479c58, #43ad4e, #43ad4e, #48a159, #87B782);
     cursor: pointer;
 }
-#smButton:active { background-image: linear-gradient(to top, #186414, #239b20, #239b20, #148717, #186414); }
+#sm_btn:active { background-image: linear-gradient(to top, #186414, #239b20, #239b20, #148717, #186414); }
 
-#smButton * {
+#sm_btn * {
     max-height: 75%;
 }
-#smButton img {
+#sm_btn img {
     opacity: 0.2;
     transition: opacity 0.2s;
 }
-#smButton img:hover {
+#sm_btn img:hover {
     opacity: 0.8;
 }
-#smButton p {
+#sm_btn p {
     letter-spacing: 1px;
     font-family: Tahoma, 'Segoe UI';
     font-size: 22px;
@@ -62,7 +62,7 @@ footer div {
 
 
 
-#tbIconBox {
+#qa_iconBox {
     width: 120px;
 
     display: flex;
@@ -71,7 +71,7 @@ footer div {
     gap: 20px;
 }
 
-.tbIcons {
+.qa_icon {
     height: 80%;
     aspect-ratio: 1 / 1;
 
@@ -82,19 +82,19 @@ footer div {
     background-repeat: no-repeat;
     background-size: cover;
 }
-.tbIcons:hover {
+.qa_icon:hover {
     background-color: rgba(0, 0, 0, 0.1);
 }
-#tbIcon1 {
+#qa_icon1 {
     background-image: url(../../assets/images/icons/16x/notepad.png);
 }
-#tbIcon2 {
+#qa_icon2 {
     background-image: url(../../assets/images/icons/16x/files.png);
 }
 
 
 
-#tbRightBorder {
+#ts_divider {
     position: absolute;
     right: 120px;
 
@@ -102,7 +102,7 @@ footer div {
     border-right: 2px solid #034db0;
 }
 
-#tbTimeBox {
+#ts_btn {
     position: absolute;
     right: 0;
 
@@ -118,11 +118,11 @@ footer div {
     color: whitesmoke;
     user-select: none;
 }
-#tbTimeBox:hover {
+#ts_btn:hover {
     background-image: linear-gradient(to top, #0fa1f0, #0a9cfd, #0a9cfd, #0fa1f0, #06aef9);
     cursor: pointer;
 }
-#tbTimeBox:active { background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9); }
+#ts_btn:active { background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9); }
 
 
 

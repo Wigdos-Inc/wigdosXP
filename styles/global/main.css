@@ -26,11 +26,3 @@ html, body {
 
     background-color: black;
 }
-
-
-main {
-    height: 95vh;
-    width: 100vw;
-
-    position: relative;
-}

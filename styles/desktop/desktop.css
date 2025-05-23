@@ -13,6 +13,11 @@ main, footer {
 
 
 main {
+    height: 95vh;
+    width: 100vw;
+
+    position: relative;
+
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     grid-template-rows: repeat(5, minmax(0, 1fr)); /* Ensures uniform row height */

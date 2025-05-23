@@ -6,18 +6,14 @@ const desktop = document.getElementsByTagName("main")[0];
 
 /* HTML Setup */
 
-const smButtonElement = taskbar.appendChild(document.createElement("div")); smButtonElement.id = "smButton";
-const smCreature = smButtonElement.appendChild(document.createElement("img")); smCreature.src = "assets/images/icons/16x/creature.png";
-const smStart = smButtonElement.appendChild(document.createElement("p")); smStart.innerHTML = "<i><strong>start</strong></i>";
+// Store Start Menu Button
+const smBtnBox = document.getElementById("sm_btn");
 
-const tbIconBox = taskbar.appendChild(document.createElement("div")); tbIconBox.id = "tbIconBox";
-const tbIcon1 = tbIconBox.appendChild(document.createElement("div")); tbIcon1.classList.add("tbIcons"); tbIcon1.id = "tbIcon1";
-const tbIcon2 = tbIconBox.appendChild(document.createElement("div")); tbIcon2.classList.add("tbIcons"); tbIcon2.id = "tbIcon2";
-tbIcon1.onclick = () => application("notes");
-tbIcon2.onclick = () => application("files");
+// Quick Access Icon Functionality
+document.getElementById("qa_icon1").onclick = () => application("notes");
+document.getElementById("qa_icon2").onclick = () => application("files");
 
-const tbBorder = taskbar.appendChild(document.createElement("div")); tbBorder.id = "tbRightBorder";
-const tbTimeBox = taskbar.appendChild(document.createElement("div")); tbTimeBox.id = "tbTimeBox";
+const tsBtn = document.getElementById("ts_btn");
 
 
 
@@ -35,12 +31,12 @@ function update(type) {
     }
 
     // Display the Current Time
-    if (type == "tbClock") tbTimeBox.innerHTML = `${cTime.hours}:${cTime.minutes}`;
+    if (type == "tbClock") tsBtn.innerHTML = `${cTime.hours}:${cTime.minutes}`;
 }
 update("tbClock");
 
 
-tbTimeBox.addEventListener("click", () => {
+tsBtn.addEventListener("click", () => {
 
     // Expanded Time Stuff
 });
@@ -49,7 +45,7 @@ tbTimeBox.addEventListener("click", () => {
 
 /* Start Menu */
 let smActive;
-smButtonElement.addEventListener("click", (event) => {
+smBtnBox.addEventListener("click", (event) => {
 
     if (!smActive) {
         
@@ -152,7 +148,7 @@ smButtonElement.addEventListener("click", (event) => {
         powerBtn.onclick = () => power.stage1(true);
 
     }
-    else if (smActive && smButtonElement.contains(event.target)) {
+    else if (smActive && smBtnBox.contains(event.target)) {
         smActive = false;
         document.getElementById("smBox").remove();
     }
@@ -162,7 +158,7 @@ smButtonElement.addEventListener("click", (event) => {
 
 document.addEventListener("mousedown", (event) => {
 
-    if (smActive && !document.getElementById("smBox").contains(event.target) && !smButtonElement.contains(event.target)) {
+    if (smActive && !document.getElementById("smBox").contains(event.target) && !smBtnBox.contains(event.target)) {
 
         smActive = false;
         document.getElementById("smBox").remove();
