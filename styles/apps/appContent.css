@@ -39,6 +39,14 @@ body {
 }
 
 
+#appMain {
+    height: 100%;
+    width: 100%;
+
+    background-color: #ffffff;
+}
+
+
 #bottomBar {
     width: 100%;
     border-top: 2px solid #faf9f7;

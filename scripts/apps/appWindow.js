@@ -13,7 +13,7 @@ class AppWindow {
         this.nameBox = undefined;
         this.full    = full;
 
-        this.header  = undefined;
+        this.header  = undefined; // Replaced by appHeader at line 40
         this.iframe = undefined;
 
         this.move    = {
@@ -110,7 +110,7 @@ class AppWindow {
 
                     // Use the event's currentTarget (appHeader) for measurement.
                     const headerRect = event.currentTarget.getBoundingClientRect();
-                    const headerRectFull = this.header.getBoundingClientRect();
+                    const headerRectFull = appHeader.getBoundingClientRect();
                         
                     // Exit full screen.
                     this.full = false;
@@ -244,7 +244,7 @@ function application(type) {
             full = true;
             appIcon = "assets/images/icons/16x/wiggleSearch.png";
             appTitle = "WiggleSearch";
-            path = "apps/browser/fuzzy1.html";
+            path = "apps/browser/fuzzy.html";
         
         break;
 

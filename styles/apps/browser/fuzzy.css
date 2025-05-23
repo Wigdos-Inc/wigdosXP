@@ -1,12 +1,4 @@
-/* Window Specs */
-
-.appMain {
-    color: black;
-    text-shadow: none;
-}
-
-/* page content */
-#content {
+#appMain {
     background-image: url(../../../assets/images/background/fire_background.png);
     background-position: center;
     background-repeat: no-repeat;

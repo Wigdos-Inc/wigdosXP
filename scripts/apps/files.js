@@ -1,4 +1,4 @@
-contentBox = document.getElementById("filesBox");
+contentBox = document.getElementById("appMain");
 
 // Store Box Content
 const itemInfo = {

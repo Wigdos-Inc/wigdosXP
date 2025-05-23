@@ -83,8 +83,8 @@ smButtonElement.addEventListener("click", (event) => {
             titles : ["WiggleSearch", "Wiglefari"],
             actions:
             [
-                () => wiggleSearch(),
-                () => wiggleSearch()
+                () => application("browser"),
+                () => application("browser")
             ]
         }
         smLeftHalf.element.classList.add("smHalf"); smLeftHalf.element.id = "smLeftHalf";
