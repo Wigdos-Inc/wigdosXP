@@ -1,17 +1,5 @@
 /* Redirects */
 
-index = () => location.href = "index.html";
-creature = () => location.href = "apps/bombs/creature.html";
-wiggleSearch = () => location.href = "apps/browser/fuzzy1.html";
-
-// Bombs
-c4       = () => location.href = "apps/bombs/c4.html";
-dynamite = () => location.href = "apps/bombs/dynamite.html";
-modular  = () => location.href = "apps/bombs/modular.html";
-nuke     = () => location.href = "apps/bombs/nuke.html";
-
-
-
 /* Loading SFX */
 
 function playerrorSound() {

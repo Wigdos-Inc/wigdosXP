@@ -1,15 +1,8 @@
-// Load Application Window
-application("c4");
-document.getElementsByClassName("appMainBottomBar")[0].remove();
-document.getElementsByClassName("appMainTopBar")[0].remove();
-
-
-
 /* Variables */
 
 // HTML Elements
 const element = {
-    main  : document.getElementById("content"),
+    main  : document.getElementById("appMain"),
 
     bomb  : {
         numberBox: document.getElementById("numberBox"),

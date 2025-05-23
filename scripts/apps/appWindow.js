@@ -270,7 +270,7 @@ function application(type) {
         case "c4":
     
             full = true;
-            appIcon = ""; // Doesn't exist yet...
+            appIcon = "assets/images/bombs/c4.png"; // placeholder...
             appTitle = "C4 Defusal";
             path = "apps/bombs/c4.html";
     

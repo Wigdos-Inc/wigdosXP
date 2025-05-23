@@ -170,7 +170,7 @@ dkGridArray[4][0].action = () => application("bin");
 dkGridArray[0][8].filled = true;
 dkGridArray[0][8].element.classList.add("filled");
 dkGridArray[0][8].display("assets/images/icons/48x/creature.png", "Let's Play A Game.exe");
-dkGridArray[0][8].action = () => creature();
+dkGridArray[0][8].action = () => application("c4");
 
 
 
