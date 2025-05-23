@@ -1,9 +1,12 @@
-.filesBox {
+#filesBox {
     display: flex;
     flex-wrap: wrap;
 
     width: 100%;
+    height: 100%;
     padding: 5px;
+
+    background-color: #ffffff;
 }
 .filesItem {
     height: 120px;
@@ -50,13 +53,4 @@
 }
 .appInput {
     width: 100%;
-}
-
-
-#content {
-    width: 100%;
-    height: 100%;
-
-    padding: 0;
-    margin: 0;
 }
