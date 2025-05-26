@@ -1,8 +1,3 @@
-window.onload = () => {
-
-    if (!sessionStorage.getItem("loaded") && !document.title.includes("Desktop")) stopCheating();
-}
-
 function stopCheating() {
 
     const nope = document.body.appendChild(document.createElement("div"));

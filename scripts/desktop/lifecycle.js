@@ -18,7 +18,6 @@ window.onload = () => {
         creature.style.opacity = "0.05";
         creature.style.pointerEvents = "none";
 
-
         // Move on if User clicks Power Button
         powerOnBtn.onclick = () => {
             
@@ -32,8 +31,6 @@ window.onload = () => {
     
 }
 
-
-
 /* Loading */
 
 function load() {
@@ -41,21 +38,23 @@ function load() {
     // If the User has loaded before
     if (!sessionStorage.getItem("loaded")) {
 
-        const loader1 = document.body.appendChild(document.createElement("div")); loader1.classList.add("loader1");
-        loader1.style.visibility = "unset";
+        const loader = document.body.appendChild(document.createElement("div")); loader.classList.add("loader");
+        loader.style.visibility = "unset";
 
 
         // Stage 1 of Startup: Display Loading Screen
         setTimeout(() => { document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)"; }, 500);
 
 
-        // Stage 2 of Startup: Log/Sign In
+        /*/ Stage 2 of Startup: Log/Sign In
         setTimeout(() => {
 
             // Create Pre-Start Account Screen
+            const accBox = document.body.appendChild(document.createElement("div")); accBox.classList.add("accBox");
+            accScreen(accBox);
 
-            loader1.remove();
-        }, 3700);
+            loader.remove();
+        }, 3700); */
 
 
         // Stage 3 of Startup: Display Desktop
@@ -65,11 +64,11 @@ function load() {
             document.getElementsByTagName("footer")[0].style.opacity = 1;
 
             audio.play();
-            loader1.classList.add("loader1-hidden");
+            loader.classList.add("loader-hidden");
 
-            loader1.addEventListener("transitionend", () => loader1.remove());
+            loader.addEventListener("transitionend", () => loader.remove());
             sessionStorage.setItem("loaded", true);
-        }, 3700); 
+        }, 3700);
 
     }
     else {
@@ -89,6 +88,7 @@ function load() {
 let power = {
     type   : undefined,
     overlay: document.createElement("div"),
+    accBox : document.createElement("div"),
 
     stage1 : function(off) {
 
@@ -102,9 +102,8 @@ let power = {
         document.body.style.pointerEvents = "none";
         
         // Prepare Overlay
-        document.body.appendChild(this.overlay);
-        this.overlay.style.width = "100vw"; this.overlay.style.height = "100vh";
-        this.overlay.style.position = "absolute"; this.overlay.style.top = 0; this.overlay.style.left = 0;
+        document.body.appendChild(this.overlay); 
+        this.overlay.classList.add("overlay");
 
         // Cursor Change
         document.body.style.cursor = "wait";
@@ -147,15 +146,12 @@ let power = {
 
         // Shutdown Screen
         document.body.style.backgroundImage = "none";
-        this.overlay.style.backgroundImage = "linear-gradient(to right, #739be4, #5480da, #5480da)";
+        this.overlay.appendChild(this.accBox);
+        this.accBox.classList.add("accBox");
+        accScreen(this.accBox);
 
-        const graphic = this.overlay.appendChild(document.createElement("img")); graphic.id = "sdGraphic";
-        graphic.src = "assets/images/background/shutdownGraphic.png";
-        
-        const topBar = this.overlay.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
-        const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";
-        const bottomBar = this.overlay.appendChild(document.createElement("div")); bottomBar.classList.add("sdBar"); bottomBar.id = "sdBottomBar";
-        const bottomBorder = bottomBar.appendChild(document.createElement("div")); bottomBorder.id = "sdBottomBorder";
+        const graphic = this.accBox.appendChild(document.createElement("img")); graphic.id = "sdGraphic";
+        graphic.src = "assets/images/background/shutdownGraphic_noBG.png";
 
 
         // Shutdown Sound
@@ -165,11 +161,7 @@ let power = {
         shutDownSFX.onended = () => {
 
             // Remove Shutdown Screen
-            topBar.remove();
-            topBorder.remove();
-            bottomBar.remove();
-            bottomBorder.remove();
-            graphic.remove();
+            this.accBox.remove();
 
             // Clear Session Data
             sessionStorage.clear();
@@ -182,7 +174,7 @@ let power = {
             this.overlay.style.pointerEvents = "auto";
             this.overlay.style.cursor = "none"
 
-            setTimeout(() => (!this.type ? index() : window.close()), 2000);
+            setTimeout(() => (!this.type ? location.reload() : window.close()), 2000);
         }
     }
 }
@@ -192,7 +184,11 @@ let power = {
 
 /* Account Screen */
 
-function accScreen(overlay) {
+function accScreen(container) {
 
-    
+    container.style.backgroundColor = "#466bc2";
+    const topBar = container.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
+    const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";
+    const bottomBar = container.appendChild(document.createElement("div")); bottomBar.classList.add("sdBar"); bottomBar.id = "sdBottomBar";
+    const bottomBorder = bottomBar.appendChild(document.createElement("div")); bottomBorder.id = "sdBottomBorder";
 }

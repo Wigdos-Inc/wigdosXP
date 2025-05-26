@@ -75,6 +75,7 @@
 #sdTopBar {
     top: 0;
     background-color: #003199;
+    z-index: 50;
 }
 #sdTopBorder {
     position: absolute;
@@ -87,11 +88,21 @@
 #sdBottomBar {
     bottom: 0;
     background-image: linear-gradient(to right, #2c308b, #003199);
+    z-index: 50;
 }
 #sdBottomBorder {
     background-image: linear-gradient(to right, #062d7c, #896b5a, #bb815a, #a2775f, #746367, #484f6e, #1f3e7c, #092f7d, #003199);
     height: 5px;
     width: 100vw;
+}
+
+.overlay {
+    width: 100vw;
+    height: 100vh;
+
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 
@@ -100,3 +111,9 @@
 
 /* Account */
 
+.accBox {
+    height: 100vh;
+    width: 100vw;
+
+    background-color: linear-gradient(to right, #739be4, #5480da, #5480da);
+}
