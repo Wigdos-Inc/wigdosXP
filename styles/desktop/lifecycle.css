@@ -1,3 +1,5 @@
+/* Startup */
+
 .powerOn {
     position: absolute;
     top: 0;
@@ -48,3 +50,53 @@
     opacity: 0;
     visibility: hidden;
 }
+
+
+
+
+
+/* Shutdown */
+
+.sdBar {
+    position: absolute;
+    left: 0;
+
+    width: 100vw;
+    height: 20vh;
+}
+#sdGraphic {
+    position: absolute;
+    right: 6vw;
+    top: 50vh;
+    transform: translateY(-50%);;
+
+    height: 80%;
+}
+#sdTopBar {
+    top: 0;
+    background-color: #003199;
+}
+#sdTopBorder {
+    position: absolute;
+    top: 20vh;
+
+    background-image: linear-gradient(to right, #5583da, #75a0e6, #bbd7ff, #bcd5ff, #acccfa, #8fb5f2, #86abed, #5e8ade, #4673d4);
+    height: 5px;
+    width: 100vw;
+}
+#sdBottomBar {
+    bottom: 0;
+    background-image: linear-gradient(to right, #2c308b, #003199);
+}
+#sdBottomBorder {
+    background-image: linear-gradient(to right, #062d7c, #896b5a, #bb815a, #a2775f, #746367, #484f6e, #1f3e7c, #092f7d, #003199);
+    height: 5px;
+    width: 100vw;
+}
+
+
+
+
+
+/* Account */
+

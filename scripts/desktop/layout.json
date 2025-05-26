@@ -1,0 +1,43 @@
+[
+    [
+        {
+            "img": "assets/images/icons/48x/wiggleSearch.png",
+            "text": "WiggleSearch",
+            "action": "browser"
+        },
+        {
+            "img": "assets/images/icons/48x/notepad.png",
+            "text": "Notepad",
+            "action": "notes"
+        },
+        null, null, null, null, null, null,
+        {
+            "img": "assets/images/icons/48x/creature.png",
+            "text": "Let's Play A Game.exe",
+            "action": "creature"
+        }
+    ],
+    [
+        {
+            "img": "assets/images/icons/48x/wiglefari.png",
+            "text": "Wiglefari",
+            "action": "scam"
+        },
+        null, null, null, null, null, null, null, null
+    ],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    [
+        {
+            "img": "assets/images/icons/48x/recycle.png",
+            "text": "Recycling Bin",
+            "action": "bin"
+        },
+        null, null, null, null, null, null, null,
+        {
+            "img": "assets/images/icons/48x/files.png",
+            "text": "File Explorer",
+            "action": "files"
+        }
+    ]
+]
