@@ -46,18 +46,28 @@ function load() {
         setTimeout(() => { document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)"; }, 500);
 
 
-        /*/ Stage 2 of Startup: Log/Sign In
+        // Stage 2 of Startup: Log/Sign In
         setTimeout(() => {
 
-            // Create Pre-Start Account Screen
+            // Create Account Screen
             const accBox = document.body.appendChild(document.createElement("div")); accBox.classList.add("accBox");
             accScreen(accBox);
 
+            const contentBox   = accBox.appendChild(document.createElement("div")); contentBox.id = "contentBox";
+            const contentLeft  = contentBox.appendChild(document.createElement("div")); contentLeft.id = "contentLeft";
+            const contentMid   = contentBox.appendChild(document.createElement("div")); contentMid.id = "contentMid";
+            const contentRight = contentBox.appendChild(document.createElement("div")); contentRight.id = "contentLeft";
+            contentLeft.classList.add("accBox_content"); contentRight.classList.add("accBox_content");
+
+            contentLeft.innerHTML = "<i><strong>welcome</strong></i>";
+            fill(contentRight, true);            
+
+            // Remove Loader
             loader.remove();
-        }, 3700); */
+        }, 3700);
 
 
-        // Stage 3 of Startup: Display Desktop
+        /*/ Stage 3 of Startup: Display Desktop
         setTimeout(() => {
 
             document.getElementsByTagName("main")[0].style.opacity = 1;
@@ -67,8 +77,8 @@ function load() {
             loader.classList.add("loader-hidden");
 
             loader.addEventListener("transitionend", () => loader.remove());
-            sessionStorage.setItem("loaded", true);
-        }, 3700);
+            //sessionStorage.setItem("loaded", true);
+        }, 3700); */
 
     }
     else {
@@ -186,9 +196,29 @@ let power = {
 
 function accScreen(container) {
 
+    // Create Background
     container.style.backgroundColor = "#466bc2";
     const topBar = container.appendChild(document.createElement("div")); topBar.classList.add("sdBar"); topBar.id = "sdTopBar";
     const topBorder = topBar.appendChild(document.createElement("div")); topBorder.id = "sdTopBorder";
     const bottomBar = container.appendChild(document.createElement("div")); bottomBar.classList.add("sdBar"); bottomBar.id = "sdBottomBar";
     const bottomBorder = bottomBar.appendChild(document.createElement("div")); bottomBorder.id = "sdBottomBorder";
+    const lightSource = container.appendChild(document.createElement("div")); lightSource.id = "light";
+}
+
+function fill(parent, type) {
+
+    // Remove former iteration if it exists
+    if (document.getElementById("accBoxInner")) document.getElementById("accBoxInner").remove();
+
+    // Remove 
+    const accBoxInner = parent.appendChild(document.createElement("div")); accBoxInner.id = "accBoxInner";
+
+    if (type == "login") {}
+    else if (type == "signin") {}
+    else {
+
+        const boxInnerLeft = accBoxInner.appendChild(document.createElement("div")); boxInnerLeft.id = "boxInnerLeft";
+        const boxInnerRight = accBoxInner.appendChild(document.createElement("div")); boxInnerRight.id = "boxInnerRight";
+
+    }
 }
