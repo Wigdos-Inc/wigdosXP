@@ -56,7 +56,7 @@ function load() {
             const contentBox   = accBox.appendChild(document.createElement("div")); contentBox.id = "contentBox";
             const contentLeft  = contentBox.appendChild(document.createElement("div")); contentLeft.id = "contentLeft";
             const contentMid   = contentBox.appendChild(document.createElement("div")); contentMid.id = "contentMid";
-            const contentRight = contentBox.appendChild(document.createElement("div")); contentRight.id = "contentLeft";
+            const contentRight = contentBox.appendChild(document.createElement("div")); contentRight.id = "contentRight";
             contentLeft.classList.add("accBox_content"); contentRight.classList.add("accBox_content");
 
             contentLeft.innerHTML = "<i><strong>welcome</strong></i>";
@@ -213,7 +213,27 @@ function fill(parent, type) {
     // Remove 
     const accBoxInner = parent.appendChild(document.createElement("div")); accBoxInner.id = "accBoxInner";
 
-    if (type == "login") {}
+    if (type == "login") {
+
+        const login = {
+            user: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            pass: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            }
+        }
+
+        // Append Them
+        accBoxInner.appendChild(login.user.label);
+        accBoxInner.appendChild(login.user.input);
+        accBoxInner.appendChild(document.createElement("br"));
+        accBoxInner.appendChild(login.user.label);
+        accBoxInner.appendChild(login.user.label);
+
+    }
     else if (type == "signin") {}
     else {
 

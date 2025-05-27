@@ -154,7 +154,6 @@
 }
 
 #contentLeft {
-    width: 100%;
     letter-spacing: 1px;
     font-family: Tahoma, 'Segoe UI';
     font-size: 60px;
@@ -165,7 +164,17 @@
         0 2px 5px rgba(0, 0, 0, 0.7);
 }
 #contentMid {
-    width: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 100%;
+
+    width: 5px;
     height: 100%;
-    background-image: radial-gradient();
+
+    background-image: radial-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2));
+}
+#contentRight {
+    border: 1px solid black;
 }
