@@ -233,6 +233,8 @@ function application(type) {
     let appIcon;
     let path;
 
+    let offset = [0, 0];
+
     switch (type) {
 
         case "files": 
@@ -287,6 +289,15 @@ function application(type) {
             appIcon = "assets/images/temp/fingers.jpg";
             appTitle = "FNAF 1";
             path = "https://danie-glr.github.io/wigdos_games/1/";
+
+            break;
+
+        case "sm64": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/mayro.png";
+            appTitle = "Supra Mayro Bors 69";
+            path = "https://augustberchelmann.com/mario/";
 
             break;
 
