@@ -297,7 +297,7 @@ function application(type) {
             full = true;
             appIcon = "assets/images/temp/mayro.png";
             appTitle = "Supra Mayro Bors 69";
-            path = "https://augustberchelmann.com/mario/";
+            path = "https://danie-glr.github.io/wigdos_games/sm64/";
 
             break;
 
