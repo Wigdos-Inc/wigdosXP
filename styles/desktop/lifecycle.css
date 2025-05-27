@@ -178,3 +178,7 @@
 #contentRight {
     border: 1px solid black;
 }
+
+#accOutput {
+    color: red;
+}

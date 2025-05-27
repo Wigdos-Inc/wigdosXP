@@ -60,7 +60,7 @@ function load() {
             contentLeft.classList.add("accBox_content"); contentRight.classList.add("accBox_content");
 
             contentLeft.innerHTML = "<i><strong>welcome</strong></i>";
-            fill(contentRight, true);            
+            fill(contentRight, "login");            
 
             // Remove Loader
             loader.remove();
@@ -215,6 +215,9 @@ function fill(parent, type) {
 
     if (type == "login") {
 
+        const form = accBoxInner.appendChild(document.createElement("form"));
+        form.action = ""
+
         const login = {
             user: {
                 label: document.createElement("label"),
@@ -223,15 +226,43 @@ function fill(parent, type) {
             pass: {
                 label: document.createElement("label"),
                 input: document.createElement("input")
-            }
+            },
+            btn : document.createElement("input"),
+            output: document.createElement("p")
         }
 
+        // Setup
+        login.user.input.type = "text"; login.user.input.name = "username"; login.user.input.maxLength = 12; login.user.input.id = "username";
+        login.user.label.for = "username"; login.user.label.innerHTML = "Username:";
+        
+        login.pass.input.type = "password"; login.pass.input.name = "password"; login.pass.input.maxLength = 15; login.pass.input.id = "password";
+        login.pass.label.for = "password"; login.pass.label.innerHTML = "Password:";
+
+        login.btn.type = "button"; login.btn.value = "Log In"; login.btn.onclick = () => logIn(login.user.input, login.pass.input);
+
+        login.output.id = "accOutput";
+
         // Append Them
-        accBoxInner.appendChild(login.user.label);
-        accBoxInner.appendChild(login.user.input);
-        accBoxInner.appendChild(document.createElement("br"));
-        accBoxInner.appendChild(login.user.label);
-        accBoxInner.appendChild(login.user.label);
+        form.appendChild(login.user.label);
+        form.appendChild(document.createElement("br"));
+        form.appendChild(login.user.input);
+
+        form.appendChild(document.createElement("br"));
+        form.appendChild(document.createElement("br"));
+
+        form.appendChild(login.pass.label);
+        form.appendChild(document.createElement("br"));
+        form.appendChild(login.pass.input);
+
+        form.appendChild(document.createElement("br"));
+        form.appendChild(document.createElement("br"));
+
+        form.appendChild(login.btn);
+
+        form.appendChild(document.createElement("br"));
+        form.appendChild(document.createElement("br"));
+
+        form.appendChild(login.output);
 
     }
     else if (type == "signin") {}
@@ -242,3 +273,20 @@ function fill(parent, type) {
 
     }
 }
+
+function logIn(uField, pField) {
+
+    // Store Input
+    const input = {
+        u: uField.value,
+        p: pField.value
+    }
+
+    if (!input.u || !input.p) {
+
+        document.getElementById("accOutput").innerHTML = "Please fill in all fields!";
+
+    }
+}
+
+function signIn() {}
