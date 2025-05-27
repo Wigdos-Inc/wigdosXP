@@ -173,6 +173,13 @@ dkGridArray[0][8].display("assets/images/icons/48x/creature.png", "Let's Play A 
 dkGridArray[0][8].action = () => application("c4");
 
 
+// Attach Freddy1 (Template FOR NOW). Remember: Entry needs to be made in appContent.js too
+dkGridArray[2][8].filled = true;
+dkGridArray[2][8].element.classList.add("filled");
+dkGridArray[2][8].display("assets/images/temp/fingers.jpg", "Feddy 1.exe");
+dkGridArray[2][8].action = () => application("f1");
+
+
 
 
 

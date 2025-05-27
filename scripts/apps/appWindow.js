@@ -102,6 +102,9 @@ class AppWindow {
                 this.move.current = true;
                 this.element.style.transition = "unset";
 
+                // Turn off Iframe Detection
+                this.iframe.style.pointerEvents = "none";
+
                 if (this.full) { 
                         
                     // ALL THIS IS FULLY AI, though I had to re-arrange some of it because it got confused.
@@ -167,6 +170,8 @@ class AppWindow {
                 const pos = this.element.getBoundingClientRect();
                 this.move.storage.x = pos.x;
                 this.move.storage.y = pos.y;
+
+                this.iframe.style.pointerEvents = "unset";
                     
             }
         });
@@ -274,6 +279,15 @@ function application(type) {
             appTitle = "C4 Defusal";
             path = "apps/bombs/c4.html";
     
+            break;
+
+        case "f1": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/fingers.jpg";
+            appTitle = "FNAF 1";
+            path = "https://danie-glr.github.io/wigdos_games/1/";
+
             break;
 
         default: return;
