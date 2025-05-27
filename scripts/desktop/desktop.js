@@ -174,16 +174,28 @@ dkGridArray[0][8].action = () => application("c4");
 
 
 // Attach Freddy1 (Template FOR NOW). Remember: Entry needs to be made in appWindow.js too
-dkGridArray[2][8].filled = true;
-dkGridArray[2][8].element.classList.add("filled");
-dkGridArray[2][8].display("assets/images/temp/mayro.png", "Mayro.exe");
-dkGridArray[2][8].action = () => application("sm64");
+dkGridArray[3][0].filled = true;
+dkGridArray[3][0].element.classList.add("filled");
+dkGridArray[3][0].display("assets/images/temp/fingers.jpg", "Feddy 1.exe");
+dkGridArray[3][0].action = () => application("f1");
 
-// Attach SM64
-dkGridArray[2][5].filled = true;
-dkGridArray[2][5].element.classList.add("filled");
-dkGridArray[2][5].display("assets/images/temp/fingers.jpg", "Feddy 1.exe");
-dkGridArray[2][5].action = () => application("f1");
+// Attach Freddy2
+dkGridArray[3][1].filled = true;
+dkGridArray[3][1].element.classList.add("filled");
+dkGridArray[3][1].display("assets/images/temp/fingers.jpg", "Feddy 2.exe");
+dkGridArray[3][1].action = () => application("f2");
+
+// Attach Freddy3
+dkGridArray[3][2].filled = true;
+dkGridArray[3][2].element.classList.add("filled");
+dkGridArray[3][2].display("assets/images/temp/fingers.jpg", "Feddy 3.exe");
+dkGridArray[3][2].action = () => application("f3");
+
+// Attach Freddy4
+dkGridArray[3][3].filled = true;
+dkGridArray[3][3].element.classList.add("filled");
+dkGridArray[3][3].display("assets/images/temp/fingers.jpg", "Feddy 4.exe");
+dkGridArray[3][3].action = () => application("f4");
 
 
 

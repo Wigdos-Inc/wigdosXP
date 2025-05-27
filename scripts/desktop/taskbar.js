@@ -276,7 +276,7 @@ let power = {
             this.overlay.style.pointerEvents = "auto";
             this.overlay.style.cursor = "none"
 
-            setTimeout(() => (!this.type ? index() : window.close()), 2000);
+            setTimeout(() => (!this.type ? location.reload() : window.close()), 2000);
         }
     }
 }

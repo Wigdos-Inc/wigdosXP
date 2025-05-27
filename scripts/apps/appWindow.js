@@ -292,6 +292,42 @@ function application(type) {
 
             break;
 
+        case "f2": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/fingers.jpg";
+            appTitle = "FNAF 2";
+            path = "https://danie-glr.github.io/wigdos_games/2/";
+
+            break;
+
+        case "f3": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/fingers.jpg";
+            appTitle = "FNAF 3";
+            path = "https://danie-glr.github.io/wigdos_games/3/";
+
+            break;
+
+        case "f4": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/fingers.jpg";
+            appTitle = "FNAF 4";
+            path = "https://danie-glr.github.io/wigdos_games/4/";
+
+            break;
+
+        case "f4": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/temp/fingers.jpg";
+            appTitle = "FNAF 4";
+            path = "https://danie-glr.github.io/wigdos_games/4/";
+
+            break;
+
         case "sm64": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
