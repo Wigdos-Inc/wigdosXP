@@ -228,44 +228,185 @@ function fill(parent, type) {
                 input: document.createElement("input")
             },
             btn : document.createElement("input"),
-            output: document.createElement("p")
+            output: document.createElement("p"),
+            wrong: document.createElement("p")
         }
 
+
         // Setup
-        login.user.input.type = "text"; login.user.input.name = "username"; login.user.input.maxLength = 12; login.user.input.id = "username";
+        login.user.input.type = "text"; login.user.input.name = "username"; login.user.input.id = "username";
         login.user.label.for = "username"; login.user.label.innerHTML = "Username:";
         
-        login.pass.input.type = "password"; login.pass.input.name = "password"; login.pass.input.maxLength = 15; login.pass.input.id = "password";
+        login.pass.input.type = "password"; login.pass.input.name = "password"; login.pass.input.id = "password";
         login.pass.label.for = "password"; login.pass.label.innerHTML = "Password:";
 
-        login.btn.type = "button"; login.btn.value = "Log In"; login.btn.onclick = () => logIn(login.user.input, login.pass.input);
+        login.btn.type = "button"; login.btn.classList.add("accBtn"); login.btn.value = "Log In"; login.btn.onclick = () => logIn(login.user.input, login.pass.input);
+
+        login.wrong.id = "change"; login.wrong.innerHTML = "Don't have an account? Click here!"; login.wrong.onclick = () => fill(parent, "signin");
 
         login.output.id = "accOutput";
 
+
         // Append Them
         form.appendChild(login.user.label);
-        form.appendChild(document.createElement("br"));
+        lineBreak(1);
         form.appendChild(login.user.input);
 
-        form.appendChild(document.createElement("br"));
-        form.appendChild(document.createElement("br"));
+        lineBreak(2);
 
         form.appendChild(login.pass.label);
-        form.appendChild(document.createElement("br"));
+        lineBreak(1);
         form.appendChild(login.pass.input);
 
-        form.appendChild(document.createElement("br"));
-        form.appendChild(document.createElement("br"));
+        lineBreak(2);
 
         form.appendChild(login.btn);
 
-        form.appendChild(document.createElement("br"));
-        form.appendChild(document.createElement("br"));
+        lineBreak(2);
+
+        form.appendChild(login.wrong);
+
+        lineBreak(2);
 
         form.appendChild(login.output);
 
+
+        // Input Limit
+        function limit(element, amount) {
+
+            element.addEventListener("input", () => {
+
+                if (element.value.length > amount) element.value = element.value.slice(0, amount);
+            });
+        }
+        limit(login.user.input, 20);
+        limit(login.pass.input, 20);
+
+
+        function lineBreak(amount) {
+
+            for (let i=0; i < amount; i++) form.appendChild(document.createElement("br"));
+        }
+
     }
-    else if (type == "signin") {}
+    else if (type == "signin") {
+
+        const form = accBoxInner.appendChild(document.createElement("form"));
+        form.action = ""
+
+        const signin = {
+            fName: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            lName: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            email: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            user: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            pass: {
+                label: document.createElement("label"),
+                input: document.createElement("input")
+            },
+            btn : document.createElement("input"),
+            output: document.createElement("p"),
+            wrong: document.createElement("p")
+        }
+
+
+        // Setup
+        signin.fName.input.type = "text"; signin.fName.input.name = "firstname"; signin.fName.input.id = "firstname";
+        signin.fName.label.for = "firstname"; signin.fName.label.innerHTML = "First Name:";
+
+        signin.lName.input.type = "text"; signin.lName.input.name = "lastname"; signin.lName.input.id = "lastname";
+        signin.lName.label.for = "lastname"; signin.lName.label.innerHTML = "Last Name:";
+
+        signin.email.input.type = "email"; signin.email.input.name = "email"; signin.email.input.id = "email";
+        signin.email.label.for = "email"; signin.email.label.innerHTML = "Email Address:";
+
+        signin.user.input.type = "text"; signin.user.input.name = "username"; signin.user.input.id = "username";
+        signin.user.label.for = "username"; signin.user.label.innerHTML = "Username:";
+        
+        signin.pass.input.type = "password"; signin.pass.input.name = "password"; signin.pass.input.id = "password";
+        signin.pass.label.for = "password"; signin.pass.label.innerHTML = "Password:";
+
+        signin.btn.type = "button"; signin.btn.classList.add("accBtn"); signin.btn.value = "Create Account"; signin.btn.onclick = () => signIn(signin.fName.input, signin.lName.input, signin.email.input, signin.user.input, signin.pass.input);
+
+        signin.wrong.id = "change"; signin.wrong.innerHTML = "Already have an account? Click here!"; signin.wrong.onclick = () => fill(parent, "login");
+
+        signin.output.id = "accOutput";
+
+
+        // Append Them
+        form.appendChild(signin.fName.label);
+        lineBreak(1);
+        form.appendChild(signin.fName.input);
+
+        lineBreak(2);
+        
+        form.appendChild(signin.lName.label);
+        lineBreak(1);
+        form.appendChild(signin.lName.input);
+
+        lineBreak(2);
+
+        form.appendChild(signin.email.label);
+        lineBreak(1);
+        form.appendChild(signin.email.input);
+
+        lineBreak(2);
+
+        form.appendChild(signin.user.label);
+        lineBreak(1);
+        form.appendChild(signin.user.input);
+
+        lineBreak(2);
+
+        form.appendChild(signin.pass.label);
+        lineBreak(1);
+        form.appendChild(signin.pass.input);
+
+        lineBreak(2);
+
+        form.appendChild(signin.btn);
+
+        lineBreak(2);
+
+        form.appendChild(signin.wrong);
+
+        lineBreak(2);
+
+        form.appendChild(signin.output);
+
+
+        // Input Limit
+        function limit(element, amount) {
+
+            element.addEventListener("input", () => {
+
+                if (element.value.length > amount) element.value = element.value.slice(0, amount);
+            });
+        }
+        limit(signin.fName.input, 50);
+        limit(signin.lName.input, 50);
+        limit(signin.email.input, 50);
+        limit(signin.user.input, 20);
+        limit(signin.pass.input, 20);
+
+
+        function lineBreak(amount) {
+
+            for (let i=0; i < amount; i++) form.appendChild(document.createElement("br"));
+        }
+
+    }
     else {
 
         const boxInnerLeft = accBoxInner.appendChild(document.createElement("div")); boxInnerLeft.id = "boxInnerLeft";
@@ -282,11 +423,93 @@ function logIn(uField, pField) {
         p: pField.value
     }
 
-    if (!input.u || !input.p) {
+    // Validation
+    const output = document.getElementById("accOutput");
+    output.innerHTML = "";
 
-        document.getElementById("accOutput").innerHTML = "Please fill in all fields!";
+    if (!input.u || !input.p) output.innerHTML = "Please fill in all fields!";
+    else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
+    else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
+    else {
 
+        if (php(input)) {}
+        else {
+
+            playerrorSound();
+            console.error("PHP connection failed");
+        }
+    
     }
 }
 
-function signIn() {}
+function signIn(fnField, lnField, eField, uField, pField) {
+
+    // Store Input
+    const input = {
+        fn: fnField.value,
+        ln: lnField.value,
+        e : eField.value,
+        u : uField.value,
+        p : pField.value
+    }
+
+    // Validation
+    const output = document.getElementById("accOutput");
+    output.innerHTML = "";
+
+    if (!input.fn || !input.ln || !input.e || !input.u || !input.p) output.innerHTML = "Please fill in all fields!";
+    else if (input.fn.length < 2) output.innerHTML = "First name must contain at least 2 characters!";
+    else if (input.ln.length < 2) output.innerHTML = "Last name must contain at least 2 characters!";
+    else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
+    else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
+    else php(input, "signin");
+}
+
+// Send/Receive Data from PHP
+function php(data, type) {
+
+    const output = document.getElementById("accOutput");
+
+    // Store PHP file path
+    let path = `scripts/db/${type}.php`;
+
+    // Communicate with PHP (AI Assistance)
+    fetch(path, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(response => {
+
+        if (response.status) {
+
+            // Placeholder Code
+            output.innerHTML = "Success!";
+            output.style.color = "green";
+
+            // Store username to session
+            sessionStorage.setItem("username", data.u);
+
+            // Load Desktop
+
+        }
+        else {
+
+            switch (response.reason) {
+
+                case "duplicate": output.innerHTML = "Username already in use."; break;
+                case "unknown"  : output.innerHTML = "Unknown error."; break;
+            }
+
+        }
+    })
+    .catch(error => {
+
+        playerrorSound();
+        console.error("Error:", error);
+        output.innerHTML = "Error: See console for more details";
+    })
+}
+
+// GO DO THE DESKTOP SHIT YA DONKEY
