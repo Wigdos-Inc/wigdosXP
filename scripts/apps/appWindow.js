@@ -283,46 +283,46 @@ function application(type) {
     
             break;
 
-        case "f1": // TEMPLATE YOU FOOKIN DONKEY
+        case "feddy1": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/fingers.jpg";
+            appIcon = "assets/images/icons/games/fnaf/feddy1.png";
             appTitle = "FNAF 1";
             path = "https://danie-glr.github.io/wigdos_games/1/";
 
             break;
 
-        case "f2": // TEMPLATE YOU FOOKIN DONKEY
+        case "feddy2": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/fingers.jpg";
+            appIcon = "assets/images/icons/games/fnaf/feddy2.png";
             appTitle = "FNAF 2";
             path = "https://danie-glr.github.io/wigdos_games/2/";
 
             break;
 
-        case "f3": // TEMPLATE YOU FOOKIN DONKEY
+        case "feddy3": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/fingers.jpg";
+            appIcon = "assets/images/icons/games/fnaf/feddy3.png";
             appTitle = "FNAF 3";
             path = "https://danie-glr.github.io/wigdos_games/3/";
 
             break;
 
-        case "f4": // TEMPLATE YOU FOOKIN DONKEY
+        case "feddy4": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/fingers.jpg";
+            appIcon = "assets/images/icons/games/fnaf/feddy4.png";
             appTitle = "FNAF 4";
             path = "https://danie-glr.github.io/wigdos_games/4/";
 
             break;
 
-        case "f4": // TEMPLATE YOU FOOKIN DONKEY
+        case "feddyW": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/fingers.jpg";
+            appIcon = "assets/images/icons/games/fnaf/";
             appTitle = "FNAF 4";
             path = "https://danie-glr.github.io/wigdos_games/4/";
 
