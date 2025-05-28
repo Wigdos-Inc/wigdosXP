@@ -331,9 +331,9 @@ function application(type) {
         case "sm64": // TEMPLATE YOU FOOKIN DONKEY
 
             full = true;
-            appIcon = "assets/images/temp/mayro.png";
-            appTitle = "Supra Mayro Bors 69";
-            path = "https://danie-glr.github.io/wigdos_games/sm64/";
+            appIcon = "assets/images/icons/games/other/mayro.png";
+            appTitle = "Supra Mayro Bors 96";
+            path = "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html";
 
             break;
 

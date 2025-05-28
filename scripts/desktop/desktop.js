@@ -197,6 +197,12 @@ dkGridArray[3][3].element.classList.add("filled");
 dkGridArray[3][3].display("assets/images/icons/games/fnaf/feddy4.png", "Feddy 4.exe");
 dkGridArray[3][3].action = () => application("feddy4");
 
+// Attach SM64
+dkGridArray[2][5].filled = true;
+dkGridArray[2][5].element.classList.add("filled");
+dkGridArray[2][5].display("assets/images/icons/games/other/mayro.png", "Mayro96.exe");
+dkGridArray[2][5].action = () => application("sm64");
+
 
 
 
