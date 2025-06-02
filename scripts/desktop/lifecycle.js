@@ -500,6 +500,7 @@ function php(data, type) {
 
                 case "duplicate": output.innerHTML = "Username already in use."; break;
                 case "unknown"  : output.innerHTML = "Unknown error."; break;
+                case "layout" : output.innerHTML = "Layout error."; break;
             }
 
         }
