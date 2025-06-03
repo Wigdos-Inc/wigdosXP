@@ -233,39 +233,53 @@ function fill(parent, type) {
         }
 
 
-        // Setup
-        login.user.input.type = "text"; login.user.input.name = "username"; login.user.input.id = "username";
-        login.user.label.for = "username"; login.user.label.innerHTML = "Username:";
+        // Username
+        login.user.input.type = "text";
+        login.user.input.name = "username";
+        login.user.input.id = "username";
+        login.user.input.autocomplete = "username";
+
+        login.user.label.htmlFor = "username";
+        login.user.label.innerHTML = "Username:";
+
+        // Password
+        login.pass.input.type = "password";
+        login.pass.input.name = "password";
+        login.pass.input.id = "password";
+        login.pass.input.autocomplete = "current-password";
         
-        login.pass.input.type = "password"; login.pass.input.name = "password"; login.pass.input.id = "password";
-        login.pass.label.for = "password"; login.pass.label.innerHTML = "Password:";
+        login.pass.label.htmlFor = "password";
+        login.pass.label.innerHTML = "Password:";
 
-        login.btn.type = "button"; login.btn.classList.add("accBtn"); login.btn.value = "Log In"; login.btn.onclick = () => logIn(login.user.input, login.pass.input);
+        // Button
+        login.btn.type = "button";
+        login.btn.classList.add("accBtn");
+        login.btn.value = "Log In";
+        login.btn.onclick = () => logIn(login.user.input, login.pass.input);
 
-        login.wrong.id = "change"; login.wrong.innerHTML = "Don't have an account? Click here!"; login.wrong.onclick = () => fill(parent, "signin");
+        // Switch
+        login.wrong.id = "change";
+        login.wrong.innerHTML = "Don't have an account? Click here!";
+        login.wrong.onclick = () => fill(parent, "signin");
 
+        // Output
         login.output.id = "accOutput";
 
-
-        // Append Them
+        // Append Elements
         form.appendChild(login.user.label);
         lineBreak(1);
         form.appendChild(login.user.input);
-
         lineBreak(2);
 
         form.appendChild(login.pass.label);
         lineBreak(1);
         form.appendChild(login.pass.input);
-
         lineBreak(2);
 
         form.appendChild(login.btn);
-
         lineBreak(2);
 
         form.appendChild(login.wrong);
-
         lineBreak(2);
 
         form.appendChild(login.output);
@@ -321,66 +335,101 @@ function fill(parent, type) {
         }
 
 
-        // Setup
-        signin.fName.input.type = "text"; signin.fName.input.name = "firstname"; signin.fName.input.id = "firstname";
-        signin.fName.label.for = "firstname"; signin.fName.label.innerHTML = "First Name:";
+        // First Name
+        signin.fName.input.type = "text";
+        signin.fName.input.name = "firstname";
+        signin.fName.input.id = "firstname";
+        signin.fName.input.autocomplete = "given-name";
 
-        signin.lName.input.type = "text"; signin.lName.input.name = "lastname"; signin.lName.input.id = "lastname";
-        signin.lName.label.for = "lastname"; signin.lName.label.innerHTML = "Last Name:";
+        signin.fName.label.htmlFor = "firstname";
+        signin.fName.label.innerHTML = "First Name:";
 
-        signin.email.input.type = "email"; signin.email.input.name = "email"; signin.email.input.id = "email";
-        signin.email.label.for = "email"; signin.email.label.innerHTML = "Email Address:";
+        // Last Name
+        signin.lName.input.type = "text";
+        signin.lName.input.name = "lastname";
+        signin.lName.input.id = "lastname";
+        signin.lName.input.autocomplete = "family-name";
 
-        signin.user.input.type = "text"; signin.user.input.name = "username"; signin.user.input.id = "username";
-        signin.user.label.for = "username"; signin.user.label.innerHTML = "Username:";
-        
-        signin.pass.input.type = "password"; signin.pass.input.name = "password"; signin.pass.input.id = "password";
-        signin.pass.label.for = "password"; signin.pass.label.innerHTML = "Password:";
+        signin.lName.label.htmlFor = "lastname";
+        signin.lName.label.innerHTML = "Last Name:";
 
-        signin.btn.type = "button"; signin.btn.classList.add("accBtn"); signin.btn.value = "Create Account"; signin.btn.onclick = () => signIn(signin.fName.input, signin.lName.input, signin.email.input, signin.user.input, signin.pass.input);
+        // Email
+        signin.email.input.type = "email";
+        signin.email.input.name = "email";
+        signin.email.input.id = "email";
+        signin.email.input.autocomplete = "email";
 
-        signin.wrong.id = "change"; signin.wrong.innerHTML = "Already have an account? Click here!"; signin.wrong.onclick = () => fill(parent, "login");
+        signin.email.label.htmlFor = "email";
+        signin.email.label.innerHTML = "Email Address:";
 
+        // Username
+        signin.user.input.type = "text";
+        signin.user.input.name = "username";
+        signin.user.input.id = "username";
+        signin.user.input.autocomplete = "username";
+
+        signin.user.label.htmlFor = "username";
+        signin.user.label.innerHTML = "Username:";
+
+        // Password
+        signin.pass.input.type = "password";
+        signin.pass.input.name = "password";
+        signin.pass.input.id = "password";
+        signin.pass.input.autocomplete = "new-password";
+
+        signin.pass.label.htmlFor = "password";
+        signin.pass.label.innerHTML = "Password:";
+
+        // Create Account Button
+        signin.btn.type = "button";
+        signin.btn.classList.add("accBtn");
+        signin.btn.value = "Create Account";
+        signin.btn.onclick = () => signIn(
+            signin.fName.input,
+            signin.lName.input,
+            signin.email.input,
+            signin.user.input,
+            signin.pass.input
+        );
+
+        // Switch to Login
+        signin.wrong.id = "change";
+        signin.wrong.innerHTML = "Already have an account? Click here!";
+        signin.wrong.onclick = () => fill(parent, "login");
+
+        // Output
         signin.output.id = "accOutput";
 
-
-        // Append Them
+        // Append Elements
         form.appendChild(signin.fName.label);
         lineBreak(1);
         form.appendChild(signin.fName.input);
-
         lineBreak(2);
-        
+
         form.appendChild(signin.lName.label);
         lineBreak(1);
         form.appendChild(signin.lName.input);
-
         lineBreak(2);
 
         form.appendChild(signin.email.label);
         lineBreak(1);
         form.appendChild(signin.email.input);
-
         lineBreak(2);
 
         form.appendChild(signin.user.label);
         lineBreak(1);
         form.appendChild(signin.user.input);
-
         lineBreak(2);
 
         form.appendChild(signin.pass.label);
         lineBreak(1);
         form.appendChild(signin.pass.input);
-
         lineBreak(2);
 
         form.appendChild(signin.btn);
-
         lineBreak(2);
 
         form.appendChild(signin.wrong);
-
         lineBreak(2);
 
         form.appendChild(signin.output);
@@ -497,8 +546,6 @@ function php(data, type) {
                 case "user" : output.innerHTML = "No user found"; break;
                 case "pass" : output.innerHTML = "Incorrect password"; break;
             }
-
-            output.innerHTML += `<br/> Input Password: ${response.input_password} <br/> db_hash: ${response.db_hash} <br/> verify_result: ${response.verify_result}`;
 
         }
     })

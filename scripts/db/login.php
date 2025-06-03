@@ -23,18 +23,9 @@ if ($result)
     if ($result->num_rows === 1)
     {
         $item = $result->fetch_assoc();
+        $verify = password_verify($password, $item['password']);
 
-// Debug output
-echo json_encode([
-    'status' => false,
-    'reason' => 'debug',
-    'input_password' => $password,
-    'db_hash' => $item['password'],
-    'verify_result' => password_verify($password, $item['password'])
-]);
-exit;
-
-        if (password_verify($password, $item['password']))
+        if ($verify)
         {
             echo json_encode(['status' => true]);
             exit;
