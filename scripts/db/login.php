@@ -15,25 +15,41 @@ $password = $input['p'];
 // Check if Username and Password match
 $query = $mysqli->prepare("SELECT password FROM user WHERE username = ?");
 $query->bind_param("s", $username);
-$result = $query->execute();
+$query->execute();
+$result = $query->get_result();
 
 if ($result) 
 {
-    $result = $query->get_result();
     if ($result->num_rows === 1)
     {
         $item = $result->fetch_assoc();
+
+// Debug output
+echo json_encode([
+    'status' => false,
+    'reason' => 'debug',
+    'input_password' => $password,
+    'db_hash' => $item['password'],
+    'verify_result' => password_verify($password, $item['password'])
+]);
+exit;
 
         if (password_verify($password, $item['password']))
         {
             echo json_encode(['status' => true]);
             exit;
         }
+        else 
+        {
+            echo json_encode(['status' => false, 'reason' => 'pass']);
+            exit;
+        }
     }
-    
-    // Runs if Username or Password doesn't match
-    echo json_encode(['status' => false, 'reason' => 'invalid']);
-    exit;
+    else 
+    {
+        echo json_encode(['status' => false, 'reason' => 'user']);
+        exit;
+    }
 }
 else
 {

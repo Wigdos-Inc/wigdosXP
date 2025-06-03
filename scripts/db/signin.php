@@ -22,18 +22,22 @@ $password  = password_hash($input['p'], PASSWORD_DEFAULT);
 // Check if Username is already in use
 $query = $mysqli->prepare("SELECT ID FROM user WHERE username = ?");
 $query->bind_param("s", $username);
-$result = $query->execute();
+$query->execute();
+$result = $query->get_result();
 
-if (mysqli_num_rows($result) > 0) 
+if ($result->num_rows > 0)
 {
     echo json_encode(['status' => false, 'reason' => 'duplicate']);
     exit;
 }
 else
 {
+    // Get base Layout
+    $layout = file_get_contents('../desktop/layout.json');
+
     // Add New User to Database
     $query = $mysqli->prepare("INSERT INTO user (ID, firstname, lastname, username, password, email, desktop_layout) VALUES (NULL, ?, ?, ?, ?, ?, ?)");
-    $query->bind_param("ssssss", $firstname, $lastname, $username, $password, $email, '[]');
+    $query->bind_param("ssssss", $firstname, $lastname, $username, $password, $email, $layout);
     $result = $query->execute();
 
     // Status Check

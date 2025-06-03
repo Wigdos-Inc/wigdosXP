@@ -430,16 +430,7 @@ function logIn(uField, pField) {
     if (!input.u || !input.p) output.innerHTML = "Please fill in all fields!";
     else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
     else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
-    else {
-
-        if (php(input)) {}
-        else {
-
-            playerrorSound();
-            console.error("PHP connection failed");
-        }
-    
-    }
+    else php(input, "login");
 }
 
 function signIn(fnField, lnField, eField, uField, pField) {
@@ -496,12 +487,18 @@ function php(data, type) {
         }
         else {
 
+            output.style.color = "red";
+
             switch (response.reason) {
 
                 case "duplicate": output.innerHTML = "Username already in use."; break;
                 case "unknown"  : output.innerHTML = "Unknown error."; break;
                 case "layout" : output.innerHTML = "Layout error."; break;
+                case "user" : output.innerHTML = "No user found"; break;
+                case "pass" : output.innerHTML = "Incorrect password"; break;
             }
+
+            output.innerHTML += `<br/> Input Password: ${response.input_password} <br/> db_hash: ${response.db_hash} <br/> verify_result: ${response.verify_result}`;
 
         }
     })
