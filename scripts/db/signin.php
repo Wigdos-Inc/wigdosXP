@@ -1,5 +1,10 @@
 <?php
 
+// Turn on Error Reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
 
 // DB Connection
@@ -27,6 +32,11 @@ else
 {
     // Get base desktop layout
     $layout = file_get_contents('../desktop/layout.json');
+    if ($layout === false) {
+        error_log("Failed to read layout file.");
+        echo json_encode(['status' => false, 'reason' => 'layout']);
+        exit;
+    }
 
     // Add New User to Database
     $query  = "INSERT INTO user";
