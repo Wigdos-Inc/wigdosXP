@@ -35,50 +35,30 @@ window.onload = () => {
 
 function load() {
 
-    // If the User has loaded before
+    // If the User hasn't loaded before
     if (!sessionStorage.getItem("loaded")) {
 
         const loader = document.body.appendChild(document.createElement("div")); loader.classList.add("loader");
         loader.style.visibility = "unset";
 
 
-        // Stage 1 of Startup: Display Loading Screen
+        // Prep Desktop Background
         setTimeout(() => { document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)"; }, 500);
 
 
-        // Stage 2 of Startup: Log/Sign In
+        // Log/Sign In
         setTimeout(() => {
 
             // Create Account Screen
-            const accBox = document.body.appendChild(document.createElement("div")); accBox.classList.add("accBox");
-            accScreen(accBox);
+            const accBox = document.body.appendChild(document.createElement("div")); accBox.classList.add("accBox", "startup");
 
-            const contentBox   = accBox.appendChild(document.createElement("div")); contentBox.id = "contentBox";
-            const contentLeft  = contentBox.appendChild(document.createElement("div")); contentLeft.id = "contentLeft";
-            const contentMid   = contentBox.appendChild(document.createElement("div")); contentMid.id = "contentMid";
-            const contentRight = contentBox.appendChild(document.createElement("div")); contentRight.id = "contentRight";
-            contentLeft.classList.add("accBox_content"); contentRight.classList.add("accBox_content");
-
-            contentLeft.innerHTML = "<i><strong>welcome</strong></i>";
-            fill(contentRight, "login");            
+            const cBox = accScreen(accBox);
+            cBox[0].innerHTML = "<i><strong>welcome</strong></i>";
+            fill(cBox[1], "login");            
 
             // Remove Loader
             loader.remove();
         }, 3700);
-
-
-        /*/ Stage 3 of Startup: Display Desktop
-        setTimeout(() => {
-
-            document.getElementsByTagName("main")[0].style.opacity = 1;
-            document.getElementsByTagName("footer")[0].style.opacity = 1;
-
-            audio.play();
-            loader.classList.add("loader-hidden");
-
-            loader.addEventListener("transitionend", () => loader.remove());
-            //sessionStorage.setItem("loaded", true);
-        }, 3700); */
 
     }
     else {
@@ -146,19 +126,23 @@ let power = {
                     // Remove Taskbar
                     taskbar.remove();
 
-                    setTimeout(() => this.stage3(), 1500);
+                    setTimeout(() => {
+
+                        // Shutdown Screen
+                        document.body.style.backgroundImage = "none";
+                        this.overlay.appendChild(this.accBox);
+                        this.accBox.classList.add("accBox");
+
+                        const cBox = accScreen(this.accBox);
+                        cBox[0].innerHTML = "<i><strong>goodbye</strong></i>";
+                        fill(cBox[1], "out");
+                    }, 1500);
                 }, 500);
             }, 50);
         }, 50);
     },
 
     stage3: function() {
-
-        // Shutdown Screen
-        document.body.style.backgroundImage = "none";
-        this.overlay.appendChild(this.accBox);
-        this.accBox.classList.add("accBox");
-        accScreen(this.accBox);
 
         const graphic = this.accBox.appendChild(document.createElement("img")); graphic.id = "sdGraphic";
         graphic.src = "assets/images/background/shutdownGraphic_noBG.png";
@@ -203,6 +187,15 @@ function accScreen(container) {
     const bottomBar = container.appendChild(document.createElement("div")); bottomBar.classList.add("sdBar"); bottomBar.id = "sdBottomBar";
     const bottomBorder = bottomBar.appendChild(document.createElement("div")); bottomBorder.id = "sdBottomBorder";
     const lightSource = container.appendChild(document.createElement("div")); lightSource.id = "light";
+
+    // Prep Content
+    const contentBox   = container.appendChild(document.createElement("div")); contentBox.id = "contentBox";
+    const contentLeft  = contentBox.appendChild(document.createElement("div")); contentLeft.id = "contentLeft";
+    const contentMid   = contentBox.appendChild(document.createElement("div")); contentMid.id = "contentMid";
+    const contentRight = contentBox.appendChild(document.createElement("div")); contentRight.id = "contentRight";
+    contentLeft.classList.add("accBox_content"); contentRight.classList.add("accBox_content");
+
+    return [contentLeft, contentRight];
 }
 
 function fill(parent, type) {
@@ -210,7 +203,7 @@ function fill(parent, type) {
     // Remove former iteration if it exists
     if (document.getElementById("accBoxInner")) document.getElementById("accBoxInner").remove();
 
-    // Remove 
+    // Create Inner Box 
     const accBoxInner = parent.appendChild(document.createElement("div")); accBoxInner.id = "accBoxInner";
 
     if (type == "login") {
@@ -229,7 +222,8 @@ function fill(parent, type) {
             },
             btn : document.createElement("input"),
             output: document.createElement("p"),
-            wrong: document.createElement("p")
+            wrong: document.createElement("p"),
+            guest: document.createElement("p")
         }
 
 
@@ -262,6 +256,15 @@ function fill(parent, type) {
         login.wrong.innerHTML = "Don't have an account? Click here!";
         login.wrong.onclick = () => fill(parent, "signin");
 
+        // Guest
+        login.guest.id = "guest";
+        login.guest.innerHTML = "Log in as a Guest";
+        login.guest.onclick = () => {
+
+            sessionStorage.setItem("username", "guest");
+            fill(parent, "in");
+        }
+
         // Output
         login.output.id = "accOutput";
 
@@ -280,6 +283,9 @@ function fill(parent, type) {
         lineBreak(2);
 
         form.appendChild(login.wrong);
+        lineBreak(1);
+
+        form.appendChild(login.guest);
         lineBreak(2);
 
         form.appendChild(login.output);
@@ -458,9 +464,26 @@ function fill(parent, type) {
     }
     else {
 
+        // Display Icon
+        accBoxInner.classList.add("specialFlex");
         const boxInnerLeft = accBoxInner.appendChild(document.createElement("div")); boxInnerLeft.id = "boxInnerLeft";
-        const boxInnerRight = accBoxInner.appendChild(document.createElement("div")); boxInnerRight.id = "boxInnerRight";
+        const icon = boxInnerLeft.appendChild(document.createElement("img")); icon.id = "uIcon";
+        icon.src = "assets/images/icons/user/guest.png";
 
+        // Display Username & Text
+        const boxInnerRight = accBoxInner.appendChild(document.createElement("div")); boxInnerRight.id = "boxInnerRight";
+        const username = boxInnerRight.appendChild(document.createElement("p")); username.id = "pu";
+        username.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
+
+        const subtitle = boxInnerRight.appendChild(document.createElement("p")); subtitle.id = "ps";
+        subtitle.innerHTML = type == "in" ? "Logging In..." : "Logging Out...";
+
+
+        setTimeout(() => {
+            
+            if (type == "out") parent.parentElement.remove();
+            type == "in" ? start() : power.stage3();
+        }, 3000); // Duration of Logging In/Out
     }
 }
 
@@ -557,4 +580,17 @@ function php(data, type) {
     })
 }
 
-// GO DO THE DESKTOP SHIT YA DONKEY
+
+function start() {
+
+    document.getElementsByTagName("main")[0].style.opacity = 1;
+    document.getElementsByTagName("footer")[0].style.opacity = 1;
+
+    audio.play();
+
+    const accBox = document.getElementsByClassName("accBox")[0];
+    accBox.classList.add("startup-hidden");
+
+    accBox.addEventListener("transitionend", () => accBox.remove());
+    //sessionStorage.setItem("loaded", true);
+}
