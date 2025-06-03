@@ -20,8 +20,9 @@ $password  = password_hash($input['p'], PASSWORD_DEFAULT);
 
 
 // Check if Username is already in use
-$query = "SELECT ID FROM user WHERE username = '$username'";
-$result = mysqli_query($mysqli, $query);
+$query = $mysqli->prepare("SELECT ID FROM user WHERE username = ?");
+$query->bind_param("s", $username);
+$result = $query->execute();
 
 if (mysqli_num_rows($result) > 0) 
 {
@@ -30,19 +31,10 @@ if (mysqli_num_rows($result) > 0)
 }
 else
 {
-    // Get base desktop layout
-    $layout = file_get_contents('../desktop/layout.json');
-    if ($layout === false) {
-        error_log("Failed to read layout file.");
-        echo json_encode(['status' => false, 'reason' => 'layout']);
-        exit;
-    }
-
     // Add New User to Database
-    $query  = "INSERT INTO user";
-    $query .= " (ID, firstname, lastname, username, password, email, desktop_layout)";
-    $query .= " VALUES (NULL, '$firstname', '$lastname', '$username', '$password', '$email', '$layout')";
-    $result = mysqli_query($mysqli, $query);
+    $query = $mysqli->prepare("INSERT INTO user (ID, firstname, lastname, username, password, email, desktop_layout) VALUES (NULL, ?, ?, ?, ?, ?, ?)");
+    $query->bind_param("ssssss", $firstname, $lastname, $username, $password, $email, '[]');
+    $result = $query->execute();
 
     // Status Check
     if ($result) 
@@ -52,7 +44,7 @@ else
     }
     else
     {
-        error_log("MySQL Error: " . mysqli_error($mysqli));
+        error_log("MySQL Error: " . $query->error);
         echo json_encode(['status' => false, 'reason' => 'unknown']);
         exit;
     }

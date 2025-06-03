@@ -10,7 +10,8 @@ $db_username = 'main';
 $db_password = 'wiggleLock22';
 $db_database = 'wigdos';
 
-// Wigdos Link: https://102871.stu.sd-lab.nl/wigdos/
+// Wigdos Link: https://stu102871.github.io/wigdosXP/
+// Testing Link: https://102871.stu.sd-lab.nl/personal/wigdosXP/
 // PMA Link:    https://pma.sd-lab.nl/index.php?route=/sql&pos=0&db=wigdos&table=user
 
 // Connect to DB
@@ -18,8 +19,9 @@ $mysqli = mysqli_connect($db_hostname,$db_username,$db_password,$db_database);
 
 // Display potential error
 if (!$mysqli) {
-    echo "CONNECT FAILED <br>";
-    echo "ERROR: " . mysqli_connect_error() .  "<br/>";
+    die("Connection failed: " . mysqli_connect_error());
 }
+
+$mysqli->set_charset("utf8mb4");
 
 ?>

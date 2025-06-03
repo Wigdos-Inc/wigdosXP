@@ -13,14 +13,16 @@ $password = $input['p'];
 
 
 // Check if Username and Password match
-$query  = "SELECT password FROM user WHERE username = '$username'";
-$result = mysqli_query($mysqli, $query);
+$query = $mysqli->prepare("SELECT password FROM user WHERE username = ?");
+$query->bind_param("s", $username);
+$result = $query->execute();
 
 if ($result) 
 {
-    if (mysqli_num_rows($result) === 1)
+    $result = $query->get_result();
+    if ($result->num_rows === 1)
     {
-        $item = mysqli_fetch_assoc($result);
+        $item = $result->fetch_assoc();
 
         if (password_verify($password, $item['password']))
         {
