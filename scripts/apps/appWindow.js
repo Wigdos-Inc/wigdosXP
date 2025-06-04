@@ -211,7 +211,7 @@ class AppWindow {
             console.warn("⏱️ Save took too long. Forcing close.");
             this.element.remove();
             windows.object[this.index] = null;
-        }, 1000); // 1 second fallback
+        }, 5000); // 5 second fallback
     }
 
 
