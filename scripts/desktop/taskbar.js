@@ -60,10 +60,10 @@ smBtnBox.addEventListener("click", (event) => {
         const smHeader = startMenu.appendChild(document.createElement("div")); smHeader.id = "smHeader";
 
         const headerImg = smHeader.appendChild(document.createElement("img"));
-        headerImg.src = "assets/images/icons/32x/creature.png";
+        headerImg.src = "assets/images/icons/user/guest.png";
 
         const headerText = smHeader.appendChild(document.createElement("p"));
-        headerText.innerHTML = "<strong>Creature Name</strong>";
+        headerText.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
 
 
         // Main

@@ -551,7 +551,7 @@ function php(data, type) {
             sessionStorage.setItem("username", data.u);
 
             // Load Desktop
-            start();
+            fill(document.getElementById("contentRight"), "in");
 
         }
         else {
