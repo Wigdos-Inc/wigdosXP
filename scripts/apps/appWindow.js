@@ -179,10 +179,23 @@ class AppWindow {
 
     // Close the Application Window
     close() {
+        try {
+            // ✅ Send save command to iframe if it exists and is loaded
+            if (this.iframe && this.iframe.contentWindow) {
+                this.iframe.contentWindow.postMessage({ type: "saveGame" }, "*");
+                console.log("💾 Sent save message to app:", this.index);
+            }
+        } catch (err) {
+            console.warn("⚠️ Could not send save command:", err);
+        }
 
-        this.element.remove();
-        windows.object[this.index] = null;
+        // Give the app a moment to save before closing
+        setTimeout(() => {
+            this.element.remove();
+            windows.object[this.index] = null;
+        }, 300); // 300ms delay to allow save to complete
     }
+
 
     screenChange() {
 
