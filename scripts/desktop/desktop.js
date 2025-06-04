@@ -112,12 +112,12 @@ class DKGridBox {
 /* STARTUP CODE */
 
 // Create Grid Boxes
-for (let r=0; r < 5; r++) {
+for (let r=0; r < 7; r++) {
 
     // Make/Empty RowArray
     let rowArray = [];
 
-    for (let c=0; c < 9; c++) {
+    for (let c=0; c < 11; c++) {
 
         // Create Grid Box
         let box = document.getElementsByTagName("main")[0].appendChild(document.createElement("div"));
