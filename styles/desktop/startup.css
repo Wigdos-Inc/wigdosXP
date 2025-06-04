@@ -20,7 +20,7 @@
     border: 2px solid white;
     border-radius: 5px;
 
-    cursor: pointer;
+    cursor: url("../../assets/cursor/pointy.cur"), auto;
 }
 #powerOnBtn:hover   { background-image: linear-gradient(to top, #d85c52, #f88677, #f88677, #f88677, #fbae9d); }
 #powerOnBtn:active  { background-image: linear-gradient(to top, #d85c52, #f86e5b, #f86e5b, #f86e5b, #fbae9d); }
