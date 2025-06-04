@@ -366,6 +366,19 @@ function application(type) {
     
     // Display Application Content through iframe
     application.iframe.src = path;
+    // If this is Undertale, send username via postMessage after iframe loads
+    if (type === "undertale") {
+        application.iframe.onload = () => {
+            const username = sessionStorage.getItem("username") || "guest";
+
+            // Send to the iframe's window
+            application.iframe.contentWindow.postMessage({
+                type: "setUser",
+                username: username
+            }, "*"); // Replace '*' with Undertale domain to secure it if desired
+        };
+    }
+
 
     windows.object.push(application);
     windows.index++;
