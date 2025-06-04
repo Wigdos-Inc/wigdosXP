@@ -61,7 +61,7 @@
     align-items: center;
     text-shadow: none;
 
-    cursor: pointer;
+   cursor: url("../../assets/cursor/cursor.cur");
 }
 .screenImg {
     max-width: 100%;

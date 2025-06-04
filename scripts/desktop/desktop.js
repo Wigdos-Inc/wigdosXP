@@ -173,6 +173,42 @@ dkGridArray[0][8].display("assets/images/icons/48x/creature.png", "Let's Play A 
 dkGridArray[0][8].action = () => application("c4");
 
 
+// Attach Freddy1 (Template FOR NOW). Remember: Entry needs to be made in appWindow.js too
+dkGridArray[3][0].filled = true;
+dkGridArray[3][0].element.classList.add("filled");
+dkGridArray[3][0].display("assets/images/icons/games/fnaf/feddy1.png", "Feddy 1.exe");
+dkGridArray[3][0].action = () => application("feddy1");
+
+// Attach Freddy2
+dkGridArray[3][1].filled = true;
+dkGridArray[3][1].element.classList.add("filled");
+dkGridArray[3][1].display("assets/images/icons/games/fnaf/feddy2.png", "Feddy 2.exe");
+dkGridArray[3][1].action = () => application("feddy2");
+
+// Attach Freddy3
+dkGridArray[3][2].filled = true;
+dkGridArray[3][2].element.classList.add("filled");
+dkGridArray[3][2].display("assets/images/icons/games/fnaf/feddy3.png", "Feddy 3.exe");
+dkGridArray[3][2].action = () => application("feddy3");
+
+// Attach Freddy4
+dkGridArray[3][3].filled = true;
+dkGridArray[3][3].element.classList.add("filled");
+dkGridArray[3][3].display("assets/images/icons/games/fnaf/feddy4.png", "Feddy 4.exe");
+dkGridArray[3][3].action = () => application("feddy4");
+
+// Attach SM64
+dkGridArray[2][5].filled = true;
+dkGridArray[2][5].element.classList.add("filled");
+dkGridArray[2][5].display("assets/images/icons/games/other/mayro.png", "Mayro96.exe");
+dkGridArray[2][5].action = () => application("sm64");
+
+// Attach Undertale
+dkGridArray[2][5].filled = true;
+dkGridArray[2][5].element.classList.add("filled");
+dkGridArray[2][5].display("assets/images/icons/games/other/favicon.ico", "Undertale.exe");
+dkGridArray[2][5].action = () => application("undertale");
+
 
 
 

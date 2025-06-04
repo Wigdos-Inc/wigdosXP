@@ -102,6 +102,9 @@ class AppWindow {
                 this.move.current = true;
                 this.element.style.transition = "unset";
 
+                // Turn off Iframe Detection
+                this.iframe.style.pointerEvents = "none";
+
                 if (this.full) { 
                         
                     // ALL THIS IS FULLY AI, though I had to re-arrange some of it because it got confused.
@@ -167,6 +170,8 @@ class AppWindow {
                 const pos = this.element.getBoundingClientRect();
                 this.move.storage.x = pos.x;
                 this.move.storage.y = pos.y;
+
+                this.iframe.style.pointerEvents = "unset";
                     
             }
         });
@@ -228,6 +233,8 @@ function application(type) {
     let appIcon;
     let path;
 
+    let offset = [0, 0];
+
     switch (type) {
 
         case "files": 
@@ -276,6 +283,68 @@ function application(type) {
     
             break;
 
+        case "feddy1": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/fnaf/feddy1.png";
+            appTitle = "FNAF 1";
+            path = "https://danie-glr.github.io/wigdos_games/1/";
+
+            break;
+
+        case "feddy2": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/fnaf/feddy2.png";
+            appTitle = "FNAF 2";
+            path = "https://danie-glr.github.io/wigdos_games/2/";
+
+            break;
+
+        case "feddy3": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/fnaf/feddy3.png";
+            appTitle = "FNAF 3";
+            path = "https://danie-glr.github.io/wigdos_games/3/";
+
+            break;
+
+        case "feddy4": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/fnaf/feddy4.png";
+            appTitle = "FNAF 4";
+            path = "https://danie-glr.github.io/wigdos_games/4/";
+
+            break;
+
+        case "feddyW": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/fnaf/";
+            appTitle = "FNAF 4";
+            path = "https://danie-glr.github.io/wigdos_games/4/";
+
+            break;
+
+        case "sm64": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/other/mayro.png";
+            appTitle = "Supra Mayro Bors 96";
+            path = "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html";
+
+            break;
+
+        case "undertale": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/other/favicon.ico";
+            appTitle = "Undertale";
+            path = "https://michaeld1b.github.io/Undertale-HTML/";
+
+            break;
         default: return;
     }
 
