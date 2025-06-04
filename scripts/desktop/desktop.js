@@ -203,6 +203,11 @@ dkGridArray[2][5].element.classList.add("filled");
 dkGridArray[2][5].display("assets/images/icons/games/other/mayro.png", "Mayro96.exe");
 dkGridArray[2][5].action = () => application("sm64");
 
+// Attach Undertale
+dkGridArray[2][5].filled = true;
+dkGridArray[2][5].element.classList.add("filled");
+dkGridArray[2][5].display("assets/images/icons/games/other/favicon.ico", "Undertale.exe");
+dkGridArray[2][5].action = () => application("undertale");
 
 
 

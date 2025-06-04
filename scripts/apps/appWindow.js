@@ -337,6 +337,14 @@ function application(type) {
 
             break;
 
+        case "undertale": // TEMPLATE YOU FOOKIN DONKEY
+
+            full = true;
+            appIcon = "assets/images/icons/games/other/favicon.ico";
+            appTitle = "Undertale";
+            path = "https://michaeld1b.github.io/Undertale-HTML/";
+
+            break;
         default: return;
     }
 
