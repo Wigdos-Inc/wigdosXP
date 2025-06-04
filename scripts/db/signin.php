@@ -32,12 +32,12 @@ if ($result->num_rows > 0)
 }
 else
 {
-    // Get base Layout
-    $layout = file_get_contents('../desktop/layout.json');
+    // Get base Layout (POST TO NEW TABLE)
+    //$layout = file_get_contents('../desktop/layout.json');
 
     // Add New User to Database
-    $query = $mysqli->prepare("INSERT INTO user (ID, firstname, lastname, username, password, email, desktop_layout) VALUES (NULL, ?, ?, ?, ?, ?, ?)");
-    $query->bind_param("ssssss", $firstname, $lastname, $username, $password, $email, $layout);
+    $query = $mysqli->prepare("INSERT INTO user (ID, firstname, lastname, username, password, email, desktop_layout) VALUES (NULL, ?, ?, ?, ?, ?)");
+    $query->bind_param("sssss", $firstname, $lastname, $username, $password, $email);
     $result = $query->execute();
 
     // Status Check

@@ -573,7 +573,7 @@ function php(data, type) {
 
         playerrorSound();
         console.error("Error:", error);
-        output.innerHTML = "Error: See console for more details";
+        output.innerHTML = "Error: Account features unavailable. Try logging in as a guest.";
     })
 }
 
