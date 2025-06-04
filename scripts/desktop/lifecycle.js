@@ -476,7 +476,7 @@ function fill(parent, type) {
         username.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
 
         const subtitle = boxInnerRight.appendChild(document.createElement("p")); subtitle.id = "ps";
-        subtitle.innerHTML = type == "in" ? "Logging In..." : "Logging Out...";
+        subtitle.innerHTML = type == "in" ? "<i>Logging In...</i>" : "<i>Logging Out...</i>";
 
 
         setTimeout(() => {
@@ -547,14 +547,11 @@ function php(data, type) {
 
         if (response.status) {
 
-            // Placeholder Code
-            output.innerHTML = "Success!";
-            output.style.color = "green";
-
             // Store username to session
             sessionStorage.setItem("username", data.u);
 
             // Load Desktop
+            start();
 
         }
         else {
