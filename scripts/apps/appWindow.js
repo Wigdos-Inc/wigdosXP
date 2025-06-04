@@ -179,22 +179,41 @@ class AppWindow {
 
     // Close the Application Window
     close() {
-        try {
-            // ✅ Send save command to iframe if it exists and is loaded
-            if (this.iframe && this.iframe.contentWindow) {
-                this.iframe.contentWindow.postMessage({ type: "saveGame" }, "*");
-                console.log("💾 Sent save message to app:", this.index);
-            }
-        } catch (err) {
-            console.warn("⚠️ Could not send save command:", err);
-        }
-
-        // Give the app a moment to save before closing
-        setTimeout(() => {
+        const iframeWindow = this.iframe?.contentWindow;
+        if (!iframeWindow) {
             this.element.remove();
             windows.object[this.index] = null;
-        }, 300); // 300ms delay to allow save to complete
+            return;
+        }
+
+        // Use MessageChannel to wait for reply from iframe
+        const channel = new MessageChannel();
+
+        channel.port1.onmessage = (event) => {
+            if (event.data === "save-complete") {
+                console.log("✅ Save confirmed by iframe");
+
+                // After save finishes, clean up
+                this.element.remove();
+                windows.object[this.index] = null;
+            }
+        };
+
+        // Send message and port to iframe
+        iframeWindow.postMessage(
+            { type: "saveGame" },
+            "*",
+            [channel.port2] // pass the port for reply
+        );
+
+        // Timeout fallback (in case iframe is frozen or doesn't respond)
+        setTimeout(() => {
+            console.warn("⏱️ Save took too long. Forcing close.");
+            this.element.remove();
+            windows.object[this.index] = null;
+        }, 1000); // 1 second fallback
     }
+
 
 
     screenChange() {
