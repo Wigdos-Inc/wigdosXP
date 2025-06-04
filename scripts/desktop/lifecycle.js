@@ -589,5 +589,5 @@ function start() {
     accBox.classList.add("startup-hidden");
 
     accBox.addEventListener("transitionend", () => accBox.remove());
-    //sessionStorage.setItem("loaded", true);
+    sessionStorage.setItem("loaded", true);
 }
