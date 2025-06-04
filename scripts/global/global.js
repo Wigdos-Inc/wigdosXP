@@ -1,5 +1,7 @@
 /* Redirects */
 
+const index = () => location.href = "index.html";
+
 /* Loading SFX */
 
 function playerrorSound() {
