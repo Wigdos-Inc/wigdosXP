@@ -502,7 +502,7 @@ function logIn(uField, pField) {
     if (!input.u || !input.p) output.innerHTML = "Please fill in all fields!";
     else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
     else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
-    else php(input, "login");
+    else db(input, "login");
 }
 
 function signIn(fnField, lnField, eField, uField, pField) {
@@ -525,57 +525,82 @@ function signIn(fnField, lnField, eField, uField, pField) {
     else if (input.ln.length < 2) output.innerHTML = "Last name must contain at least 2 characters!";
     else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
     else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
-    else php(input, "signin");
+    else db(input, "signin");
 }
 
-// Send/Receive Data from PHP
-function php(data, type) {
+async function sha256(message) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+}
 
+// Send/Receive Data from Database
+async function db(data, type) {
     const output = document.getElementById("accOutput");
+    output.innerHTML = "";
 
-    // Store PHP file path
-    let path = `scripts/db/${type}.php`;
+    try {
+        const { db, setDoc, getDoc, doc } = window.firebaseAPI;
 
-    // Communicate with PHP (AI Assistance)
-    fetch(path, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
-    })
-    .then(res => res.json())
-    .then(response => {
-
-        if (response.status) {
-
-            // Store username to session
-            sessionStorage.setItem("username", data.u);
-
-            // Load Desktop
-            fill(document.getElementById("contentRight"), "in");
-
-        }
-        else {
-
-            output.style.color = "red";
-
-            switch (response.reason) {
-
-                case "duplicate": output.innerHTML = "Username already in use."; break;
-                case "unknown"  : output.innerHTML = "Unknown error."; break;
-                case "layout" : output.innerHTML = "Layout error."; break;
-                case "user" : output.innerHTML = "No user found"; break;
-                case "pass" : output.innerHTML = "Incorrect password"; break;
+        if (type === "signin") {
+            // Check for existing username (used as document ID)
+            const userDoc = await getDoc(doc(db, "users", data.u));
+            if (userDoc.exists()) {
+                output.innerHTML = "Username already in use.";
+                output.style.color = "red";
+                return;
             }
 
-        }
-    })
-    .catch(error => {
+            // Hash the password (SHA-256 for demo purposes; bcrypt preferred in production)
+            const hash = await sha256(data.p);
 
+            // Create user in Firestore
+            await setDoc(doc(db, "users", data.u), {
+                firstname: data.fn,
+                lastname: data.ln,
+                email: data.e,
+                username: data.u,
+                password: hash,
+                layout: "{}"
+            });
+
+            sessionStorage.setItem("username", data.u);
+            fill(document.getElementById("contentRight"), "in");
+
+        } else if (type === "login") {
+            // Get user doc by username
+            const userDoc = await getDoc(doc(db, "users", data.u));
+            if (!userDoc.exists()) {
+                output.innerHTML = "No user found";
+                output.style.color = "red";
+                return;
+            }
+
+            const userData = userDoc.data();
+
+            // Hash the entered password
+            const hash = await sha256(data.p);
+
+            if (hash === userData.password) {
+                sessionStorage.setItem("username", data.u);
+                fill(document.getElementById("contentRight"), "in");
+            } else {
+                output.innerHTML = "Incorrect password";
+                output.style.color = "red";
+            }
+        }
+
+    } catch (error) {
+        output.style.color = "red";
+        output.innerHTML = "Unknown error.";
+        console.error("Firestore error:", error);
         playerrorSound();
-        console.error("Error:", error);
-        output.innerHTML = "Error: Account features unavailable. Try logging in as a guest.";
-    })
+    }
 }
+
 
 
 function start() {

@@ -179,10 +179,42 @@ class AppWindow {
 
     // Close the Application Window
     close() {
+        const iframeWindow = this.iframe?.contentWindow;
+        if (!iframeWindow) {
+            this.element.remove();
+            windows.object[this.index] = null;
+            return;
+        }
 
-        this.element.remove();
-        windows.object[this.index] = null;
+        // Use MessageChannel to wait for reply from iframe
+        const channel = new MessageChannel();
+
+        channel.port1.onmessage = (event) => {
+            if (event.data === "save-complete") {
+                console.log("✅ Save confirmed by iframe");
+
+                // After save finishes, clean up
+                this.element.remove();
+                windows.object[this.index] = null;
+            }
+        };
+
+        // Send message and port to iframe
+        iframeWindow.postMessage(
+            { type: "saveGame" },
+            "*",
+            [channel.port2] // pass the port for reply
+        );
+
+        // Timeout fallback (in case iframe is frozen or doesn't respond)
+        setTimeout(() => {
+            console.warn("⏱️ Save took too long. Forcing close.");
+            this.element.remove();
+            windows.object[this.index] = null;
+        }, 5000); // 5 second fallback
     }
+
+
 
     screenChange() {
 
@@ -366,6 +398,19 @@ function application(type) {
     
     // Display Application Content through iframe
     application.iframe.src = path;
+    // If this is Undertale, send username via postMessage after iframe loads
+    if (type === "undertale") {
+        application.iframe.onload = () => {
+            const username = sessionStorage.getItem("username") || "guest";
+
+            // Send to the iframe's window
+            application.iframe.contentWindow.postMessage({
+                type: "setUser",
+                username: username
+            }, "*"); // Replace '*' with Undertale domain to secure it if desired
+        };
+    }
+
 
     windows.object.push(application);
     windows.index++;
