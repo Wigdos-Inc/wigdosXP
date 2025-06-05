@@ -131,7 +131,9 @@ for (let r=0; r < 7; r++) {
     // Push Complete Row to dkGridArray
     dkGridArray.push(rowArray);
 }
-// (WHEN CHANGING, ALSO CHANGE TEMPLATE IN DESKTOP.CSS)
+
+
+// Attach Applications
 
 
 

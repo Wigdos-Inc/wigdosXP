@@ -1,3 +1,10 @@
+/* Global Variables */
+
+// Windows XP Startup Sound
+var  audio = new Audio('assets/sfx/startup.mp3');
+
+
+
 /* Startup */
 
 window.onload = () => {
@@ -149,7 +156,7 @@ let power = {
 
 
         // Shutdown Sound
-        const shutDownSFX = new Audio("assets/sfx/Windows XP Shutdown Sound.mp3");
+        const shutDownSFX = new Audio("assets/sfx/shutdown.mp3");
         shutDownSFX.play();
 
         shutDownSFX.onended = () => {
@@ -616,3 +623,7 @@ function start() {
     accBox.addEventListener("transitionend", () => accBox.remove());
     sessionStorage.setItem("loaded", true);
 }
+
+
+// Future:
+// Store username in Local Storage, so that user's last logged in account is remembered

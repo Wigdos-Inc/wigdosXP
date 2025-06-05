@@ -14,7 +14,7 @@ class AppWindow {
         this.full    = full;
 
         this.header  = undefined; // Replaced by appHeader at line 40
-        this.iframe = undefined;
+        this.iframe  = undefined;
 
         this.move    = {
             current: false,
