@@ -502,7 +502,7 @@ function logIn(uField, pField) {
     if (!input.u || !input.p) output.innerHTML = "Please fill in all fields!";
     else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
     else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
-    else php(input, "login");
+    else db(input, "login");
 }
 
 function signIn(fnField, lnField, eField, uField, pField) {
@@ -525,7 +525,7 @@ function signIn(fnField, lnField, eField, uField, pField) {
     else if (input.ln.length < 2) output.innerHTML = "Last name must contain at least 2 characters!";
     else if (input.u.length < 4) output.innerHTML = "Username must contain at least 4 characters!";
     else if (input.p.length < 6) output.innerHTML = "Password must contain at least 6 characters!";
-    else php(input, "signin");
+    else db(input, "signin");
 }
 
     async function sha256(message) {
@@ -538,7 +538,7 @@ function signIn(fnField, lnField, eField, uField, pField) {
     }
 
 // Send/Receive Data from PHP
-async function php(data, type) {
+async function db(data, type) {
     const output = document.getElementById("accOutput");
     output.innerHTML = "";
 
@@ -557,6 +557,16 @@ async function php(data, type) {
             // Hash the password (SHA-256 for demo purposes; bcrypt preferred in production)
             const hash = await sha256(data.p);
 
+            function isValidEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+
+            if (!isValidEmail(data.e)) {
+                output.innerHTML = "Email is invalid.";
+                output.style.color = "red";
+                return;
+            }
             // Create user in Firestore
             await setDoc(doc(db, "users", data.u), {
                 firstname: data.fn,
