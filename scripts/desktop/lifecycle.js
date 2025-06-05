@@ -1,7 +1,7 @@
 /* Global Variables */
 
 // Windows XP Startup Sound
-var  audio = new Audio('assets/sfx/startup.mp3');
+const audio = new Audio('assets/sfx/startup.mp3');
 
 
 

@@ -1,6 +1,5 @@
 /* CLASSES */
-/* variables (global edition) */
-var  audio = new Audio('assets/sfx/Windows XP Startup.mp3');
+
 // Create the Grid Boxes and Store Them
 let dkGridArray = [];
 class DKGridBox {

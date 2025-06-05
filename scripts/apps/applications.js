@@ -1,6 +1,6 @@
 class Application {
 
-    constructor(id, title, full, path, pos) {
+    constructor(id, title, full, path) {
 
         this.id    = id;
         this.title = title;
@@ -147,4 +147,14 @@ const applications = {
         true, 
         ["internal", "apps/bombs/"]
     )
+}
+
+
+let amount = {
+    h: 0,
+    v: 0
+}
+for (const app in applications) {
+
+    
 }
