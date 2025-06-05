@@ -528,16 +528,16 @@ function signIn(fnField, lnField, eField, uField, pField) {
     else db(input, "signin");
 }
 
-    async function sha256(message) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(hashBuffer))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-    }
+async function sha256(message) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+}
 
-// Send/Receive Data from PHP
+// Send/Receive Data from Database
 async function db(data, type) {
     const output = document.getElementById("accOutput");
     output.innerHTML = "";
