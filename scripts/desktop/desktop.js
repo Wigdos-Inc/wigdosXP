@@ -7,20 +7,41 @@ class DKGridBox {
     constructor(element) {
         this.element = element;
         this.filled  = false;
-        this.action  = undefined
         this.select  = {
             active: false,
             count : 0,
             change: false,
             old   : undefined
         }
+
+        this.app     = undefined;
         this.content = {
             img : undefined,
             text: undefined
         }
     }
 
-    // Display Correct Information in Box
+    // Attach Application to the Box
+    attach(content) {
+
+        this.filled = true;
+        this.app = content;
+        
+        // Display Desktop Icon
+        this.content.img = this.element.appendChild(document.createElement("img"));
+        this.content.img.src = content.icon.l;
+
+        // Display Title
+        this.content.text = this.element.appendChild(document.createElement("p"));
+        this.content.text.innerHTML = content.title;
+    }
+    
+    detach() {
+
+
+    }
+
+    // Display Correct Information in Box (Soon to be Deprecated)
     display(img, text) {
 
         if (this.filled) {
@@ -42,25 +63,34 @@ class DKGridBox {
         }
     }
 
-    // Fill the Box
+    // Fill the Box (Soon to be deprecated)
     fill(oldBox) {
 
         if (!this.filled) {
 
-            this.action = oldBox ? oldBox.action : null;
+            if (oldBox) {
 
-            this.filled = true;
-            this.element.classList.add("filled");
-            this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
+                this.action = oldBox ? oldBox.action : null;
 
-            // Empty the Old Box
-            if (oldBox.filled) {
+                this.filled = true;
+                this.element.classList.add("filled");
+                this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
 
-                oldBox.action = null;
+                // Empty the Old Box
+                if (oldBox.filled) {
 
-                oldBox.filled = false;
-                oldBox.element.classList.remove("filled");
-                oldBox.display();
+                    oldBox.action = undefined;
+
+                    oldBox.filled = false;
+                    oldBox.element.classList.remove("filled");
+                    oldBox.display();
+
+                }
+
+            }
+            else {
+
+
 
             }
 

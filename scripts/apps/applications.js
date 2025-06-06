@@ -13,6 +13,12 @@ class Application {
             l: `assets/images/icons/48x/${id}.png`
         }
     }
+
+    start() {
+
+        const window = new AppWindow(this);
+        window.create();
+    }
 }
 
 
@@ -29,7 +35,8 @@ Template:
 - PATH (internal/external, file path/url; array)
 */
 
-
+// Note: First Contructor Parameter must match Object Property Key
+// Example: rBrowser is both the Property Key, and the first Parameter. Which makes it the app's ID
 
 const applications = {
 
@@ -150,11 +157,17 @@ const applications = {
 }
 
 
+
+// Tracking Desktop Grid Space
 let amount = {
-    h: 0,
-    v: 0
+    cr: 0,
+    cc: 0,
+    tr: dkGridArray.length,
+    tc: dkGridArray[0].length
 }
+
+// Attach Apps to Desktop
 for (const app in applications) {
 
-    
+    dkGridArray
 }

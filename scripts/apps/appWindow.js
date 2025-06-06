@@ -5,15 +5,17 @@ let windows = {
 
 class AppWindow {
 
-    constructor(full) {
+    constructor(app) {
 
+        // Meta
         this.element = document.getElementsByTagName("main")[0].appendChild(document.createElement("div"));
         this.focus   = false;
         this.index   = windows.index;
-        this.nameBox = undefined;
-        this.full    = full;
+        this.app     = app;
 
+        // Inner Elements
         this.header  = undefined; // Replaced by appHeader at line 40
+        this.nameBox = undefined;
         this.iframe  = undefined;
 
         this.move    = {
@@ -257,15 +259,13 @@ class AppWindow {
 }
 
 
-// Handle Application Loading
+// Handle Application Loading (Soon to be deprecated)
 function application(type) {
 
     let full;
     let appTitle;
     let appIcon;
     let path;
-
-    let offset = [0, 0];
 
     switch (type) {
 
