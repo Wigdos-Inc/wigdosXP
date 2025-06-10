@@ -10,9 +10,9 @@ class Application {
         this.path  = (path[0] == "external" ? path[1] : (path[1] + id + ".html"));
 
         this.icon  = {
-            s: `assets/images/icons/16x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`,
-            m: `assets/images/icons/32x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`,
-            l: `assets/images/icons/48x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`
+            s: !series ? `assets/images/icons/16x/${id}.png` : `assets/images/icons/games/${series}/${id}.png`,
+            m: !series ? `assets/images/icons/32x/${id}.png` : `assets/images/icons/games/${series}/${id}.png`,
+            l: !series ? `assets/images/icons/48x/${id}.png` : `assets/images/icons/games/${series}/${id}.png`
         }
     }
 }
@@ -160,7 +160,7 @@ const applications = {
 
     /* UNIQUE */
     bombs: new Application(
-        "bombs", 
+        "creature", 
         "Wigsplosionator", 
         "",
         true, 

@@ -10,8 +10,8 @@ const desktop = document.getElementsByTagName("main")[0];
 const smBtnBox = document.getElementById("sm_btn");
 
 // Quick Access Icon Functionality
-document.getElementById("qa_icon1").onclick = () => application("notes");
-document.getElementById("qa_icon2").onclick = () => application("files");
+document.getElementById("qa_icon1").onclick = () => startApp(applications.notes);
+document.getElementById("qa_icon2").onclick = () => startApp(applications.files);
 
 const tsBtn = document.getElementById("ts_btn");
 
@@ -73,14 +73,14 @@ smBtnBox.addEventListener("click", (event) => {
             element: smMain.appendChild(document.createElement("div")),
             images : 
             [
-                "assets/images/icons/32x/wiggleSearch.png",
-                "assets/images/icons/32x/wiglefari.png"
+                "assets/images/icons/32x/rBrowser.png",
+                "assets/images/icons/32x/fBrowser.png"
             ],
             titles : ["WiggleSearch", "Wiglefari"],
             actions:
             [
-                () => application("browser"),
-                () => application("browser")
+                () => startApp(applications.rBrowser),
+                () => startApp(applications.fBrowser)
             ]
         }
         smLeftHalf.element.classList.add("smHalf"); smLeftHalf.element.id = "smLeftHalf";
@@ -102,13 +102,13 @@ smBtnBox.addEventListener("click", (event) => {
             images : 
             [
                 "assets/images/icons/32x/files.png",
-                "assets/images/icons/32x/notepad.png"
+                "assets/images/icons/32x/notes.png"
             ],
             titles : ["File Explorer", "Notepad"],
             actions:
             [
-                () => application("files"),
-                () => application("notes")
+                () => startApp(applications.notes),
+                () => startApp(applications.files)
             ]
         }
         smRightHalf.element.classList.add("smHalf"); smRightHalf.element.id = "smRightHalf";
