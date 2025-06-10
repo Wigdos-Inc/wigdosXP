@@ -67,7 +67,7 @@ class AppWindow {
 
         screenBtn.onclick = () => {
 
-            this.full = !this.full;
+            this.app.full = !this.app.full;
             this.screenChange();
         }
             
@@ -220,7 +220,7 @@ class AppWindow {
 
     screenChange() {
 
-        if (this.full) {
+        if (this.app.full) {
 
             this.element.style.left = 0;
             this.element.style.top = 0;
@@ -259,152 +259,34 @@ class AppWindow {
 }
 
 
-// Handle Application Loading (Soon to be deprecated)
-function application(type) {
-
-    let full;
-    let appTitle;
-    let appIcon;
-    let path;
-
-    switch (type) {
-
-        case "files": 
-
-            full = false;
-            appIcon = "assets/images/icons/16x/files.png";
-            appTitle = "File Explorer";
-            path = "apps/files.html";
-        
-            break;
-
-        case "browser": 
-
-            full = true;
-            appIcon = "assets/images/icons/16x/wiggleSearch.png";
-            appTitle = "WiggleSearch";
-            path = "apps/browser/fuzzy.html";
-        
-        break;
-
-        case "notes":
-
-            full = false;
-            appIcon = "assets/images/icons/16x/notepad.png";
-            appTitle = "Notepad";
-            path = "apps/notes.html";
-
-            break;
-
-        case "bin":
-    
-            full = false;
-            appIcon = "assets/images/icons/16x/recycle.png";
-            appTitle = "Recycling Bin";
-            path = "apps/bin.html";
-    
-            break;
-
-
-        case "c4":
-    
-            full = true;
-            appIcon = "assets/images/bombs/c4.png"; // placeholder...
-            appTitle = "C4 Defusal";
-            path = "apps/bombs/c4.html";
-    
-            break;
-
-        case "feddy1": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/fnaf/feddy1.png";
-            appTitle = "FNAF 1";
-            path = "https://danie-glr.github.io/wigdos_games/1/";
-
-            break;
-
-        case "feddy2": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/fnaf/feddy2.png";
-            appTitle = "FNAF 2";
-            path = "https://danie-glr.github.io/wigdos_games/2/";
-
-            break;
-
-        case "feddy3": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/fnaf/feddy3.png";
-            appTitle = "FNAF 3";
-            path = "https://danie-glr.github.io/wigdos_games/3/";
-
-            break;
-
-        case "feddy4": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/fnaf/feddy4.png";
-            appTitle = "FNAF 4";
-            path = "https://danie-glr.github.io/wigdos_games/4/";
-
-            break;
-
-        case "feddyW": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/fnaf/";
-            appTitle = "FNAF 4";
-            path = "https://danie-glr.github.io/wigdos_games/4/";
-
-            break;
-
-        case "sm64": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/other/mayro.png";
-            appTitle = "Supra Mayro Bors 96";
-            path = "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html";
-
-            break;
-
-        case "undertale": // TEMPLATE YOU FOOKIN DONKEY
-
-            full = true;
-            appIcon = "assets/images/icons/games/other/favicon.ico";
-            appTitle = "Undertale";
-            path = "https://michaeld1b.github.io/Undertale-HTML/";
-
-            break;
-        default: return;
-    }
-
+// Handle Application Loading
+function startApp(app) {
     
     // Create new Application Window
-    const application = new AppWindow(full)
-    application.create();
-    application.screenChange();
+    const window = new AppWindow(app)
+    window.create();
+    window.screenChange();
 
 
     // Add the App Icon to the App Window Header
-    const appImg = application.nameBox.appendChild(document.createElement("img"));
-    appImg.classList.add("appIcon"); appImg.src = appIcon;
+    const appImg = window.nameBox.appendChild(document.createElement("img"));
+    appImg.classList.add("appIcon"); appImg.src = app.icon.s;
 
     // Add the App Name to the App Window Header
-    const appName = application.nameBox.appendChild(document.createElement("p"));
-    appName.classList.add("appName"); appName.innerHTML = appTitle;
+    const appName = window.nameBox.appendChild(document.createElement("p"));
+    appName.classList.add("appName"); appName.innerHTML = app.title;
 
     
     // Display Application Content through iframe
-    application.iframe.src = path;
+    window.iframe.src = app.path;
+
     // If this is Undertale, send username via postMessage after iframe loads
-    if (type === "undertale") {
-        application.iframe.onload = () => {
+    if (app.id == "ut") {
+        window.iframe.onload = () => {
             const username = sessionStorage.getItem("username") || "guest";
 
             // Send to the iframe's window
-            application.iframe.contentWindow.postMessage({
+            window.iframe.contentWindow.postMessage({
                 type: "setUser",
                 username: username
             }, "*"); // Replace '*' with Undertale domain to secure it if desired
@@ -412,6 +294,7 @@ function application(type) {
     }
 
 
-    windows.object.push(application);
+    // Store AppWindow
+    windows.object.push(window);
     windows.index++;
 }

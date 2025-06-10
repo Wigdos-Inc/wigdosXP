@@ -1,23 +1,19 @@
 class Application {
 
-    constructor(id, title, full, path) {
+    constructor(id, title, series, full, path) {
 
         this.id    = id;
         this.title = title;
+        this.dName = title;
+        this.series= series;
         this.full  = full;
-        this.path  = (path[0] == "external" ? path[1] : (path[1] + title + ".html"));
+        this.path  = (path[0] == "external" ? path[1] : (path[1] + id + ".html"));
 
         this.icon  = {
-            s: `assets/images/icons/16x/${id}.png`,
-            m: `assets/images/icons/32x/${id}.png`,
-            l: `assets/images/icons/48x/${id}.png`
+            s: `assets/images/icons/16x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`,
+            m: `assets/images/icons/32x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`,
+            l: `assets/images/icons/48x/${id}.png` || `assets/images/icons/games/${series}/${id}.png`
         }
-    }
-
-    start() {
-
-        const window = new AppWindow(this);
-        window.create();
     }
 }
 
@@ -31,6 +27,7 @@ class Application {
 Template: 
 - ID (shortname; string)
 - TITLE (display name; string)
+- SERIES (game series/other/empty; string)
 - FULL (fullscreen; boolean)
 - PATH (internal/external, file path/url; array)
 */
@@ -44,6 +41,7 @@ const applications = {
     rBrowser: new Application(
         "rBrowser", 
         "WiggleSearch", 
+        "",
         true, 
         ["internal", "apps/browser/"]
     ),
@@ -51,6 +49,7 @@ const applications = {
     fBrowser: new Application(
         "fBrowser", 
         "Wiglefari", 
+        "",
         true, 
         ["internal", "apps/browser/"]
     ),
@@ -61,6 +60,7 @@ const applications = {
     notes: new Application(
         "notes", 
         "Notepad", 
+        "",
         false, 
         ["internal", "apps/"]
     ),
@@ -68,6 +68,7 @@ const applications = {
     bin  : new Application(
         "bin", 
         "Recycling Bin", 
+        "",
         false, 
         ["internal", "apps/"]
     ),
@@ -75,6 +76,7 @@ const applications = {
     files: new Application(
         "files", 
         "File Explorer", 
+        "",
         false, 
         ["internal", "apps/"]
     ),
@@ -85,6 +87,7 @@ const applications = {
     feddy1: new Application(
         "feddy1", 
         "FNAF 1", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/1/"]
     ),
@@ -92,6 +95,7 @@ const applications = {
     feddy2  : new Application(
         "feddy2", 
         "FNAF 2", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/2/"]
     ),
@@ -99,6 +103,7 @@ const applications = {
     feddy3: new Application(
         "feddy3", 
         "FNAF 3", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/3/"]
     ),
@@ -106,6 +111,7 @@ const applications = {
     feddy4: new Application(
         "feddy4", 
         "FNAF 4", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/4/"]
     ),
@@ -113,6 +119,7 @@ const applications = {
     feddyWorld: new Application(
         "feddyWorld", 
         "FNAF World", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/4/"]
     ),
@@ -120,6 +127,7 @@ const applications = {
     feddyPS: new Application(
         "feddyPS", 
         "FNAF PS", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/feddy_ps6/"]
     ),
@@ -127,20 +135,23 @@ const applications = {
     feddyUCN: new Application(
         "feddyUCN", 
         "FNAF UCN", 
+        "fnaf",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_games/ucn/"]
     ),
 
-    ut      : new Application(
+    ut: new Application(
         "ut", 
         "Undertale", 
+        "other",
         true, 
         ["external", "https://michaeld1b.github.io/Undertale-HTML/"]
     ),
 
-    sm64    : new Application(
+    sm64: new Application(
         "sm64", 
         "SM64", 
+        "other",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"]
     ),
@@ -151,23 +162,8 @@ const applications = {
     bombs: new Application(
         "bombs", 
         "Wigsplosionator", 
+        "",
         true, 
         ["internal", "apps/bombs/"]
     )
-}
-
-
-
-// Tracking Desktop Grid Space
-let amount = {
-    cr: 0,
-    cc: 0,
-    tr: dkGridArray.length,
-    tc: dkGridArray[0].length
-}
-
-// Attach Apps to Desktop
-for (const app in applications) {
-
-    dkGridArray
 }

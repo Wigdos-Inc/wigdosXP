@@ -25,76 +25,33 @@ class DKGridBox {
     attach(content) {
 
         this.filled = true;
+        this.element.classList.add("filled");
+
         this.app = content;
         
         // Display Desktop Icon
         this.content.img = this.element.appendChild(document.createElement("img"));
-        this.content.img.src = content.icon.l;
+        this.content.img.src = this.app.icon.l;
 
         // Display Title
         this.content.text = this.element.appendChild(document.createElement("p"));
-        this.content.text.innerHTML = content.title;
+        this.content.text.innerHTML = this.app.dName;
     }
     
     detach() {
 
+        this.filled = false;
+        this.element.classList.remove("filled");
 
-    }
+        this.app = undefined;
 
-    // Display Correct Information in Box (Soon to be Deprecated)
-    display(img, text) {
+        // Remove Icon Element
+        this.content.img.remove();
+        this.content.img = undefined;
 
-        if (this.filled) {
-
-            if (img) {
-                this.content.img = this.element.appendChild(document.createElement("img"));
-                this.content.img.src = img;
-            }
-
-            if (text) {
-                this.content.text = this.element.appendChild(document.createElement("p"));
-                this.content.text.innerHTML = text;
-            }
-
-        }
-        else {
-            this.content.img.remove();
-            this.content.text.remove();
-        }
-    }
-
-    // Fill the Box (Soon to be deprecated)
-    fill(oldBox) {
-
-        if (!this.filled) {
-
-            if (oldBox) {
-
-                this.action = oldBox ? oldBox.action : null;
-
-                this.filled = true;
-                this.element.classList.add("filled");
-                this.display(oldBox.content.img.src, oldBox.content.text.innerHTML);
-
-                // Empty the Old Box
-                if (oldBox.filled) {
-
-                    oldBox.action = undefined;
-
-                    oldBox.filled = false;
-                    oldBox.element.classList.remove("filled");
-                    oldBox.display();
-
-                }
-
-            }
-            else {
-
-
-
-            }
-
-        }
+        // Remove Text Element
+        this.content.text.remove();
+        this.content.text = undefined;
     }
 
     change(type) {
@@ -111,7 +68,9 @@ class DKGridBox {
             let input = this.element.appendChild(document.createElement("input"));
             input.type = "text";
             input.id = "input";
-
+            input.value = this.select.old;
+            input.focus();
+            input.select();
 
             // Renaming Finalizes when pressing Enter
             input.addEventListener("keydown", (event) => {
@@ -123,18 +82,22 @@ class DKGridBox {
         else if (!type) {
 
             let input = document.getElementById("input");
-            let value = (input.value == "") ? this.select.old : input.value;
+            this.app.dName = (input.value == "") ? this.select.old : input.value;
 
             input.remove();
             this.select.change = false;
             this.select.old = undefined;
             this.select.count = 0;
 
-            this.display(undefined, value);
+            // Display Title
+            this.content.text = this.element.appendChild(document.createElement("p"));
+            this.content.text.innerHTML = this.app.dName;
 
         }
     }
 }
+
+
 
 
 
@@ -162,84 +125,34 @@ for (let r=0; r < 7; r++) {
 }
 
 
-// Attach Applications
+// Track Desktop Grid Space
+let gridAmount = {
+    cr: 0,
+    cc: 0,
+    tr: dkGridArray.length,
+    tc: dkGridArray[0].length
+}
 
+// Attach Apps to Desktop
+for (const appKey in applications) {
 
+    // Store Application from key
+    const app = applications[appKey];
 
+    if (gridAmount.cr < gridAmount.tr) {
 
+        dkGridArray[gridAmount.cr][gridAmount.cc].attach(app);
+    
+        // Iterate through Grid Boxes
+        gridAmount.cc++;
+        if (gridAmount.cc == gridAmount.tc) {
+            gridAmount.cc = 0;
+            gridAmount.cr++;
+        }
 
-// Attach Browser
-dkGridArray[0][0].filled = true;
-dkGridArray[0][0].element.classList.add("filled");
-dkGridArray[0][0].display("assets/images/icons/48x/wiggleSearch.png", "WiggleSearch");
-dkGridArray[0][0].action = () => application("browser");
+    }
+}
 
-// Attach Fake Browser
-dkGridArray[1][0].filled = true;
-dkGridArray[1][0].element.classList.add("filled");
-dkGridArray[1][0].display("assets/images/icons/48x/wiglefari.png", "Wiglefari");
-dkGridArray[1][0].action = () => application("browser");
-
-// Attach File Explorer
-dkGridArray[4][8].filled = true;
-dkGridArray[4][8].element.classList.add("filled");
-dkGridArray[4][8].display("assets/images/icons/48x/files.png", "File Explorer");
-dkGridArray[4][8].action = () => application("files");
-
-// Attach Notepad
-dkGridArray[0][1].filled = true;
-dkGridArray[0][1].element.classList.add("filled");
-dkGridArray[0][1].display("assets/images/icons/48x/notepad.png", "Notepad");
-dkGridArray[0][1].action = () => application("notes");
-
-// Attach Recycling Bin
-dkGridArray[4][0].filled = true;
-dkGridArray[4][0].element.classList.add("filled");
-dkGridArray[4][0].display("assets/images/icons/48x/recycle.png", "Recycling Bin");
-dkGridArray[4][0].action = () => application("bin");
-
-// Attach Creature
-dkGridArray[0][8].filled = true;
-dkGridArray[0][8].element.classList.add("filled");
-dkGridArray[0][8].display("assets/images/icons/48x/creature.png", "Let's Play A Game.exe");
-dkGridArray[0][8].action = () => application("c4");
-
-
-// Attach Freddy1 (Template FOR NOW). Remember: Entry needs to be made in appWindow.js too
-dkGridArray[3][0].filled = true;
-dkGridArray[3][0].element.classList.add("filled");
-dkGridArray[3][0].display("assets/images/icons/games/fnaf/feddy1.png", "Feddy 1.exe");
-dkGridArray[3][0].action = () => application("feddy1");
-
-// Attach Freddy2
-dkGridArray[3][1].filled = true;
-dkGridArray[3][1].element.classList.add("filled");
-dkGridArray[3][1].display("assets/images/icons/games/fnaf/feddy2.png", "Feddy 2.exe");
-dkGridArray[3][1].action = () => application("feddy2");
-
-// Attach Freddy3
-dkGridArray[3][2].filled = true;
-dkGridArray[3][2].element.classList.add("filled");
-dkGridArray[3][2].display("assets/images/icons/games/fnaf/feddy3.png", "Feddy 3.exe");
-dkGridArray[3][2].action = () => application("feddy3");
-
-// Attach Freddy4
-dkGridArray[3][3].filled = true;
-dkGridArray[3][3].element.classList.add("filled");
-dkGridArray[3][3].display("assets/images/icons/games/fnaf/feddy4.png", "Feddy 4.exe");
-dkGridArray[3][3].action = () => application("feddy4");
-
-// Attach SM64
-dkGridArray[2][5].filled = true;
-dkGridArray[2][5].element.classList.add("filled");
-dkGridArray[2][5].display("assets/images/icons/games/other/mayro.png", "Mayro96.exe");
-dkGridArray[2][5].action = () => application("sm64");
-
-// Attach Undertale
-dkGridArray[3][5].filled = true;
-dkGridArray[3][5].element.classList.add("filled");
-dkGridArray[3][5].display("assets/images/icons/games/other/favicon.ico", "Undertale.exe");
-dkGridArray[3][5].action = () => application("undertale");
 
 
 
@@ -315,7 +228,9 @@ dkGridArray.forEach(row => row.forEach(box => {
 
         if (userBox !== undefined && userBox != box) {
 
-            box.fill(userBox);
+            box.attach(userBox.app);
+            userBox.detach();
+            userBox = undefined;
 
             deselectAll(true);
             select(box);
@@ -335,7 +250,7 @@ dkGridArray.forEach(row => row.forEach(box => {
             const cTime = Date.now();
             const pTime = prevClick[box.id];
             
-            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text && event.target === prevBox) box.action();
+            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text && event.target === prevBox) startApp(box.app);
         
             // Update the last click time
             prevClick[box.id] = cTime;
