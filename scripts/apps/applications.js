@@ -1,22 +1,25 @@
 class Application {
 
-    constructor(name, series, full, path) {
+    constructor(name, series, full, path, save) {
 
-        this.name  = {
+        this.name = {
             s: name[0],
             m: name[1],
             l: name[2] || name[1],
             d: name[1]
         }
+        
         this.series= series;
         this.full  = full;
         this.path  = (path[0] == "external" ? path[1] : (path[1] + name[0] + ".html"));
 
-        this.icon  = {
+        this.icon = {
             s: !series ? `assets/images/icons/16x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`,
             m: !series ? `assets/images/icons/32x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`,
             l: !series ? `assets/images/icons/48x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`
         }
+
+        this.save = save;
     }
 }
 
@@ -134,7 +137,8 @@ const applications = {
         ["ut", "Undertale"],
         "other",
         true, 
-        ["external", "https://michaeld1b.github.io/Undertale-HTML/"]
+        ["external", "https://michaeld1b.github.io/Undertale-HTML/"],
+        true
     ),
 
     sm64: new Application(

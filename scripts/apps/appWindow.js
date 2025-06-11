@@ -189,7 +189,9 @@ class AppWindow {
         }
 
         // Only attempts saving for apps that support it
-        if (this.app.id === "ut") {
+        if (this.app.save) {
+
+            window.alert("saving");
 
             const channel = new MessageChannel();
 
