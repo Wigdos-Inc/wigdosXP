@@ -109,10 +109,6 @@ class AppWindow {
 
                 if (this.full) { 
                         
-                    // ALL THIS IS FULLY AI, though I had to re-arrange some of it because it got confused.
-                    // I justify copying AI here because it is a niche QoL feature that would not have been worth the time investment
-                    // In a professional setting I would not have done this.
-
                     // Use the event's currentTarget (appHeader) for measurement.
                     const headerRect = event.currentTarget.getBoundingClientRect();
                     const headerRectFull = appHeader.getBoundingClientRect();
@@ -191,7 +187,7 @@ class AppWindow {
         // Only attempts saving for apps that support it
         if (this.app.save) {
 
-            window.alert("saving");
+            window.alert("saving"); // It tries to save, iframe returns positive. But no save data is found/loaded upon restart
 
             const channel = new MessageChannel();
 
