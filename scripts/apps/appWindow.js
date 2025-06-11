@@ -188,32 +188,40 @@ class AppWindow {
             return;
         }
 
-        // Use MessageChannel to wait for reply from iframe
-        const channel = new MessageChannel();
+        // Only attempts saving for apps that support it
+        if (this.app.id === "ut") {
 
-        channel.port1.onmessage = (event) => {
-            if (event.data === "save-complete") {
-                console.log("✅ Save confirmed by iframe");
+            const channel = new MessageChannel();
 
-                // After save finishes, clean up
+            channel.port1.onmessage = (event) => {
+                if (event.data === "save-complete") {
+                    console.log("✅ Save confirmed by iframe");
+
+                    // After save finishes, clean up
+                    this.element.remove();
+                    windows.object[this.index] = null;
+                }
+            };
+
+            // Send message and port to iframe
+            iframeWindow.postMessage(
+                { type: "saveGame" },
+                "*",
+                [channel.port2] // pass the port for reply
+            );
+
+            // Timeout fallback (in case iframe is frozen or doesn't respond)
+            setTimeout(() => {
+                console.warn("⏱️ Save took too long. Forcing close.");
                 this.element.remove();
                 windows.object[this.index] = null;
-            }
-        };
-
-        // Send message and port to iframe
-        iframeWindow.postMessage(
-            { type: "saveGame" },
-            "*",
-            [channel.port2] // pass the port for reply
-        );
-
-        // Timeout fallback (in case iframe is frozen or doesn't respond)
-        setTimeout(() => {
-            console.warn("⏱️ Save took too long. Forcing close.");
+            }, 5000); // 5 second fallback
+            
+        } else {
+            // Close the application
             this.element.remove();
             windows.object[this.index] = null;
-        }, 5000); // 5 second fallback
+        }
     }
 
 
@@ -274,7 +282,7 @@ function startApp(app) {
 
     // Add the App Name to the App Window Header
     const appName = window.nameBox.appendChild(document.createElement("p"));
-    appName.classList.add("appName"); appName.innerHTML = app.title;
+    appName.classList.add("appName"); appName.innerHTML = app.name.l;
 
     
     // Display Application Content through iframe

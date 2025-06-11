@@ -35,7 +35,7 @@ class DKGridBox {
 
         // Display Title
         this.content.text = this.element.appendChild(document.createElement("p"));
-        this.content.text.innerHTML = this.app.dName;
+        this.content.text.innerHTML = this.app.name.d;
     }
     
     detach() {
