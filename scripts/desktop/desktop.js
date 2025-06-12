@@ -194,17 +194,23 @@ function desktopFill(type, layout) {
 
         case "load":
 
-            for (let row=0; row < dkGridArray.length; row++) {
+            if (layout) {
 
-                for (let col=0; col < dkGridArray[row].length; col++) {
+                for (let row=0; row < dkGridArray.length; row++) {
 
-                    const appID = layout[row][col];
-                    if (appID) dkGridArray[row][col].attach(applications[appID]);
+                    for (let col=0; col < dkGridArray[row].length; col++) {
+
+                        const appID = layout[row][col];
+                        if (appID) dkGridArray[row][col].attach(applications[appID]);
+                    }
                 }
-            }
 
-            // Save Layout and Break
-            sessionStorage.setItem("layout", JSON.stringify(layout));
+                // Save Layout
+                sessionStorage.setItem("layout", JSON.stringify(layout));
+
+            }
+            else desktopFill("base");
+
             break;
 
         case "update":

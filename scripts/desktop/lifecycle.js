@@ -598,9 +598,27 @@ async function db(data, type) {
             const hash = await sha256(data.p);
 
             if (hash === userData.password) {
+
                 sessionStorage.setItem("username", data.u);
-                desktopFill("load", JSON.parse(userData.layout));
+
+                // Check if stored Layout is valid
+                let layout;
+                try {
+                    layout = JSON.parse(userData.layout);
+                } catch {
+                    layout = null;
+                }
+                if (!layout || !Array.isArray(layout) || layout.length === 0) {
+
+                    // Create new Valid Layout
+                    layout = desktopFill("base");
+                    desktopFill("update");
+
+                }
+                else desktopFill("load", JSON.parse(userData.layout));
+                
                 fill(document.getElementById("contentRight"), "in");
+                
             } else {
                 output.innerHTML = "Incorrect password";
                 output.style.color = "red";
