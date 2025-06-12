@@ -4,7 +4,7 @@
 let dkGridArray = [];
 class DKGridBox {
 
-    constructor(element) {
+    constructor(element, row, col) {
         this.element = element;
         this.filled  = false;
         this.select  = {
@@ -12,6 +12,11 @@ class DKGridBox {
             count : 0,
             change: false,
             old   : undefined
+        }
+
+        this.pos = {
+            row: row,
+            col: col
         }
 
         this.app     = undefined;
@@ -36,6 +41,17 @@ class DKGridBox {
         // Display Title
         this.content.text = this.element.appendChild(document.createElement("p"));
         this.content.text.innerHTML = this.app.name.d;
+
+
+        // Update Layout
+        if (sessionStorage.getItem("layout") && sessionStorage.getItem("username") != "guest") {
+
+            let layout = JSON.parse(sessionStorage.getItem("layout"));
+            layout[this.pos.row][this.pos.col] = this.app.name.s;
+            sessionStorage.setItem("layout", JSON.stringify(layout));
+            desktopFill("update");
+
+        }
     }
     
     detach() {
@@ -52,6 +68,17 @@ class DKGridBox {
         // Remove Text Element
         this.content.text.remove();
         this.content.text = undefined;
+
+
+        // Update Layout
+        if (sessionStorage.getItem("layout") && sessionStorage.getItem("username") != "guest") {
+
+            let layout = JSON.parse(sessionStorage.getItem("layout"));
+            layout[this.pos.row][this.pos.col] = null;
+            sessionStorage.setItem("layout", JSON.stringify(layout));
+            desktopFill("update");
+
+        }
     }
 
     change(type) {
@@ -117,7 +144,7 @@ for (let r=0; r < 7; r++) {
         box.id = `${r}-${c}`;
 
         // Push to Row
-        rowArray.push(new DKGridBox(box));
+        rowArray.push(new DKGridBox(box, r, c));
     }
 
     // Push Complete Row to dkGridArray
@@ -125,31 +152,79 @@ for (let r=0; r < 7; r++) {
 }
 
 
-// Track Desktop Grid Space
-let gridAmount = {
-    cr: 0,
-    cc: 0,
-    tr: dkGridArray.length,
-    tc: dkGridArray[0].length
-}
-
 // Attach Apps to Desktop
-for (const appKey in applications) {
+function desktopFill(type, layout) {
 
-    // Store Application from key
-    const app = applications[appKey];
+    switch (type) {
 
-    if (gridAmount.cr < gridAmount.tr) {
+        case "base":
 
-        dkGridArray[gridAmount.cr][gridAmount.cc].attach(app);
-    
-        // Iterate through Grid Boxes
-        gridAmount.cc++;
-        if (gridAmount.cc == gridAmount.tc) {
-            gridAmount.cc = 0;
-            gridAmount.cr++;
-        }
+            let grid = {
+                cr: 0,
+                cc: 0,
+                tr: dkGridArray.length,
+                tc: dkGridArray[0].length
+            }
 
+            // Prepare Layout
+            layout = [];
+            for (let i=0; i < dkGridArray.length; i++) layout.push([]);
+
+            for (const appKey in applications) {
+
+                if (grid.cr < grid.tr) {
+                    layout[grid.cr][grid.cc] = applications[appKey].name.s; // Store Apps in Layout
+                    dkGridArray[grid.cr][grid.cc].attach(applications[appKey]); // Attach App to Desktop
+                }
+
+                // Attach App to Desktop
+                dkGridArray[grid.cr][grid.cc]
+
+                // Desktop Grid Iteration
+                grid.cc++;
+                if (grid.cc == grid.tc) {
+                    grid.cc = 0;
+                    grid.cr++;
+                }
+            }
+
+            // Save and Return Layout
+            sessionStorage.setItem("layout", JSON.stringify(layout));
+            return JSON.stringify(layout);
+
+        case "load":
+
+            for (let row=0; row < dkGridArray.length; row++) {
+
+                for (let col=0; col < dkGridArray[row].length; col++) {
+
+                    const appID = layout[row][col];
+                    if (appID) dkGridArray[row][col].attach(applications[appID]);
+                }
+            }
+
+            // Save Layout and Break
+            sessionStorage.setItem("layout", JSON.stringify(layout));
+            break;
+
+        case "update":
+
+            // Overwrite old Document
+            (async () => {
+                try {
+
+                    const { db, setDoc, doc } = window.firebaseAPI;
+                    await setDoc (
+                        doc(db, "users", sessionStorage.getItem("username")),
+                        { layout: sessionStorage.getItem("layout") },
+                        { merge: true }
+                    );
+                } catch (error) {
+                    console.error("Error saving layout:", error);
+                    window.alert(error);
+                }
+            })();
+            break;
     }
 }
 

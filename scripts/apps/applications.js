@@ -31,14 +31,16 @@ class Application {
 
 /*
 Template: 
-- ID (shortname, displayname, fullname (if applicable); array)
-- SERIES (game series/other/empty; string)
+- NAME (shortname, displayname, fullname (if applicable); array)
+- SERIES (game series/other/""; string)
 - FULL (fullscreen; boolean)
 - PATH (internal/external, file path/url; array)
+- SAVE (saving functionality; boolean)
 */
 
-// Note: First Contructor Parameter must match Object Property Key
-// Example: rBrowser is both the Property Key, and the first Parameter. Which makes it the app's ID
+// Note: First Value must match Object Property Key
+// Example: rBrowser is both the Property Key, and the first Value. Which makes it the app's ID
+// Breaks code if different
 
 const applications = {
 
@@ -152,7 +154,7 @@ const applications = {
 
     /* UNIQUE */
     bombs: new Application(
-        ["creature", "Wigsplosionator"],
+        ["bombs", "Wigsplosionator"],
         "",
         true, 
         ["internal", "apps/bombs/"]

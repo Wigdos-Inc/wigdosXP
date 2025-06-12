@@ -19,7 +19,7 @@ window.onload = () => {
 
         // Create background Creature
         const creature = powerOn.appendChild(document.createElement("img"));
-        creature.src = "assets/images/icons/48x/creature.png";
+        creature.src = "assets/images/icons/48x/bombs.png";
         creature.style.position = "absolute";
         creature.style.width = "80%";
         creature.style.opacity = "0.05";
@@ -71,6 +71,7 @@ function load() {
     else {
 
         document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
+        desktopFill("load", JSON.parse(sessionStorage.getItem("layout")));
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
 
@@ -269,6 +270,7 @@ function fill(parent, type) {
         login.guest.onclick = () => {
 
             sessionStorage.setItem("username", "guest");
+            desktopFill("base");
             fill(parent, "in");
         }
 
@@ -535,6 +537,7 @@ function signIn(fnField, lnField, eField, uField, pField) {
     else db(input, "signin");
 }
 
+// Password Encoder
 async function sha256(message) {
     const encoder = new TextEncoder();
     const data = encoder.encode(message);
@@ -546,6 +549,7 @@ async function sha256(message) {
 
 // Send/Receive Data from Database
 async function db(data, type) {
+
     const output = document.getElementById("accOutput");
     output.innerHTML = "";
 
@@ -553,7 +557,8 @@ async function db(data, type) {
         const { db, setDoc, getDoc, doc } = window.firebaseAPI;
 
         if (type === "signin") {
-            // Check for existing username (used as document ID)
+
+            // Check for existing username (used as document ID/KEY)
             const userDoc = await getDoc(doc(db, "users", data.u));
             if (userDoc.exists()) {
                 output.innerHTML = "Username already in use.";
@@ -571,13 +576,14 @@ async function db(data, type) {
                 email: data.e,
                 username: data.u,
                 password: hash,
-                layout: "{}"
+                layout: desktopFill("base")
             });
 
             sessionStorage.setItem("username", data.u);
             fill(document.getElementById("contentRight"), "in");
 
         } else if (type === "login") {
+
             // Get user doc by username
             const userDoc = await getDoc(doc(db, "users", data.u));
             if (!userDoc.exists()) {
@@ -593,11 +599,13 @@ async function db(data, type) {
 
             if (hash === userData.password) {
                 sessionStorage.setItem("username", data.u);
+                desktopFill("load", JSON.parse(userData.layout));
                 fill(document.getElementById("contentRight"), "in");
             } else {
                 output.innerHTML = "Incorrect password";
                 output.style.color = "red";
             }
+
         }
 
     } catch (error) {
