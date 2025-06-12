@@ -305,9 +305,9 @@ dkGridArray.forEach(row => row.forEach(box => {
     });
 
     // Move an Entry to a different Box
-    box.element.addEventListener("mouseup", (event) => {
+    box.element.addEventListener("mouseup", () => {
 
-        if (userBox !== undefined && userBox != box) {
+        if (userBox !== undefined && userBox != box && !box.filled) {
 
             box.attach(userBox.app);
             userBox.detach();
