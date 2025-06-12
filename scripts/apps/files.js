@@ -4,7 +4,7 @@ contentBox = document.getElementById("appMain");
 const itemInfo = {
     images: 
     [
-        "assets/images/icons/32x/creature.png",
+        "assets/images/icons/32x/bombs.png",
         "assets/images/icons/32x/files.png",
         "assets/images/icons/32x/files.png"
     ],

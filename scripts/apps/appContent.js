@@ -7,7 +7,7 @@ if (document.getElementById("topBar")) {
     // Create the OS box & image to display the creature
     const osBox = topBar.appendChild(document.createElement("div")); osBox.id = "appOS";
     const osImg = osBox.appendChild(document.createElement("img")); osImg.id = "OSimg";
-    osImg.src = "assets/images/icons/16x/creature.png";
+    osImg.src = "assets/images/icons/16x/bombs.png";
 
     // Opacity changes on hover
     osBox.addEventListener("mouseenter", () => osImg.style.opacity = 1);
