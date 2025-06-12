@@ -569,6 +569,16 @@ async function db(data, type) {
             // Hash the password (SHA-256 for demo purposes; bcrypt preferred in production)
             const hash = await sha256(data.p);
 
+            function isValidEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+
+            if (!isValidEmail(data.e)) {
+                output.innerHTML = "Email is invalid.";
+                output.style.color = "red";
+                return;
+            }
             // Create user in Firestore
             await setDoc(doc(db, "users", data.u), {
                 firstname: data.fn,
