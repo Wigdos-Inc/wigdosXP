@@ -8,6 +8,7 @@ html, body {
     height: 100vh;
     width: 100vw;
     overflow: hidden;
+    font-family: Avenir;
 }
 body {
     transition: all 2s;
