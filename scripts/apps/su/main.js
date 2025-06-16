@@ -5,7 +5,7 @@ const arrows = {
 }
 
 
-
+// Swipe Stuff
 document.addEventListener("mousemove", (event) => {
 
     if      (event.clientY < 200)                     screenMove("down");
