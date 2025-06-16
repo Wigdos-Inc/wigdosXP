@@ -118,7 +118,7 @@ const applications = {
         ["feddyWorld", "FNAF World"], 
         "fnaf",
         true, 
-        ["external", "https://danie-glr.github.io/wigdos_games/4/"]
+        ["external", "https://MichaelD1B.github.io/fnafworld"]
     ),
 
     feddyPS: new Application(
