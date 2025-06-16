@@ -1,0 +1,43 @@
+@font-face {
+    font-family: Avenir;
+    src: url("assets/fonts/Avenir.otf");
+}
+.border-1 {
+  position: absolute;
+  height: 100vh;
+  width: 100vw;
+  border: 25px solid #520998;
+  box-sizing: border-box;
+  z-index: 4;
+  box-shadow: 0 0 25px 8px rgba(82, 9, 152, 1) inset;
+}
+
+.border-2 {
+  position: absolute;
+  height: calc(100vh - 50px); /* shrink by twice the border width */
+  width: calc(100vw - 50px);
+  border: 10px solid #500C7F;
+  box-sizing: border-box;
+  z-index: 3;
+  box-shadow: 0 0 18px 5px rgba(80, 12, 127, 1) inset;
+}
+
+.border-3 {
+  position: absolute;
+  height: calc(100vh - 70px); /* 50 + 20 */
+  width: calc(100vw - 70px);
+  border: 20px solid #3D0E62;
+  box-sizing: border-box;
+  z-index: 2;
+  box-shadow: 0 0 15px 4px rgba(61, 14, 98, 1) inset;
+}
+
+.border-4 {
+  position: absolute;
+  height: calc(100vh - 110px); /* 50 + 70 */
+  width: calc(100vw - 110px);
+  border: 10px solid #221139;
+  box-sizing: border-box;
+  z-index: 1;
+  box-shadow: 0 0 12px 3px rgba(34, 17, 57, 1) inset;
+}
