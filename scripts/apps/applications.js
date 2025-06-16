@@ -32,7 +32,7 @@ class Application {
 /*
 Template: 
 - NAME (shortname, displayname, fullname (if applicable); array)
-- SERIES (game series/other/""; string)
+- SERIES (game series/other/""; string) (for icons)
 - FULL (fullscreen; boolean)
 - PATH (internal/external, file path/url; array)
 - SAVE (saving functionality; boolean)
@@ -148,6 +148,13 @@ const applications = {
         "other",
         true, 
         ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"]
+    ),
+
+    hlf: new Application(
+        ["hlf", "Half-Life"],
+        "other",
+        true,
+        ["external", "https://102462-p.github.io/repo0.github.io/"]
     ),
 
 
