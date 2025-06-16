@@ -1,3 +1,12 @@
+/* Custom Fonts */
+@font-face {
+    font-family: Avenir;
+    src: url(../../../assets/fonts/su/avenir.otf);
+}
+
+
+
+/* Global Styling */
 * {
     margin: 0;
     padding: 0;
@@ -14,6 +23,9 @@ body {
     transition: all 2s;
 }
 
+
+
+/* Navigation */
 .arrowBox {
     position: absolute;
     border: 5px solid purple;
@@ -38,10 +50,9 @@ body {
     left: 0;
 }
 
-@font-face {
-    font-family: Avenir;
-    src: url("assets/fonts/Avenir.otf");
-}
+
+
+/* Page Borders */
 .border-1 {
   position: absolute;
   height: 100vh;
