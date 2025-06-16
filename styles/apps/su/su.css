@@ -1,0 +1,77 @@
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 100px;
+
+    background-color: black;
+    color: whitesmoke;
+
+    user-select: none;
+}
+
+div {
+    border: 1px solid purple;
+}
+
+#topBar {
+    width: 50%;
+    height: fit-content;
+    padding: 20px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 3vw;
+}
+
+#contentBox {
+    width: 50%;
+    height: fit-content;
+    padding: 50px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15%;
+
+    border: none;
+}
+
+#menuBox {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+
+    width: 100%;
+    border: none;
+}
+.option {
+    width: 100%;
+    font-size: 2vw;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 10px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.option:hover {
+    transform: scale(1.05);
+    box-shadow: 
+        0 0 5px purple,
+        0 0 5px white;
+}
+
+#taskBox {
+    width: 70%;
+    height: 100%;
+
+    padding: 20px;
+}

@@ -4,9 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Singular Upgrading</title>
+
+    <base href="../../">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <link rel="stylesheet" href="styles/apps/su/main.css">
+    <link rel="stylesheet" href="styles/apps/su/su.css">
 </head>
 <body>
-    <a href="user.html">Stats pagia</a>
+    <div id="topBar">Singular Upgrading</div>
+
+    <div id="contentBox">
+        <div id="menuBox">
+            <div class="option">Stats & Tasks</div>
+            <div class="option">Leaderboard</div>
+            <div class="option">Marketplace</div>
+        </div>
+
+        <div id="taskBox">
+            <p>Level <section id="userLVL"></section></p>
+        </div>
+    </div>
     
+    <script src="scripts/apps/su/su.js"></script>
 </body>
 </html>
