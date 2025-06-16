@@ -196,17 +196,52 @@ function desktopFill(type, layout) {
 
             if (layout) {
 
+                // Prepare new App Storage
+                let newApps = {
+                    i: 0,
+                    a: [],
+
+                    gimme: function() {
+                        return this.a[this.i];
+                    }
+                }
+
+                // Check if Layout is missing any Apps
+                for (let appKey in applications) {
+
+                    const app = applications[appKey];
+                    let included = 0;
+
+                    layout.forEach(row => {
+
+                        if (row.includes(app)) included++;
+                        console.log(included);
+                    });
+
+                    if (!included) newApps.a.push(app.name.s);
+                }
+
+                // Attach Apps to Desktop
                 for (let row=0; row < dkGridArray.length; row++) {
 
                     for (let col=0; col < dkGridArray[row].length; col++) {
 
                         const appID = layout[row][col];
                         if (appID) dkGridArray[row][col].attach(applications[appID]);
+                        else if (newApps.i < newApps.a.length && !sessionStorage.getItem("loaded")) {
+
+                            // Attach New App
+                            dkGridArray[row][col].attach(applications[newApps.gimme()]);
+                            newApps.i++;
+                            layout[row][col] = newApps.gimme();
+
+                        }
                     }
                 }
 
                 // Save Layout
                 sessionStorage.setItem("layout", JSON.stringify(layout));
+                if (newApps.i) desktopFill("update");
 
             }
             else desktopFill("base");
