@@ -165,5 +165,11 @@ const applications = {
         "",
         true, 
         ["internal", "apps/bombs/"]
-    )
+    ),
+    su: new Application(
+        ["su", "Singular Upgrading"],
+        "",
+        true, 
+        ["internal", "apps/su/"]
+    ),
 }
