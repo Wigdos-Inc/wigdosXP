@@ -11,9 +11,6 @@ body {
     user-select: none;
 }
 
-div {
-    border: 1px solid purple;
-}
 
 #topBar {
     width: 50%;
@@ -25,6 +22,10 @@ div {
     align-items: center;
 
     font-size: 3vw;
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
 }
 
 #contentBox {
@@ -37,7 +38,10 @@ div {
     align-items: center;
     gap: 15%;
 
-    border: none;
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
 }
 
 #menuBox {
@@ -48,7 +52,6 @@ div {
     gap: 30px;
 
     width: 100%;
-    border: none;
 }
 .option {
     width: 100%;
@@ -61,6 +64,11 @@ div {
     padding: 10px;
     transition: all 0.2s ease;
     cursor: pointer;
+
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
 }
 .option:hover {
     transform: scale(1.05);
@@ -74,4 +82,9 @@ div {
     height: 100%;
 
     padding: 20px;
+
+    border: 3px solid;
+  border-image-slice: 1;
+  border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+  background-color: rgba(1, 1, 1, 0.6);
 }
