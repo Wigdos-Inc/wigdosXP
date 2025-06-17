@@ -73,6 +73,9 @@ html, body {
     height: 100%;
     width: 100%;
 }
+#xpBar{
+    margin-top: 15px;
+}
 
 #stat-box2 {
     height: fit-content;
