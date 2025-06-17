@@ -1,70 +1,75 @@
+/* === Global Styles === */
 html, body {
-  margin: 0; /* Prevent default margin */
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+
+    background-color: black;
+    color: white;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
-body {
-  position: relative;
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  background-color: black;
-  box-sizing: border-box;
-}
+
+/* === Background Image === */
 img {
-  position: absolute;
-  filter: blur(0.5);
-  z-index: -1;
+    position: absolute;
+    z-index: -1;
+    filter: blur(0.5px);
 }
 
+/* === Main Container === */
 .main-container {
-  border: 3px solid;
-  border-image-slice: 1;
-  border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-  background-color: rgba(1, 1, 1, 0.6);
-  padding: 30px;
-  width: 50vw;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+    width: 50vw;
+    padding: 30px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
 }
 
+/* === Header Box === */
 .header-box {
-  width: 200px;
-  border: 1px solid;
-  border-image-slice: 1;
-  border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-  background-color: rgba(1, 1, 1, 0.6);
-  text-align: center;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 10px;
-  margin-bottom: 30px;
+    width: 200px;
+    padding: 10px;
+    margin-bottom: 30px;
+
+    text-align: center;
+
+    border: 1px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
+}
+
+/* === Stat Boxes === */
+.stat-box1,
+.stat-box2 {
+    padding: 20px;
+    text-align: center;
+
+    border: 1px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    background-color: rgba(1, 1, 1, 0.6);
 }
 
 .stat-box1 {
-  border: 1px solid;
-  border-image-slice: 1;
-  border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-  background-color: rgba(1, 1, 1, 0.6);
-  text-align: center;
-  padding: 20px;
-  margin-bottom: 15px;      
-  height:17.99vh;
-  width:75%;
+    width: 75%;
+    height: 18vh;
+    margin-bottom: 15px;
 }
 
 .stat-box2 {
-  border: 1px solid;
-  border-image-slice: 1;
-  border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-  background-color: rgba(1, 1, 1, 0.6);
-  padding: 20px;
-  height: 37.17vh;
-  width: 100%;
+    width: 100%;
+    height: 37vh;
 }
