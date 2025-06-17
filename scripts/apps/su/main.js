@@ -4,7 +4,7 @@ const arrows = {
     left: document.getElementById("leftArrow"),
     right: document.getElementById("right")
 }
-const main = document.getElementsByClassName("main-container")[0];
+const main = document.getElementById("main-container");
 
 
 // Swipe Stuff
