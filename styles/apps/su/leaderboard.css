@@ -11,9 +11,6 @@ body {
     user-select: none;
 }
 
-div {
-    border: 1px solid purple;
-}
 
 #topBar {
     width: 50%;

@@ -25,7 +25,6 @@ body {
     border: 3px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-    background-color: rgba(1, 1, 1, 0.6);
 }
 
 #contentBox {
@@ -41,7 +40,6 @@ body {
     border: 3px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-    background-color: rgba(1, 1, 1, 0.6);
 }
 
 #menuBox {
@@ -68,7 +66,6 @@ body {
     border: 3px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-    background-color: rgba(1, 1, 1, 0.6);
 }
 .option:hover {
     transform: scale(1.05);

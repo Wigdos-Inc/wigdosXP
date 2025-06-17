@@ -4,8 +4,6 @@
     src: url(../../../assets/fonts/su/avenir.otf);
 }
 
-
-
 /* Global Styling */
 * {
     margin: 0;
@@ -29,9 +27,10 @@ html, body {
     align-items: center;
     flex-direction: column;
     gap: 100px;
+
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
 }
-
-
 
 /* Navigation */
 .arrowBox {
