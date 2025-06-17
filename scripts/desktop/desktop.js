@@ -208,14 +208,11 @@ function desktopFill(type, layout) {
 
                 // Check if Layout is missing any Apps
                 for (let appKey in applications) {
-
                     const app = applications[appKey];
-                    let included = 0;
+                    let included = false;
 
                     layout.forEach(row => {
-
-                        if (row.includes(app)) included++;
-                        console.log(included);
+                        if (row.includes(app.name.s)) included = true;
                     });
 
                     if (!included) newApps.a.push(app.name.s);
