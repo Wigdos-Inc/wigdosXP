@@ -50,8 +50,6 @@ html, body {
     left: 0;
 }
 
-
-
 /* Page Borders */
 .border-1 {
   position: absolute;
@@ -61,7 +59,8 @@ html, body {
   box-sizing: border-box;
   z-index: 4;
   box-shadow: 0 0 25px 8px rgba(82, 9, 152, 1) inset;
-  pointer-events: none
+  pointer-events: none;
+  transition: none;
 }
 
 .border-2 {
@@ -72,7 +71,8 @@ html, body {
   box-sizing: border-box;
   z-index: 3;
   box-shadow: 0 0 18px 5px rgba(80, 12, 127, 1) inset;
-  pointer-events: none
+  pointer-events: none;
+  transition: none;
 }
 
 .border-3 {
@@ -83,7 +83,8 @@ html, body {
   box-sizing: border-box;
   z-index: 2;
   box-shadow: 0 0 15px 4px rgba(61, 14, 98, 1) inset;
-  pointer-events: none
+  pointer-events: none;
+  transition: none;
 }
 
 .border-4 {
@@ -94,5 +95,6 @@ html, body {
   box-sizing: border-box;
   z-index: 1;
   box-shadow: 0 0 12px 3px rgba(34, 17, 57, 1) inset;
-  pointer-events: none
+  pointer-events: none;
+  transition: none;
 }
