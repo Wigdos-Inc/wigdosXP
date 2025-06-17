@@ -24,21 +24,6 @@ html, body {
     z-index: -1;
     filter: blur(2px);
 }
-/* === Top Bar === */
-#topBar {
-    width: 50%;
-    height: fit-content;
-    padding: 20px;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    font-size: 1.5vw;
-    border: 3px solid;
-    border-image-slice: 1;
-    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-}
 
 /* === Stat Boxes === */
 #contentBox {
