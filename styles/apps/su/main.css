@@ -131,9 +131,10 @@ html, body {
 }
 
 
-@media only screen and (max-width: 1000px) {
+@media only screen and (min-width: 1000px) {
     
-    #topBar {
-        /* OTher top bar code ststs */
+    .hArrow {
+        height: calc(100vh - 65px*2 - 100px);
+        top: calc(50vh + 100px/2);
     }
 }

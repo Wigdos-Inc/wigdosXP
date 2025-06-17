@@ -6,7 +6,11 @@ const arrows = {
 }
 const main = document.getElementById("main-container");
 
-const screenMargin = window.innerWidth/10+65;
+let screenMargin = window.innerWidth > 999 ? window.innerWidth/10+65 : 100+65;
+window.addEventListener("resize", () => {
+
+    screenMargin = window.innerWidth > 999 ? window.innerWidth/10+65 : 100+65;
+}); 
 
 
 // Swipe Stuff
@@ -15,7 +19,11 @@ document.addEventListener("mousemove", (event) => {
     if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) main.style.marginTop = `${screenMargin}px`;
     else main.style.marginTop = 0;
 
-    if (event.clientX < screenMargin && event.clientY >= screenMargin) main.style.marginLeft = `${screenMargin}px`;
+    if (event.clientX < screenMargin && event.clientY >= screenMargin) {
+        main.style.marginLeft = `${screenMargin}px`;
+        document.getElementById("contentBox").style.width += `-${screenMargin}px`;
+        console.log("Left swipe detected", event.clientX, window.innerWidth);
+    }
     else if (event.clientX > window.innerWidth - screenMargin) main.style.marginLeft = `-${screenMargin}px`;
     else main.style.marginLeft = 0;
 });
