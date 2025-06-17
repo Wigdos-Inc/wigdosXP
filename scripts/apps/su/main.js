@@ -1,30 +1,55 @@
+// Prep
 const arrows = {
     top: document.getElementById("topArrow"),
     left: document.getElementById("leftArrow"),
     right: document.getElementById("right")
 }
+const main = document.getElementsByClassName("main-container")[0];
 
 
 // Swipe Stuff
 document.addEventListener("mousemove", (event) => {
 
-    if      (event.clientY < 200)                     screenMove("down");
-    else if (event.clientX < 200)                     screenMove("right");
-    else if (event.clientX > window.innerWidth - 200) screenMove("left");
+    if (event.clientY < 200 && !document.title.toLowerCase().includes("hub")) main.style.marginTop = "100px";
+    else main.style.marginTop = 0;
+
+    if (event.clientX < 200 && event.clientY >= 200) main.style.marginLeft = "200px";
+    else if (event.clientX > window.innerWidth - 200) main.style.marginLeft = "-200px";
+    else main.style.marginLeft = 0;
 });
 
 
-console.log(window.innerWidth);
+// Navigation
+document.addEventListener("click", (event) => {
 
-
-function screenMove(direction) {
-
-    if (document.title.includes("Hub")) return;
-
-    switch (direction) {
-
-        case "down": document.body.style.marginTop = "200px"; break;
-        case "left": document.body.style.marginRight = "200px"; break;
-        case "right": document.body.style.marginLeft = "200px"; break;
+    if (event.target === arrows.top) {
+        main.style.marginTop = "100vh";
+        main.addEventListener("transitionend", () => location.href = "su.html");
     }
-}
+    else if (event.target === arrows.left) {
+        
+        let destination;
+        let title = document.title.toLowerCase();
+
+        if      (title.includes("user"))        destination = "shop.html";
+        else if (title.includes("leaderboard")) destination = "user.html";
+        else if (title.includes("marketplace")) destination = "leaderboard.html";
+
+        main.style.marginLeft = "-100vw";
+        main.addEventListener("transitionend", () => location.href = destination);
+
+    }
+    else if (event.target === arrows.right) {
+
+        let destination;
+        let title = document.title.toLowerCase();
+
+        if      (title.includes("user"))        destination = "leaderboard.html";
+        else if (title.includes("leaderboard")) destination = "shop.html";
+        else if (title.includes("marketplace")) destination = "user.html";
+
+        main.style.marginLeft = "100vw";
+        main.addEventListener("transitionend", () => location.href = destination);
+
+    }
+});

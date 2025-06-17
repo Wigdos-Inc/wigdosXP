@@ -19,7 +19,7 @@ html, body {
     overflow: hidden;
     font-family: Avenir;
 }
-body {
+.main-container {
     transition: all 2s;
 }
 
