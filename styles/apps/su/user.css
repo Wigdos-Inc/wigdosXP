@@ -24,26 +24,23 @@ html, body {
     z-index: -1;
     filter: blur(0.5px);
 }
-/* === Header Box === */
-#header-box {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 30px;
+/* === Top Bar === */
+#topBar {
+    width: 50%;
+    height: fit-content;
+    padding: 20px;
 
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 
-    border: 1px solid;
+    font-size: 1.5vw;
+    border: 3px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-    background-color: rgba(1, 1, 1, 0.6);
 }
 
 /* === Stat Boxes === */
-#main-container {
-    gap: 0;
-    width: 50vw;
-}
-
 #contentBox {
     width: 100%;
     display: flex;
@@ -52,6 +49,7 @@ html, body {
     align-items: center;
 }
 .stat-box {
+    width: 50%;
     padding: 20px;
     text-align: center;
 
@@ -62,12 +60,20 @@ html, body {
 }
 
 #stat-box1 {
-    width: 75%;
-    height: 18vh;
+    height: fit-content;
     margin-bottom: 20px;
+
+}
+#userStats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.userItems {
+    height: 100%;
+    width: 100%;
 }
 
 #stat-box2 {
-    width: 100%;
-    height: 37vh;
+    height: fit-content;
 }

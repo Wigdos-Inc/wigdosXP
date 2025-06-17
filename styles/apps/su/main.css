@@ -102,3 +102,21 @@ html, body {
   box-shadow: 0 0 12px 3px rgba(34, 17, 57, 1) inset;
   pointer-events: none;
 }
+
+
+
+/* Content */
+#topBar {
+    width: 50%;
+    height: fit-content;
+    padding: 20px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 3vw;
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+}

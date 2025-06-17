@@ -11,22 +11,6 @@ body {
     user-select: none;
 }
 
-
-#topBar {
-    width: 50%;
-    height: fit-content;
-    padding: 20px;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    font-size: 3vw;
-    border: 3px solid;
-    border-image-slice: 1;
-    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
-}
-
 #contentBox {
     width: 50%;
     height: fit-content;
