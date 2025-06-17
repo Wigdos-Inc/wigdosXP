@@ -6,15 +6,17 @@ const arrows = {
 }
 const main = document.getElementById("main-container");
 
+const screenMargin = window.innerWidth/10+65;
+
 
 // Swipe Stuff
 document.addEventListener("mousemove", (event) => {
 
-    if (event.clientY < 200 && !document.title.toLowerCase().includes("hub")) main.style.marginTop = "100px";
+    if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) main.style.marginTop = `${screenMargin}px`;
     else main.style.marginTop = 0;
 
-    if (event.clientX < 200 && event.clientY >= 200) main.style.marginLeft = "200px";
-    else if (event.clientX > window.innerWidth - 200) main.style.marginLeft = "-200px";
+    if (event.clientX < screenMargin && event.clientY >= screenMargin) main.style.marginLeft = `${screenMargin}px`;
+    else if (event.clientX > window.innerWidth - screenMargin) main.style.marginLeft = `-${screenMargin}px`;
     else main.style.marginLeft = 0;
 });
 
