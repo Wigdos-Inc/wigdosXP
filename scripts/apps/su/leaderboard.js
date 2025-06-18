@@ -1,1 +1,0 @@
-document.getElementById("topBar").onclick = () => location.href = "apps/su/su.html";

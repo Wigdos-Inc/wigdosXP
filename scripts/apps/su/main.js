@@ -18,8 +18,14 @@ window.addEventListener("resize", () => {
     screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
 }); 
 
-const pages = ["user", "leaderboard", "shop"];
+const pages = ["user", "leaderboard", "market"];
 let doing;
+
+const pageData = {
+    origin : location.href.includes("undefined") ? pages.findIndex(page => location.href.includes(page)) : "none",
+    current: pages.findIndex(page => document.title.toLowerCase().includes(page)),
+    wrap   : location.href.includes("wrap")
+}
 
 
 // Swipe Stuff
@@ -58,29 +64,69 @@ document.addEventListener("click", (event) => {
     else if (event.target === arrows.left) {
         
         doing = true;
-        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
-        const destination = pages[origin-1 < 0 ? pages.length-1 : origin-1];
+        
+        // Determine destination
+        let destination;
+        let wrap;
+        if (pageData.current == 0) {
+            destination = pages[pages.length-1];
+            wrap = true;
+        }
+        else destination = pages[pageData.current-1];
 
-        main.style.transform = "translate(100vw)";
-        main.addEventListener("transitionend", () => {
+        destination = `apps/su/${destination}.html?origin=${pages[pageData.current]}`;
+        if (wrap) destination += "&wrap=true";
 
-            location.href = `apps/su/${destination}.html`;
-            doing = false;
-        });
+        navigate("translate(-100vw)", destination);
 
     }
     else if (event.target === arrows.right) {
 
         doing = true;
-        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
-        const destination = pages[origin+1 < pages.length-1 ? 0 : origin+1];
+        
+        // Determine destination
+        let destination;
+        let wrap;
+        if (pageData.current < pages.length-1) destination = pages[pageData.current+1];
+        else {
+            destination = pages[0];
+            wrap = true;
+        }
 
-        main.style.transform = "translate(-100vw)";
-        main.addEventListener("transitionend", () => {
+        destination = `apps/su/${destination}.html?origin=${pages[pageData.current]}`;
+        if (wrap) destination += "&wrap=true";
 
-            location.href = `apps/su/${destination}.html`; 
-            doing = false;
-        });
+        navigate("translate(-100vw)", destination);
 
     }
 });
+
+function navigate(slide, destination) {
+
+    main.style.transform = slide;
+    main.addEventListener("transitionend", () => location.href = destination);
+}
+
+
+
+
+// Page Arrival UI Position
+if (!pageData.origin == "undefined") {
+
+    if (pageData.origin < pageData.current) {
+        if (wrap) main.style.transform = "translate(100vw)";
+        else      main.style.transform = "translate(-100vw)";
+    }
+    else if (pageData.origin > pageData.current) {
+        if (wrap) main.style.transform = "translate(-100vw)";
+        else      main.style.transform = "translate(100vw)";
+    }
+
+}
+
+// Enable Animation & Center UI
+setTimeout(() => {
+
+    main.style.transition = "transform 0.5s";
+    main.style.transform = "none";
+}, 1);

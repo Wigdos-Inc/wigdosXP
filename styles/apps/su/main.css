@@ -40,8 +40,9 @@ html, body {
 /* Navigation */
 .arrowBox {
     position: absolute;
-    background-color: black;
+    background-color: #3D0E62;
     opacity: 0.2;
+    box-shadow: 0 0 100px #221139 inset;
 }
 .hArrow {
     height: calc(100vh - 65px*2 - var(--arrowBox));
@@ -55,11 +56,11 @@ html, body {
 }
 #leftArrow {
     left: 0;
-    border-right: 5px solid gray;
+    border-right: 5px solid #221139;
 }
 #rightArrow {
     left: calc(100vw - (65px + var(--arrowBox)));
-    border-left: 5px solid gray;
+    border-left: 5px solid #221139;
 }
 #topArrow {
     height: calc(65px + var(--arrowBox));
@@ -68,7 +69,7 @@ html, body {
 
     top: 0;
 
-    border-bottom: 5px solid gray;
+    border-bottom: 5px solid #221139;
 }
 
 /* Page Borders */
