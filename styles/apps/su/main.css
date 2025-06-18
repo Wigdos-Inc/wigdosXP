@@ -16,9 +16,10 @@ html, body {
     width: 100vw;
     overflow: hidden;
     font-family: Avenir;
+    user-select: none;
 }
 #main-container {
-    transition: all 0.5s;
+    transition: transform 0.5s;
     width: 100vw;
     height: 100vh;
 
@@ -57,7 +58,7 @@ html, body {
     border-right: 5px solid gray;
 }
 #rightArrow {
-    right: calc(-65px + var(--arrowBox)*-1);
+    left: calc(100vw - (65px + var(--arrowBox)));
     border-left: 5px solid gray;
 }
 #topArrow {
@@ -136,5 +137,8 @@ html, body {
     .hArrow {
         height: calc(100vh - 65px*2 - 100px);
         top: calc(50vh + 100px/2);
+    }
+    #rightArrow {
+        left: calc(100vw - (65px + 100px));
     }
 }
