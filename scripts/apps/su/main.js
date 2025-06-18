@@ -18,7 +18,8 @@ window.addEventListener("resize", () => {
     screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
 }); 
 
-const pages = ["user", "leaderboard"]
+const pages = ["user", "leaderboard", "shop"];
+let doing;
 
 
 // Swipe Stuff
@@ -29,12 +30,16 @@ document.addEventListener("mousemove", (event) => {
         y: 0
     }
 
-    if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) transform.y = `${screenMargin/2}px`;
+    if (!doing) {
 
-    if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
-    else if (event.clientX > window.innerWidth - screenMargin) transform.x = `-${screenMargin}px`;
+        if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) transform.y = `${screenMargin/2}px`;
 
-    main.style.transform = transform.x || transform.y ? `translate(${transform.x}, ${transform.y})` : "none";
+        if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
+        else if (event.clientX > window.innerWidth - screenMargin) transform.x = `-${screenMargin}px`;
+
+        main.style.transform = transform.x || transform.y ? `translate(${transform.x}, ${transform.y})` : "none";
+
+    }
 });
 
 
@@ -42,34 +47,40 @@ document.addEventListener("mousemove", (event) => {
 document.addEventListener("click", (event) => {
 
     if (event.target === arrows.top) {
+        doing = true;
         main.style.transform = "translate(0, 100vw)";
-        main.addEventListener("transitionend", () => location.href = "apps/su/su.html");
+        main.addEventListener("transitionend", () => {
+
+            location.href = "apps/su/su.html"; 
+            doing = false;
+        });
     }
     else if (event.target === arrows.left) {
         
-        let destination;
-        let extra
-        let title = document.title.toLowerCase();
-
-        if      (title.includes("user"))        destination = "apps/su/shop.html";
-        else if (title.includes("leaderboard")) destination = "apps/su/user.html";
-        else if (title.includes("marketplace")) destination = "apps/su/leaderboard.html";
+        doing = true;
+        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
+        const destination = pages[origin-1 < 0 ? pages.length-1 : origin-1];
 
         main.style.transform = "translate(100vw)";
-        main.addEventListener("transitionend", () => location.href = destination);
+        main.addEventListener("transitionend", () => {
+
+            location.href = `apps/su/${destination}.html`;
+            doing = false;
+        });
 
     }
     else if (event.target === arrows.right) {
 
-        let destination;
-        let title = document.title.toLowerCase();
-
-        if      (title.includes("user"))        destination = "apps/su/leaderboard.html";
-        else if (title.includes("leaderboard")) destination = "apps/su/shop.html";
-        else if (title.includes("marketplace")) destination = "apps/su/user.html";
+        doing = true;
+        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
+        const destination = pages[origin+1 < pages.length-1 ? 0 : origin+1];
 
         main.style.transform = "translate(-100vw)";
-        main.addEventListener("transitionend", () => location.href = destination);
+        main.addEventListener("transitionend", () => {
+
+            location.href = `apps/su/${destination}.html`; 
+            doing = false;
+        });
 
     }
 });

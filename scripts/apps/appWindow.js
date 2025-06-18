@@ -283,8 +283,11 @@ function startApp(app) {
     appName.classList.add("appName"); appName.innerHTML = app.name.l;
 
     
-    // Display Application Content through iframe
-    window.iframe.src = app.path;
+    // Force reload to ensure onload triggers
+    window.iframe.src = "";
+    setTimeout(() => {
+        window.iframe.src = app.path;
+    }, 50);
 
     // If this is Undertale, send username via postMessage after iframe loads
     if (app.id == "ut") {

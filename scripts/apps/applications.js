@@ -27,7 +27,7 @@ class Application {
 
 
 
-// Create Supported Applications
+// Create Supported ApplicationsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
 /*
 Template: 
@@ -168,7 +168,7 @@ const applications = {
     ),
     su: new Application(
         ["su", "Singular Upgrading"],
-        "",
+        "other",
         true, 
         ["internal", "apps/su/"]
     ),
