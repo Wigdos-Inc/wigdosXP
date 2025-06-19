@@ -111,12 +111,13 @@ function navigate(slide, destination) {
 
 
 // Page Arrival UI Position
-console.log(pageData.origin, pageData.current);
+console.log(pageData.origin);
 if (pageData.origin !== undefined) {
 
     console.log("code runs");
 
-    if (pageData.origin < pageData.current) {
+    if (pageData.origin == -1) main.style.transform = "translate(0, 100vh)";
+    else if (pageData.origin < pageData.current) {
         if (pageData.wrap) main.style.transform = "translate(-100vw)";
         else               main.style.transform = "translate(100vw)";
     }
