@@ -19,12 +19,12 @@ window.addEventListener("resize", () => {
 }); 
 
 const pages = ["user", "leaderboard", "market"];
-let doing;
+let doing = true;
 
 const pageData = {
-    origin : location.href.includes("undefined") ? pages.findIndex(page => location.href.includes(page)) : "none",
+    origin : pages.indexOf(new URLSearchParams(window.location.search).get("origin")),
     current: pages.findIndex(page => document.title.toLowerCase().includes(page)),
-    wrap   : location.href.includes("wrap")
+    wrap   : new URLSearchParams(window.location.search).get("wrap") ? true : false
 }
 
 
@@ -52,7 +52,7 @@ document.addEventListener("mousemove", (event) => {
 // Navigation
 document.addEventListener("click", (event) => {
 
-    if (event.target === arrows.top) {
+    if (event.target === arrows.top && !doing) {
         doing = true;
         main.style.transform = "translate(0, 100vw)";
         main.addEventListener("transitionend", () => {
@@ -61,7 +61,7 @@ document.addEventListener("click", (event) => {
             doing = false;
         });
     }
-    else if (event.target === arrows.left) {
+    else if (event.target === arrows.left && !doing) {
         
         doing = true;
         
@@ -77,10 +77,10 @@ document.addEventListener("click", (event) => {
         destination = `apps/su/${destination}.html?origin=${pages[pageData.current]}`;
         if (wrap) destination += "&wrap=true";
 
-        navigate("translate(-100vw)", destination);
+        navigate("translate(100vw)", destination);
 
     }
-    else if (event.target === arrows.right) {
+    else if (event.target === arrows.right && !doing) {
 
         doing = true;
         
@@ -111,22 +111,22 @@ function navigate(slide, destination) {
 
 
 // Page Arrival UI Position
-if (!pageData.origin == "undefined") {
+console.log(pageData.origin, pageData.current);
+if (pageData.origin !== undefined) {
+
+    console.log("code runs");
 
     if (pageData.origin < pageData.current) {
-        if (wrap) main.style.transform = "translate(100vw)";
-        else      main.style.transform = "translate(-100vw)";
+        if (pageData.wrap) main.style.transform = "translate(-100vw)";
+        else               main.style.transform = "translate(100vw)";
     }
     else if (pageData.origin > pageData.current) {
-        if (wrap) main.style.transform = "translate(-100vw)";
-        else      main.style.transform = "translate(100vw)";
+        if (pageData.wrap) main.style.transform = "translate(100vw)";
+        else               main.style.transform = "translate(-100vw)";
     }
 
+    setTimeout(() => main.style.transform = "none", 100);
 }
 
 // Enable Animation & Center UI
-setTimeout(() => {
-
-    main.style.transition = "transform 0.5s";
-    main.style.transform = "none";
-}, 1);
+setTimeout(() => doing = false, 600);
