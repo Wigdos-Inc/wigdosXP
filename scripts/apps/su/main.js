@@ -1,4 +1,6 @@
-// Prep
+/* Create Elements */
+
+// Arrows
 const arrows = {
     top: document.body.appendChild(document.createElement("div")),
     left: document.body.appendChild(document.createElement("div")),
@@ -12,12 +14,40 @@ if (!document.title.toLowerCase().includes("hub")) {
 
 }
 
+// Borders
+const borders = 
+[
+    document.body.appendChild(document.createElement("div")),
+    document.createElement("div"),
+    document.createElement("div"),
+    document.createElement("div")
+]
+let bWidth = 0;
+borders.forEach((border, index) => {
+
+    if (index > 0) borders[index-1].appendChild(border);
+    border.classList.add(`border-${index+1}`);
+
+    // Add up total Border Width
+    bWidth += parseFloat(getComputedStyle(border).borderWidth);
+});
+
+// Background
+const bg = document.body.appendChild(document.createElement("div"));
+bg.id = "bg";
+
+
+
+
+/* Global Variables */
 
 const main = document.getElementById("main-container");
 
-let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
-window.addEventListener("resize", () => screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65); 
+// Arrow Positional Margin
+let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+bWidth : 100+bWidth;
+window.addEventListener("resize", () => screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+bWidth : 100+bWidth); 
 
+// Arrow Navigation
 const pages = ["user", "leaderboard", "market"];
 let doing = true;
 
@@ -28,7 +58,26 @@ const pageData = {
 }
 
 
-// Swipe Stuff
+
+
+/* Functions */
+
+function navigate(slide, destination) {
+
+    main.style.transform = `translate(${slide})`;
+    main.addEventListener("transitionend", () => {
+
+        main.style.opacity = 0;
+        location.href = destination;
+    });
+}
+
+
+
+
+/* Event Listeners */
+
+// Arrow Hover
 document.addEventListener("mousemove", (event) => {
 
     let transform = {
@@ -39,8 +88,7 @@ document.addEventListener("mousemove", (event) => {
     if (!doing && !document.title.toLowerCase().includes("hub")) {
 
         if (event.clientY < screenMargin) transform.y = `${screenMargin/2}px`;
-
-        if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
+        else if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
         else if (event.clientX > window.innerWidth - screenMargin) transform.x = `-${screenMargin}px`;
 
         main.style.transform = transform.x || transform.y ? `translate(${transform.x}, ${transform.y})` : "none";
@@ -48,75 +96,81 @@ document.addEventListener("mousemove", (event) => {
     }
 });
 
-
-// Navigation
+// Arrow Click
 document.addEventListener("click", (event) => {
+    
+    if (!doing) {
 
-    if (event.target === arrows.top && !doing) {
-        doing = true;
-        main.style.transform = "translate(0, 100vw)";
-        main.addEventListener("transitionend", () => {
-
-            location.href = "apps/su/su.html"; 
-            doing = false;
-        });
-    }
-    else if (event.target === arrows.left && !doing) {
-        
-        doing = true;
-        
-        // Determine destination
         let destination;
+        let direction;
         let wrap;
-        if (pageData.current == 0) {
-            destination = pages[pages.length-1];
-            wrap = true;
+
+        if (event.target === arrows.top) {
+
+            doing = true;
+            destination = "apps/su/su.html";
+            direction = "0, 100vh";
+
         }
-        else destination = pages[pageData.current-1];
+        else if (event.target === arrows.left) {
 
-        destination = `apps/su/${destination}.html?origin=${pages[pageData.current]}`;
-        if (wrap) destination += "&wrap=true";
+            doing = true;
 
-        navigate("translate(100vw)", destination);
+            // Determine Destination
+            if (pageData.current == 0) {
+                destination = pages[pages.length-1];
+                wrap = true;
+            }
+            else destination = pages[pageData.current-1];
 
-    }
-    else if (event.target === arrows.right && !doing) {
+            destination = `apps/su/${destination}.html`;
+            direction = "100vw";
 
-        doing = true;
+        }
+        else if (event.target === arrows.right) {
+
+            doing = true;
+
+            // Determine Destination
+            if (pageData.current < pages.length-1) destination = pages[pageData.current+1];
+            else {
+                destination = pages[0];
+                wrap = true;
+            }
+
+            destination = `apps/su/${destination}.html`;
+            direction = "-100vw";
+
+        }
+
         
-        // Determine destination
-        let destination;
-        let wrap;
-        if (pageData.current < pages.length-1) destination = pages[pageData.current+1];
-        else {
-            destination = pages[0];
-            wrap = true;
+        if (doing) {
+
+            destination += `?origin=${pages[pageData.current]}`;
+            if (wrap) destination += "&wrap=true";
+
+            navigate(direction, destination);
+
         }
-
-        destination = `apps/su/${destination}.html?origin=${pages[pageData.current]}`;
-        if (wrap) destination += "&wrap=true";
-
-        navigate("translate(-100vw)", destination);
 
     }
 });
 
-function navigate(slide, destination) {
-
-    main.style.transform = slide;
-    main.addEventListener("transitionend", () => location.href = destination);
-}
 
 
 
+/* Startup Code */
 
 // Page Arrival UI Position
-console.log(pageData.origin);
 if (pageData.origin !== undefined) {
 
-    console.log("code runs");
-
-    if (pageData.origin < pageData.current) {
+    // Position based on Origin
+    if (document.title.toLowerCase().includes("hub")) {
+        if (location.href.includes("origin")) main.style.transform = "translate(0, -100vh)";
+        else doing = false;
+    }
+    else if (pageData.origin == -1) main.style.transform = "translate(0, 100vh)";
+    else if (pageData.origin < pageData.current) {
         if (pageData.wrap) main.style.transform = "translate(-100vw)";
         else               main.style.transform = "translate(100vw)";
     }
@@ -125,8 +179,19 @@ if (pageData.origin !== undefined) {
         else               main.style.transform = "translate(-100vw)";
     }
 
-    setTimeout(() => main.style.transform = "none", 100);
-}
+    // Display Content & Enable Transition
+    setTimeout(() => {
 
-// Enable Animation & Center UI
-setTimeout(() => doing = false, 600);
+        main.style.opacity = 1;
+        main.style.transition = "transform 0.5s";
+
+        // Center Content
+        setTimeout(() => {
+            
+            main.style.transform = "none";
+            main.addEventListener("transitionend", () => doing = false);
+        }, 50);
+    }, 1);
+
+}
+else doing = false;
