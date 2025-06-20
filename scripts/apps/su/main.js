@@ -4,9 +4,13 @@ const arrows = {
     left: document.body.appendChild(document.createElement("div")),
     right: document.body.appendChild(document.createElement("div"))
 }
-arrows.top.classList.add("arrowBox"); arrows.top.id = "topArrow";
-arrows.left.classList.add("arrowBox"); arrows.left.classList.add("hArrow"); arrows.left.id = "leftArrow";
-arrows.right.classList.add("arrowBox"); arrows.right.classList.add("hArrow"); arrows.right.id = "rightArrow";
+if (!document.title.toLowerCase().includes("hub")) {
+
+    arrows.top.classList.add("arrowBox"); arrows.top.id = "topArrow";
+    arrows.left.classList.add("arrowBox"); arrows.left.classList.add("hArrow"); arrows.left.id = "leftArrow";
+    arrows.right.classList.add("arrowBox"); arrows.right.classList.add("hArrow"); arrows.right.id = "rightArrow";
+
+}
 
 
 const main = document.getElementById("main-container");
@@ -32,9 +36,9 @@ document.addEventListener("mousemove", (event) => {
         y: 0
     }
 
-    if (!doing) {
+    if (!doing && !document.title.toLowerCase().includes("hub")) {
 
-        if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) transform.y = `${screenMargin/2}px`;
+        if (event.clientY < screenMargin) transform.y = `${screenMargin/2}px`;
 
         if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
         else if (event.clientX > window.innerWidth - screenMargin) transform.x = `-${screenMargin}px`;
@@ -112,8 +116,7 @@ if (pageData.origin !== undefined) {
 
     console.log("code runs");
 
-    if (pageData.origin == -1) main.style.transform = "translate(0, 100vh)";
-    else if (pageData.origin < pageData.current) {
+    if (pageData.origin < pageData.current) {
         if (pageData.wrap) main.style.transform = "translate(-100vw)";
         else               main.style.transform = "translate(100vw)";
     }
