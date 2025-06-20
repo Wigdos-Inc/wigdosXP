@@ -12,11 +12,7 @@ arrows.right.classList.add("arrowBox"); arrows.right.classList.add("hArrow"); ar
 const main = document.getElementById("main-container");
 
 let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
-console.log(window.innerWidth, window.innerWidth > 999);
-window.addEventListener("resize", () => {
-
-    screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
-}); 
+window.addEventListener("resize", () => screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65); 
 
 const pages = ["user", "leaderboard", "market"];
 let doing = true;
