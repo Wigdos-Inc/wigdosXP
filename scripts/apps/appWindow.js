@@ -292,7 +292,7 @@ function startApp(app) {
     // If this is Undertale, send username via postMessage after iframe loads
     if (app.id == "ut") {
         window.iframe.onload = () => {
-            const username = sessionStorage.getItem("username") || "guest";
+            const username = getUser();
 
             // Send to the iframe's window
             window.iframe.contentWindow.postMessage({

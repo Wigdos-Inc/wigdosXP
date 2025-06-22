@@ -28,7 +28,7 @@ body {
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    gap: 100px;
+    gap: calc(20px + 4vw);
 
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);

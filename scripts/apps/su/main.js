@@ -195,3 +195,26 @@ if (pageData.origin !== undefined) {
 
 }
 else doing = false;
+
+// Connect to DB
+window.addEventListener("dbReady", () => {
+
+    suDB("load").then(res => {
+
+        if (res) {
+
+            window.dispatchEvent(new Event("dataReady"));
+
+            // App Timer & Save Interval
+            setInterval(() => {
+
+                window.suData.time++;
+                console.log(window.suData.time);
+                suDB("store", window.suData);
+
+                window.dispatchEvent(new Event("dbUpdate"));
+            }, 1000);
+
+        }
+    });
+});

@@ -63,7 +63,7 @@ smBtnBox.addEventListener("click", (event) => {
         headerImg.src = "assets/images/icons/user/guest.png";
 
         const headerText = smHeader.appendChild(document.createElement("p"));
-        headerText.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
+        headerText.innerHTML = `<strong>${getUser()}</strong>`;
 
 
         // Main

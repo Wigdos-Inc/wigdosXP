@@ -44,7 +44,7 @@ class DKGridBox {
 
 
         // Update Layout
-        if (sessionStorage.getItem("layout") && sessionStorage.getItem("username") != "guest") {
+        if (sessionStorage.getItem("layout") && getUser() != "guest") {
 
             let layout = JSON.parse(sessionStorage.getItem("layout"));
             layout[this.pos.row][this.pos.col] = this.app.name.s;
@@ -71,7 +71,7 @@ class DKGridBox {
 
 
         // Update Layout
-        if (sessionStorage.getItem("layout") && sessionStorage.getItem("username") != "guest") {
+        if (sessionStorage.getItem("layout") && getUser() != "guest") {
 
             let layout = JSON.parse(sessionStorage.getItem("layout"));
             layout[this.pos.row][this.pos.col] = null;
@@ -250,10 +250,9 @@ function desktopFill(type, layout) {
             // Overwrite old Document
             (async () => {
                 try {
-
                     const { db, setDoc, doc } = window.firebaseAPI;
                     await setDoc (
-                        doc(db, "users", sessionStorage.getItem("username")),
+                        doc(db, "users", getUser()),
                         { layout: sessionStorage.getItem("layout") },
                         { merge: true }
                     );

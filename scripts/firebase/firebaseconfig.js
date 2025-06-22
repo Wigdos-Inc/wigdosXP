@@ -19,3 +19,6 @@
     const auth = getAuth(app);
 
     window.firebaseAPI = { db, auth, setDoc, getDoc, doc, createUserWithEmailAndPassword, signInWithEmailAndPassword };
+
+    // Create Event to Signal DB Readiness
+    window.dispatchEvent(new Event("dbReady"));

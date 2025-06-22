@@ -269,7 +269,7 @@ function fill(parent, type) {
         login.guest.innerHTML = "Log in as a Guest";
         login.guest.onclick = () => {
 
-            sessionStorage.setItem("username", "guest");
+            localStorage.setItem("username", "guest");
             desktopFill("base");
             fill(parent, "in");
         }
@@ -482,7 +482,7 @@ function fill(parent, type) {
         // Display Username & Text
         const boxInnerRight = accBoxInner.appendChild(document.createElement("div")); boxInnerRight.id = "boxInnerRight";
         const username = boxInnerRight.appendChild(document.createElement("p")); username.id = "pu";
-        username.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
+        username.innerHTML = `<strong>${localStorage.getItem("username")}</strong>`;
 
         const subtitle = boxInnerRight.appendChild(document.createElement("p")); subtitle.id = "ps";
         subtitle.innerHTML = type == "in" ? "<i>Logging In...</i>" : "<i>Logging Out...</i>";
@@ -589,7 +589,7 @@ async function db(data, type) {
                 layout: desktopFill("base")
             });
 
-            sessionStorage.setItem("username", data.u);
+            localStorage.setItem("username", data.u);
             fill(document.getElementById("contentRight"), "in");
 
         } else if (type === "login") {
@@ -609,7 +609,7 @@ async function db(data, type) {
 
             if (hash === userData.password) {
 
-                sessionStorage.setItem("username", data.u);
+                localStorage.setItem("username", data.u);
 
                 // Check if stored Layout is valid
                 let layout;
