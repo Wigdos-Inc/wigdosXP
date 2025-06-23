@@ -225,7 +225,7 @@ function desktopFill(type, layout) {
 
                         const appID = layout[row][col];
                         if (appID) dkGridArray[row][col].attach(applications[appID]);
-                        else if (newApps.i < newApps.a.length && !sessionStorage.getItem("loaded")) {
+                        else if (newApps.i < newApps.a.length) {
 
                             // Attach New App
                             dkGridArray[row][col].attach(applications[newApps.gimme()]);
