@@ -167,6 +167,7 @@ let power = {
 
             // Clear Session Data
             sessionStorage.clear();
+            localStorage.clear();
 
             // Shutdown
             this.overlay.style.backgroundImage = "none";
@@ -586,7 +587,8 @@ async function db(data, type) {
                 email: data.e,
                 username: data.u,
                 password: hash,
-                layout: desktopFill("base")
+                layout: desktopFill("base"),
+                admin: false
             });
 
             localStorage.setItem("username", data.u);
@@ -628,6 +630,7 @@ async function db(data, type) {
                 else desktopFill("load", JSON.parse(userData.layout));
                 
                 fill(document.getElementById("contentRight"), "in");
+                if (userData.admin) localStorage.setItem("admin", "t");
                 
             } else {
                 output.innerHTML = "Incorrect password";

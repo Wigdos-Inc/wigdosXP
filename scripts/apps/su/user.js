@@ -25,8 +25,9 @@ const elements = {
             // Colour XP Blocks
             if (type.xp) for (let i=0; i < type.xp[1]; i++) this.xp.blocks[i].style.backgroundColor = "green";
 
-            if (type.name) this.name.innerHTML = getUser();
-            if (type.lvl) this.lvl.innerHTML = window.suData.level;
+            if (type.name) this.name.innerHTML = getUser().toUpperCase();
+            if (type.lvl) this.lvl.innerHTML = `LVL ${window.suData.level}`;
+            if (type.gold) this.gold.innerHTML = `${window.suData.gold} G`;
             
             // Determine Time Stat
             if (type.time) {
