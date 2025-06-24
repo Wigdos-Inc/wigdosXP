@@ -1,10 +1,5 @@
-/* Global Variables */
-
 // Windows XP Startup Sound
 const audio = new Audio('assets/sfx/startup.mp3');
-
-
-
 /* Startup */
 
 window.onload = () => {
@@ -267,12 +262,7 @@ function fill(parent, type) {
         // Guest
         login.guest.id = "guest";
         login.guest.innerHTML = "Log in as a Guest";
-        login.guest.onclick = () => {
-
-            sessionStorage.setItem("username", "guest");
-            desktopFill("base");
-            fill(parent, "in");
-        }
+        login.guest.onclick = () =>
 
         // Output
         login.output.id = "accOutput";
@@ -588,9 +578,6 @@ async function db(data, type) {
                 password: hash,
                 layout: desktopFill("base")
             });
-
-            sessionStorage.setItem("username", data.u);
-            fill(document.getElementById("contentRight"), "in");
 
         } else if (type === "login") {
 

@@ -264,15 +264,18 @@ class AppWindow {
     }
 }
 
+function getUser() {
+    // Use your existing logic to get the username
+    // This assumes you store the username in localStorage after login.
+    return localStorage.getItem("username") || "guest";
+}
 
 // Handle Application Loading
 function startApp(app) {
-    
     // Create new Application Window
     const window = new AppWindow(app)
     window.create();
     window.screenChange();
-
 
     // Add the App Icon to the App Window Header
     const appImg = window.nameBox.appendChild(document.createElement("img"));
@@ -282,7 +285,6 @@ function startApp(app) {
     const appName = window.nameBox.appendChild(document.createElement("p"));
     appName.classList.add("appName"); appName.innerHTML = app.name.l;
 
-    
     // Force reload to ensure onload triggers
     window.iframe.src = "";
     setTimeout(() => {
@@ -290,18 +292,17 @@ function startApp(app) {
     }, 50);
 
     // If this is Undertale, send username via postMessage after iframe loads
-    if (app.id == "ut") {
+    // Use app.name.s or add an id property for clarity
+    if (app.name.s === "ut") {
         window.iframe.onload = () => {
-            const username = sessionStorage.getItem("username") || "guest";
-
-            // Send to the iframe's window
+            const username = localStorage.getItem("username") || "guest";
             window.iframe.contentWindow.postMessage({
                 type: "setUser",
                 username: username
-            }, "*"); // Replace '*' with Undertale domain to secure it if desired
+            }, "*");
+            console.log("[WigdosXP] Sent setUser postMessage:", username);
         };
     }
-
 
     // Store AppWindow
     windows.object.push(window);
