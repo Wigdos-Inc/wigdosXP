@@ -296,7 +296,6 @@ function startApp(app) {
     if (app.name.s === "ut") {
         window.iframe.onload = () => {
             const username = getUser();
-
             // Send to the iframe's window
             window.iframe.contentWindow.postMessage({
                 type: "setUser",
