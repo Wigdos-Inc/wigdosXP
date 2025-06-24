@@ -47,7 +47,18 @@ const elements = {
             }
         }
     },
-    tasks: {}
+    tasks: {
+        box  : document.getElementsByClassName("taskItems"),
+        names: document.getElementsByClassName("taskName"),
+        prog : document.getElementsByClassName("taskProg"),
+        bar  : document.getElementsByClassName("progBar"),
+        index: 0,
+
+        display: function() {
+            
+            this.items[index];
+        }
+    }
 }
 
 
