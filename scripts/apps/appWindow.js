@@ -187,8 +187,6 @@ class AppWindow {
         // Only attempts saving for apps that support it
         if (this.app.save) {
 
-            window.alert("saving"); // It tries to save, iframe returns positive. But no save data is found/loaded upon restart
-
             const channel = new MessageChannel();
 
             channel.port1.onmessage = (event) => {
