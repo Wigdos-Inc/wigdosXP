@@ -3,6 +3,10 @@ async function suDB(type, data) {
     try {
         const { db, setDoc, getDoc, doc } = window.firebaseAPI;
         const username = getUser();
+
+        // Load the current Date
+        const time = Date.now();
+        const day = time - (86400000 * (time % 86400000));
         
         switch (type) {
 
@@ -34,6 +38,9 @@ async function suDB(type, data) {
                     if (username == "guest" && sessionStorage.getItem("suData")) data = JSON.parse(sessionStorage.getItem("suData"));
                     else {
 
+                        // Create Tasklist
+                        await task.override();
+
                         // Store Empty Dataset
                         data = {
                             time : 0, 
@@ -41,8 +48,9 @@ async function suDB(type, data) {
                             xp   : 0, 
                             gold : 0,
                             tasks: {
-                                all:    {},
-                                pinned: {}
+                                all : task.user.all,
+                                pin : {},
+                                date: day
                             }
                         };
 
@@ -57,6 +65,16 @@ async function suDB(type, data) {
 
 
             default: return;
+        }
+
+        // Refresh Tasklist if needed
+        if (!data.tasks.date || time - data.tasks.date > 86400000) {
+
+            await task.override();
+            data.tasks.date = day;
+            data.tasks.all = task.user.all;
+            data.tasks.pin = {};
+
         }
 
         // Store data in Window
@@ -80,48 +98,75 @@ function err(error) {
 
 
 
-window.task = {
+let task = {
     admin: !!localStorage.admin,
-    uName: localStorage.username,
+    user : {
+        all: {},
+        pin: {}
+    },
 
     list : async function() {
 
-        fetch("scripts/apps/su/tasks.json")
-            .then(res => res.json())
-            .then(data => { return data })
-            .catch(error => { return err("JSON Tasks Load Failed: " + error) });
+        try {
+            const res = await fetch("scripts/apps/su/tasks.json");
+            return await res.json();
+        } catch (error) {
+            return err("JSON Tasks Load Failed: " + error);
+        }
     },
 
     override: async function() {
 
-        if (this.admin) {
+        // Empty old Tasks
+        this.user.all = {};
+        this.user.pin = {};
 
-            const tasks = {
-                all : await this.list(),
-                user: {
-                    all: {},
-                    pin: {}
-                },
-                c: undefined,
-                p: [],
+        const tasks = {
+            all : await this.list(),
+            c: undefined,
+            p: [],
 
-                r: function() {
+            r: function() {
 
-                    // Rerun on Duplicate
-                    const number = Math.floor(Math.random() * limit);
-                    if (this.p.includes(number) && this.p.length >= this.all.length) return;
-                    else if (this.p.includes(number)) this.r();
-                    else {
-                        this.c = number;
-                        this.p.push(number);
-                    }
+                // Rerun on Duplicate
+                const number = Math.floor(Math.random() * this.all.length);
+                if (this.p.includes(number) && this.p.length >= this.all.length) return;
+                else if (this.p.includes(number)) this.r();
+                else {
+                    this.c = number;
+                    this.p.push(number);
                 }
             }
-
-            // Store Random Tasks
-            for (let i=0; i < 5; i++) tasks.r();
-
         }
-        else console.error("Error: You don't have rights.");
+
+        // Store Random Tasks
+        for (let i=0; i < 5; i++) tasks.r();
+
+        tasks.p.forEach(taskID => {
+
+            const task = tasks.all[taskID];
+            this.user.all[task.name] = task;
+        });
     }
+}
+window.override = async function() {
+
+    if (task.admin) {
+
+        // Load New Tasks
+        await task.override(false);
+
+        // Store new Tasks
+        window.suData.tasks.all = task.user.all;
+        window.suData.tasks.pin = {};
+        window.suData.tasks.date = Date.now() - (86400000 * (Date.now() % 86400000));
+        await suDB("store", window.suData);
+
+        console.log(window.suData.tasks);
+
+        // Reload the Page
+        location.reload();
+
+    }
+    else console.error("You don't have rights.");
 }

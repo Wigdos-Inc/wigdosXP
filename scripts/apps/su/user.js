@@ -37,7 +37,6 @@ const elements = {
                 let m = Math.floor((rawr % 3600) / 60);
                 let s = rawr % 60;
 
-                console.log(rawr, h, m, s);
 
                 if (h < 10) h = `0${h}`;
                 if (m < 10) m = `0${m}`;

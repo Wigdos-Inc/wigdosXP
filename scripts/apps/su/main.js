@@ -209,7 +209,6 @@ window.addEventListener("dbReady", () => {
             setInterval(() => {
 
                 window.suData.time++;
-                console.log(window.suData.time);
                 suDB("store", window.suData);
 
                 window.dispatchEvent(new Event("dbUpdate"));
