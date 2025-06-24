@@ -17,3 +17,9 @@ try {
     console.error(error.message);
     playerrorSound(); 
 }
+
+
+function getUser() {
+
+    return localStorage.getItem("username");
+}

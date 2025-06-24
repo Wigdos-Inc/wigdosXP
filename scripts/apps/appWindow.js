@@ -295,7 +295,9 @@ function startApp(app) {
     // Use app.name.s or add an id property for clarity
     if (app.name.s === "ut") {
         window.iframe.onload = () => {
-            const username = localStorage.getItem("username") || "guest";
+            const username = getUser();
+
+            // Send to the iframe's window
             window.iframe.contentWindow.postMessage({
                 type: "setUser",
                 username: username

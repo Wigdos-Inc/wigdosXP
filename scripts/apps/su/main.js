@@ -1,28 +1,83 @@
-// Prep
+/* Create Elements */
+
+// Arrows
 const arrows = {
     top: document.body.appendChild(document.createElement("div")),
     left: document.body.appendChild(document.createElement("div")),
     right: document.body.appendChild(document.createElement("div"))
 }
-arrows.top.classList.add("arrowBox"); arrows.top.id = "topArrow";
-arrows.left.classList.add("arrowBox"); arrows.left.classList.add("hArrow"); arrows.left.id = "leftArrow";
-arrows.right.classList.add("arrowBox"); arrows.right.classList.add("hArrow"); arrows.right.id = "rightArrow";
+if (!document.title.toLowerCase().includes("hub")) {
 
+    arrows.top.classList.add("arrowBox"); arrows.top.id = "topArrow";
+    arrows.left.classList.add("arrowBox"); arrows.left.classList.add("hArrow"); arrows.left.id = "leftArrow";
+    arrows.right.classList.add("arrowBox"); arrows.right.classList.add("hArrow"); arrows.right.id = "rightArrow";
+
+}
+
+// Borders
+const borders = 
+[
+    document.body.appendChild(document.createElement("div")),
+    document.createElement("div"),
+    document.createElement("div"),
+    document.createElement("div")
+]
+let bWidth = 0;
+borders.forEach((border, index) => {
+
+    if (index > 0) borders[index-1].appendChild(border);
+    border.classList.add(`border-${index+1}`);
+
+    // Add up total Border Width
+    bWidth += parseFloat(getComputedStyle(border).borderWidth);
+});
+
+// Background
+const bg = document.body.appendChild(document.createElement("div"));
+bg.id = "bg";
+
+
+
+
+/* Global Variables */
 
 const main = document.getElementById("main-container");
 
-let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
-console.log(window.innerWidth, window.innerWidth > 999);
-window.addEventListener("resize", () => {
+// Arrow Positional Margin
+let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+bWidth : 100+bWidth;
+window.addEventListener("resize", () => screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+bWidth : 100+bWidth); 
 
-    screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+65 : 100+65;
-}); 
+// Arrow Navigation
+const pages = ["user", "leaderboard", "market"];
+let doing = true;
 
-const pages = ["user", "leaderboard", "shop"];
-let doing;
+const pageData = {
+    origin : pages.indexOf(new URLSearchParams(window.location.search).get("origin")),
+    current: pages.findIndex(page => document.title.toLowerCase().includes(page)),
+    wrap   : new URLSearchParams(window.location.search).get("wrap") ? true : false
+}
 
 
-// Swipe Stuff
+
+
+/* Functions */
+
+function navigate(slide, destination) {
+
+    main.style.transform = `translate(${slide})`;
+    main.addEventListener("transitionend", () => {
+
+        main.style.opacity = 0;
+        location.href = destination;
+    });
+}
+
+
+
+
+/* Event Listeners */
+
+// Arrow Hover
 document.addEventListener("mousemove", (event) => {
 
     let transform = {
@@ -30,11 +85,10 @@ document.addEventListener("mousemove", (event) => {
         y: 0
     }
 
-    if (!doing) {
+    if (!doing && !document.title.toLowerCase().includes("hub")) {
 
-        if (event.clientY < screenMargin && !document.title.toLowerCase().includes("hub")) transform.y = `${screenMargin/2}px`;
-
-        if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
+        if (event.clientY < screenMargin) transform.y = `${screenMargin/2}px`;
+        else if (event.clientX < screenMargin && event.clientY >= screenMargin) transform.x = `${screenMargin}px`;
         else if (event.clientX > window.innerWidth - screenMargin) transform.x = `-${screenMargin}px`;
 
         main.style.transform = transform.x || transform.y ? `translate(${transform.x}, ${transform.y})` : "none";
@@ -42,45 +96,125 @@ document.addEventListener("mousemove", (event) => {
     }
 });
 
-
-// Navigation
+// Arrow Click
 document.addEventListener("click", (event) => {
+    
+    if (!doing) {
 
-    if (event.target === arrows.top) {
-        doing = true;
-        main.style.transform = "translate(0, 100vw)";
-        main.addEventListener("transitionend", () => {
+        let destination;
+        let direction;
+        let wrap;
 
-            location.href = "apps/su/su.html"; 
-            doing = false;
-        });
-    }
-    else if (event.target === arrows.left) {
+        if (event.target === arrows.top) {
+
+            doing = true;
+            destination = "apps/su/su.html";
+            direction = "0, 100vh";
+
+        }
+        else if (event.target === arrows.left) {
+
+            doing = true;
+
+            // Determine Destination
+            if (pageData.current == 0) {
+                destination = pages[pages.length-1];
+                wrap = true;
+            }
+            else destination = pages[pageData.current-1];
+
+            destination = `apps/su/${destination}.html`;
+            direction = "100vw";
+
+        }
+        else if (event.target === arrows.right) {
+
+            doing = true;
+
+            // Determine Destination
+            if (pageData.current < pages.length-1) destination = pages[pageData.current+1];
+            else {
+                destination = pages[0];
+                wrap = true;
+            }
+
+            destination = `apps/su/${destination}.html`;
+            direction = "-100vw";
+
+        }
+
         
-        doing = true;
-        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
-        const destination = pages[origin-1 < 0 ? pages.length-1 : origin-1];
+        if (doing) {
 
-        main.style.transform = "translate(100vw)";
-        main.addEventListener("transitionend", () => {
+            destination += `?origin=${pages[pageData.current]}`;
+            if (wrap) destination += "&wrap=true";
 
-            location.href = `apps/su/${destination}.html`;
-            doing = false;
-        });
+            navigate(direction, destination);
+
+        }
 
     }
-    else if (event.target === arrows.right) {
+});
 
-        doing = true;
-        const origin = pages.findIndex(page => document.title.toLowerCase().includes());
-        const destination = pages[origin+1 < pages.length-1 ? 0 : origin+1];
 
-        main.style.transform = "translate(-100vw)";
-        main.addEventListener("transitionend", () => {
 
-            location.href = `apps/su/${destination}.html`; 
-            doing = false;
-        });
 
+/* Startup Code */
+
+// Page Arrival UI Position
+if (pageData.origin !== undefined) {
+
+    // Position based on Origin
+    if (document.title.toLowerCase().includes("hub")) {
+        if (location.href.includes("origin")) main.style.transform = "translate(0, -100vh)";
+        else doing = false;
     }
+    else if (pageData.origin == -1) main.style.transform = "translate(0, 100vh)";
+    else if (pageData.origin < pageData.current) {
+        if (pageData.wrap) main.style.transform = "translate(-100vw)";
+        else               main.style.transform = "translate(100vw)";
+    }
+    else if (pageData.origin > pageData.current) {
+        if (pageData.wrap) main.style.transform = "translate(100vw)";
+        else               main.style.transform = "translate(-100vw)";
+    }
+
+    // Display Content & Enable Transition
+    setTimeout(() => {
+
+        main.style.opacity = 1;
+        main.style.transition = "transform 0.5s";
+
+        // Center Content
+        setTimeout(() => {
+            
+            main.style.transform = "none";
+            main.addEventListener("transitionend", () => doing = false);
+        }, 50);
+    }, 1);
+
+}
+else doing = false;
+
+// Connect to DB
+window.addEventListener("dbReady", () => {
+
+    suDB("load").then(res => {
+
+        if (res) {
+
+            window.dispatchEvent(new Event("dataReady"));
+
+            // App Timer & Save Interval
+            setInterval(() => {
+
+                window.suData.time++;
+                console.log(window.suData.time);
+                suDB("store", window.suData);
+
+                window.dispatchEvent(new Event("dbUpdate"));
+            }, 1000);
+
+        }
+    });
 });

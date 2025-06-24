@@ -1,0 +1,7 @@
+[
+    {
+        "name": "apptime",
+        "type": "timer",
+        "condition": 30
+    }
+]

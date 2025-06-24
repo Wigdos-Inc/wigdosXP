@@ -162,6 +162,7 @@ let power = {
 
             // Clear Session Data
             sessionStorage.clear();
+            localStorage.clear();
 
             // Shutdown
             this.overlay.style.backgroundImage = "none";
@@ -262,7 +263,12 @@ function fill(parent, type) {
         // Guest
         login.guest.id = "guest";
         login.guest.innerHTML = "Log in as a Guest";
-        login.guest.onclick = () =>
+        login.guest.onclick = () => {
+
+            localStorage.setItem("username", "guest");
+            desktopFill("base");
+            fill(parent, "in");
+        }
 
         // Output
         login.output.id = "accOutput";
@@ -472,7 +478,7 @@ function fill(parent, type) {
         // Display Username & Text
         const boxInnerRight = accBoxInner.appendChild(document.createElement("div")); boxInnerRight.id = "boxInnerRight";
         const username = boxInnerRight.appendChild(document.createElement("p")); username.id = "pu";
-        username.innerHTML = `<strong>${sessionStorage.getItem("username")}</strong>`;
+        username.innerHTML = `<strong>${localStorage.getItem("username")}</strong>`;
 
         const subtitle = boxInnerRight.appendChild(document.createElement("p")); subtitle.id = "ps";
         subtitle.innerHTML = type == "in" ? "<i>Logging In...</i>" : "<i>Logging Out...</i>";
@@ -576,8 +582,12 @@ async function db(data, type) {
                 email: data.e,
                 username: data.u,
                 password: hash,
-                layout: desktopFill("base")
+                layout: desktopFill("base"),
+                admin: false
             });
+
+            localStorage.setItem("username", data.u);
+            fill(document.getElementById("contentRight"), "in");
 
         } else if (type === "login") {
 
@@ -596,7 +606,7 @@ async function db(data, type) {
 
             if (hash === userData.password) {
 
-                sessionStorage.setItem("username", data.u);
+                localStorage.setItem("username", data.u);
 
                 // Check if stored Layout is valid
                 let layout;
@@ -615,6 +625,7 @@ async function db(data, type) {
                 else desktopFill("load", JSON.parse(userData.layout));
                 
                 fill(document.getElementById("contentRight"), "in");
+                if (userData.admin) localStorage.setItem("admin", "t");
                 
             } else {
                 output.innerHTML = "Incorrect password";

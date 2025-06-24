@@ -159,7 +159,7 @@ const applications = {
 
 
 
-    /* UNIQUE */
+    /* SPECIAL */
     bombs: new Application(
         ["bombs", "Wigsplosionator"],
         "",
@@ -172,4 +172,16 @@ const applications = {
         true, 
         ["internal", "apps/su/"]
     ),
+    breakout: new Application(
+        ["breakout", "Breakout"],
+        "other",
+        false,
+        ["internal", "apps/games/"]
+    ),
+    sublimator: new Application(
+        ["sublimator", "Sublimator"],
+        "other",
+        false,
+        ["internal", "apps/games/"]
+    )
 }
