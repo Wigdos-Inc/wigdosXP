@@ -1,10 +1,5 @@
-/* Global Variables */
-
 // Windows XP Startup Sound
 const audio = new Audio('assets/sfx/startup.mp3');
-
-
-
 /* Startup */
 
 window.onload = () => {
