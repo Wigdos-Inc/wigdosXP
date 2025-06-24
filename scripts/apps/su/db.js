@@ -6,7 +6,8 @@ async function suDB(type, data) {
 
         // Load the current Date
         const time = Date.now();
-        const day = time - (86400000 * (time % 86400000));
+        const date = new Date(); date.setHours(0, 0, 0, 0);
+        const day = date.getTime();
         
         switch (type) {
 
@@ -44,7 +45,7 @@ async function suDB(type, data) {
                         // Store Empty Dataset
                         data = {
                             time : 0, 
-                            level: 0, 
+                            level: 1, 
                             xp   : 0, 
                             gold : 0,
                             tasks: {
@@ -73,11 +74,12 @@ async function suDB(type, data) {
             await task.override();
             data.tasks.date = day;
             data.tasks.all = task.user.all;
-            data.tasks.pin = {};
+            data.tasks.pin = task.user.pin;
 
         }
 
         // Store data in Window
+        if (data.level == 0) data.level = 1;
         window.suData = data;
         return true;
 
@@ -101,14 +103,14 @@ function err(error) {
 let task = {
     admin: !!localStorage.admin,
     user : {
-        all: {},
-        pin: {}
+        all: [],
+        pin: []
     },
 
     list : async function() {
 
         try {
-            const res = await fetch("scripts/apps/su/tasks.json");
+            const res = await fetch("scripts/apps/su/json/tasks.json");
             return await res.json();
         } catch (error) {
             return err("JSON Tasks Load Failed: " + error);
@@ -118,10 +120,10 @@ let task = {
     override: async function() {
 
         // Empty old Tasks
-        this.user.all = {};
-        this.user.pin = {};
+        this.user.all = [];
+        this.user.pin = [];
 
-        const tasks = {
+        let tasks = {
             all : await this.list(),
             c: undefined,
             p: [],
@@ -145,7 +147,8 @@ let task = {
         tasks.p.forEach(taskID => {
 
             const task = tasks.all[taskID];
-            this.user.all[task.name] = task;
+            task.progress = 0;
+            this.user.all.push(task);
         });
     }
 }
@@ -158,11 +161,9 @@ window.override = async function() {
 
         // Store new Tasks
         window.suData.tasks.all = task.user.all;
-        window.suData.tasks.pin = {};
+        window.suData.tasks.pin = task.user.pin;
         window.suData.tasks.date = Date.now() - (86400000 * (Date.now() % 86400000));
         await suDB("store", window.suData);
-
-        console.log(window.suData.tasks);
 
         // Reload the Page
         location.reload();

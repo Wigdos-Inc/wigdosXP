@@ -1,0 +1,10 @@
+[
+    {
+        "name": {
+            "full": "SU Apptime",
+            "short": "suTime"
+        },
+        "type": "timer",
+        "condition": 120
+    }
+]
