@@ -26,6 +26,9 @@
 
     user-select: none;
 }
+.headerUnfocus {
+    background-image: linear-gradient(to top, #2e7af5, #2b6de0, #3777e6, #7ab1f5);
+}
 
 .appIcon {
     height: 70%;
@@ -86,12 +89,18 @@
     flex-direction: column;
     overflow: hidden;
 }
+.mainUnfocus {
+    border-color: #2e7af5;
+}
 
-.appContent {
+.appContent, .appOverlay {
     height: 100%;
     width: 100%;
 
     padding: 0;
     margin: 0;
     border: none;
+}
+.appOverlay {
+    position: absolute;
 }

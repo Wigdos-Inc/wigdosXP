@@ -9,9 +9,9 @@ class AppWindow {
 
         // Meta
         this.element = document.getElementsByTagName("main")[0].appendChild(document.createElement("div"));
-        this.focus   = false;
         this.index   = windows.index;
         this.app     = app;
+        this.full    = app.full;
 
         // Inner Elements
         this.header  = undefined; // Replaced by appHeader at line 40
@@ -33,6 +33,8 @@ class AppWindow {
 
     // Create the Application Window
     create() {
+
+        if (this.app.name.s == "su") sessionStorage.setItem("suActive", true);
 
         this.element.classList.add("appWindow");
         this.focus = true;
@@ -67,7 +69,7 @@ class AppWindow {
 
         screenBtn.onclick = () => {
 
-            this.app.full = !this.app.full;
+            this.full = !this.full;
             this.screenChange();
         }
             
@@ -90,16 +92,45 @@ class AppWindow {
         this.iframe.classList.add("appContent");
 
 
+        // Focus Functionality
+        const overlay = appMain.appendChild(document.createElement("div"));
+        overlay.classList.add("appOverlay");
+        overlay.style.display = "none";
 
-        // Drag Functionality
+        document.addEventListener("mousedown", (event) => {
 
+            if (this.element.contains(event.target)) {
+
+                // Focus on Window
+                appHeader.classList.remove("headerUnfocus");
+                appMain.classList.remove("mainUnfocus");
+
+                // Remove Overlay
+                overlay.style.display = "none";
+
+            }
+            else {
+
+                // Focus on Window
+                appHeader.classList.add("headerUnfocus");
+                appMain.classList.add("mainUnfocus");
+
+                // Remove Overlay
+                overlay.style.display = "block";
+
+            }
+        });
+
+
+
+        // Dragging Functionality
         appHeader.addEventListener("mousedown", (event) => {
 
             if (
                 minBtn.contains(event.target) ||
                 screenBtn.contains(event.target) || 
                 closeBtn.contains(event.target)
-            ) {return} else {
+            ) { return } else {
 
                 this.move.current = true;
                 this.element.style.transition = "unset";
@@ -141,10 +172,8 @@ class AppWindow {
 
                 }
 
-
             }
         });
-
         document.addEventListener("mousemove", (event) => {
 
             if (this.move.current) {
@@ -157,7 +186,6 @@ class AppWindow {
 
             }
         });
-    
         document.addEventListener("mouseup", () => {
 
             if (this.move.current) {
@@ -173,10 +201,17 @@ class AppWindow {
                     
             }
         });
+
+        // Focus Logic
+        document.addEventListener("mousedown", (event) => this.element.style.zIndex = this.element.contains(event.target) ? 5 : 4);
+        this.iframe.addEventListener("mousedown", () => this.element.style.zIndex = 5);
     }
 
     // Close the Application Window
     close() {
+
+        if (this.app.name.s == "su") sessionStorage.removeItem("suActive");
+
         const iframeWindow = this.iframe?.contentWindow;
         if (!iframeWindow) {
             this.element.remove();
@@ -224,7 +259,7 @@ class AppWindow {
 
     screenChange() {
 
-        if (this.app.full) {
+        if (this.full) {
 
             this.element.style.left = 0;
             this.element.style.top = 0;
@@ -257,6 +292,13 @@ class AppWindow {
 
             this.element.style.borderTopLeftRadius = "5px";
             this.element.style.borderTopRightRadius = "5px";
+
+        }
+    }
+
+    focusing(focus) {
+
+        if (focus) {
 
         }
     }
