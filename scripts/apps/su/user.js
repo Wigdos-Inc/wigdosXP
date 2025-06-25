@@ -26,7 +26,7 @@ const elements = {
             if (type.xp) {
 
                 const limit = Math.round((window.suData.xp / 100) * this.xp.blocks.length);
-                let rest;
+                let rest = 0;
                 for (let i=0; i < limit; i++) {
 
                     this.xp.blocks[i].classList.add("blockFill");
@@ -121,7 +121,7 @@ const elements = {
 
                 }
 
-                let rest;
+                let rest = 0;
                 const limit = Math.floor((task.progress / task.condition) * this.bar[index].children.length);
                 for (let i=0; i < limit; i++) {
                     

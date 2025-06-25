@@ -23,7 +23,7 @@ function taskProg(type, prog, target) {
 
                 // Add XP
                 window.suData.xp += task.reward;
-                console.log("Task Complete: " + task.reward + "XP"), `${getUser()}: ${window.suData.xp}/100 XP`;
+                console.log("Task Complete: " + task.reward + "XP", `${getUser()}: ${window.suData.xp}/100 XP`);
 
                 // Complete/Reset the Task
                 if (!task.repeat) task = undefined;
