@@ -152,22 +152,27 @@ let task = {
         });
     }
 }
-window.override = async function() {
+let override = false;
+window.onkeydown = async function(event) {
 
-    if (task.admin) {
+    if (event.key === "Enter") {
 
-        // Load New Tasks
-        await task.override(false);
+        if (task.admin) {
 
-        // Store new Tasks
-        window.suData.tasks.all = task.user.all;
-        window.suData.tasks.pin = task.user.pin;
-        window.suData.tasks.date = Date.now() - (86400000 * (Date.now() % 86400000));
-        await suDB("store", window.suData);
+            // Load New Tasks
+            await task.override(false);
 
-        // Reload the Page
-        location.reload();
+            // Store new Tasks
+            window.suData.tasks.all = task.user.all;
+            window.suData.tasks.pin = task.user.pin;
+            window.suData.tasks.date = Date.now() - (86400000 * (Date.now() % 86400000));
+            await suDB("store", window.suData);
+
+            // Reload the Page
+            location.reload();
+
+        }
+        else console.warn("You don't have rights.");
 
     }
-    else console.error("You don't have rights.");
 }

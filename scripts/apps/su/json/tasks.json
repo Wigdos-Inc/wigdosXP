@@ -1,10 +1,22 @@
 [
     {
         "name": {
-            "full": "SU Apptime",
+            "full": "Singular Upgrading Apptime",
             "short": "suTime"
         },
         "type": "timer",
-        "condition": 120
+        "target": "su",
+        "condition": 120,
+        "reward": 5
+    },
+    {
+        "name": {
+            "full": "Breakout Apptime",
+            "short": "utTime"
+        },
+        "type": "timer",
+        "target": "breakout",
+        "condition": 180,
+        "reward": 20
     }
 ]
