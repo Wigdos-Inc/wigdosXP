@@ -51,7 +51,12 @@ console.error = function(...args) {
 
         window.alert("Account functions are currently unavailable. Please try again later.\nYou will now be logged out.");
 
-        power.stage1(false);
+        if (document.getElementsByClassName("accBox")[0]) {
+            sessionStorage.clear();
+            localStorage.clear();
+            localStorage.setItem("username", "guest");
+        }
+        else power.stage1(false);
 
     }
 }
