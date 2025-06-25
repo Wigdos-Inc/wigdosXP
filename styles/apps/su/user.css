@@ -90,7 +90,6 @@ html, body {
 #task-box {
     height: fit-content;
     max-height: 250px;
-    overflow-x: auto;
     overflow-y: hidden;
 }
 #taskOuter {
@@ -112,6 +111,8 @@ html, body {
     justify-content: center;
     align-items: center;
     gap: 15px;
+
+    opacity: 0;
 }
 .taskTop, .taskBottom {
     width: 100%;
@@ -138,7 +139,6 @@ html, body {
     display: flex;
     justify-content: center;
     align-items: center;
-    border: 1px solid red;
 }
 .taskBottom {
     height: 20%;

@@ -50,6 +50,7 @@ const elements = {
         }
     },
     tasks: {
+        cont : document.getElementById("task-box"),
         outer: document.getElementById("taskOuter"),
         box  : document.getElementsByClassName("taskItems"),
         name : document.getElementsByClassName("taskName"),
@@ -69,17 +70,22 @@ const elements = {
                 success = false;
                 console.warn("Warning: Color JSON Connection Failed");
             }
+
+            // Enable Nav with Enough Entries
+            if (window.suData.tasks.length > 3) this.cont.style.overflowX = "auto";
+            else this.cont.style.overflowX = "hidden";
             
             window.suData.tasks.all.forEach((task, index) => {
 
                 if (all) {
 
-                    // Attach Task to Box
+                    // Attach Task to Box and Display Box
                     this.box[index].task = task;
+                    this.box[index].style.opacity = 1;
 
                     // Display Task Info
                     this.name[index].innerHTML = task.name.full;
-                    this.prog[index].innerHTML = `${"x"}/${task.condition}`;
+                    this.prog[index].innerHTML = `${task.progress}/${task.condition}`;
 
                     // Display Icon and Glow
                     this.icon[index].src = `assets/images/su/tasks/${task.type}.jpg`;
@@ -114,8 +120,12 @@ const elements = {
 // When DB Data is Ready
 window.addEventListener("dataReady", () => {
 
+    // Display Stats & Tasks
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
     elements.tasks.display(true);
+
+    // Enable Task Tracking
+    setInterval()
 });
 
 // DB Update
@@ -137,4 +147,3 @@ window.addEventListener("resize", () => {
 
 /* Startup Code */
 elements.stats.xp.ini();
-
