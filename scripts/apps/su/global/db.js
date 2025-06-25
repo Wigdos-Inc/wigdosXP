@@ -16,6 +16,10 @@ async function suDB(type, data) {
                 // Store Data
                 if (username != "guest") {
 
+                    // NaN Failsafe
+                    if (!data.xp) data.xp = 0;
+                    if (!data.gold) data.gold = 0;
+
                     await setDoc(
                         doc(db, "game_saves", username), 
                         { su: JSON.stringify(data) },
