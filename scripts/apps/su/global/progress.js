@@ -1,13 +1,10 @@
 // Receive Data from Message
 window.addEventListener("message", (event) => {
 
-    const messageData = {
-        type: event.data.type,
-        prog: event.data.prog,
-        src : event.data.origin
-    }
+    const data = JSON.parse(event.data.taskData);
 
-    taskProg(messageData.type, messageData.prog, messageData.src);
+    console.log(data.taskType, data.prog, data.src);
+    taskProg(data.taskType, data.prog, data.src);
 })
 
 function taskProg(type, prog, target) {
@@ -31,8 +28,10 @@ function taskProg(type, prog, target) {
                 if (!task.repeat) task = undefined;
                 else task.progress = 0;
 
-                // Store to DB if no Levelup
-                if (window.suData.xp < 100) suDB("store", window.suData);
+                // Store to DB & Display if no Levelup
+                if (window.suData.xp < 100) {
+                    suDB("store", window.suData);
+                }
 
             }
 
@@ -67,5 +66,8 @@ function taskProg(type, prog, target) {
             suDB("store", window.suData);
 
         }
+        
     }
+    
+    window.dispatchEvent(new Event("dataUpdate"));
 }

@@ -29,7 +29,7 @@ async function suDB(type, data) {
                 }
                 else sessionStorage.setItem("suData", JSON.stringify(data));
 
-                window.dispatchEvent(new Event("dbUpdate"));
+                window.dispatchEvent(new Event("dataUpdate"));
 
                 break;
 

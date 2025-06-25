@@ -4,6 +4,16 @@
 let game = {
     start : false,
     paused: true,
+    time  : {
+        count: 0,
+        track: undefined,
+
+        change(start) {
+
+            if (start) this.track = setInterval(() => dataSend({ taskType: "timer", prog: 1, src: "breakout" }), 1000);
+            else clearInterval(this.track);
+        }
+    },
 
     size  : changeScreen(),
 
@@ -26,8 +36,16 @@ let game = {
     
         this.start = false;
         this.paused = true;
+
+        // STOP THE COUNT
+        this.time.change(false);
     
-        if (this.player.score > this.player.h_score) this.player.h_score = this.player.score;
+        if (this.player.score > this.player.h_score) {
+            this.player.h_score = this.player.score;
+            //dataSend({ taskType: "highScore", prog: this.player.h_score, src: "breakout" }); // SU High Score
+        }
+        //dataSend({ taskType: "topScore", prog: this.player.score, src: "breakout" }); // SU Top Score
+        dataSend({ taskType: "totalScore", prog: this.player.score, src: "breakout" }); // SU Total Score
 
         this.player.score = 0;
         this.player.lives = 3;
@@ -304,8 +322,12 @@ function draw() {
 
         // Pause functionality
         if (keys[" "] && !spaceKeyPressed) {
+
             game.paused = !game.paused;
+            if (!game.paused) game.time.change(true);
+            else game.time.change(false);
             spaceKeyPressed = true;
+
         }
         if (!keys[" "]) spaceKeyPressed = false;
 
@@ -374,6 +396,7 @@ function draw() {
                 else {
 
                     game.paused = true;
+                    game.time.change(false);
                     ball.reset();
                     paddle.x_pos = width/2;
 
@@ -450,14 +473,20 @@ function draw() {
             else if (item.break) b_broken++;
         });
 
-        // Move on to next level if all bricks are broken (not working)
+        // Move on to next level if all bricks are broken
         if (b_broken == bricks.length) {
 
             game.player.score += 1000;
-            if (game.level.current != 3) game.paused = true;
+            if (game.level.current != 3) {
+                game.paused = true;
+                game.time.change(false);
+            }
 
             if (game.level.current < 3) game.level.current++;
             else if (game.level.current >= 3 && game.level.sub < 3) game.level.sub++;
+
+            // SU Storage
+            dataSend({ taskType: "level", prog: 1, src: "breakout" });
 
             setup();
             return;
@@ -577,6 +606,8 @@ function mousePressed() {
         mouseY >= 0 && mouseY <= height
     ) {
         game.paused = !game.paused;
+        if (!game.paused) game.time.change(true);
+        else game.time.change(false);
     }
 }
 
@@ -589,6 +620,7 @@ window.addEventListener("resize", function() {
 
     game.start = false;
     game.paused = true;
+    game.time.change(false);
     setup();
 });
 
@@ -601,3 +633,10 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("keyup", (event) => {
     if (game.start) keys[event.key] = false;
 });
+
+
+// Send Data to SU
+function dataSend(data) {
+
+    window.parent.postMessage({ type: "taskUpdate", taskData: JSON.stringify(data) }, "*");
+}

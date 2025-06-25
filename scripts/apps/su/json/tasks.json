@@ -1,5 +1,5 @@
 [
-    {
+    { 
         "name": {
             "full": "Singular Upgrading Apptime",
             "short": "suTime"
@@ -11,10 +11,13 @@
         "repeat": true,
         "active": false
     },
-    {
+    
+    
+    
+    { 
         "name": {
             "full": "Breakout Apptime",
-            "short": "utTime"
+            "short": "breakoutTime"
         },
         "type": "timer",
         "target": "breakout",
@@ -22,6 +25,36 @@
         "reward": {
             "xp": 20,
             "gold": 1
+        },
+        "repeat": false,
+        "active": false
+    },
+    { 
+        "name": {
+            "full": "Breakout Score Total",
+            "short": "breakoutTotal"
+        },
+        "type": "totalScore",
+        "target": "breakout",
+        "condition": 1000,
+        "reward": {
+            "xp": 50,
+            "gold": 10
+        },
+        "repeat": false,
+        "active": false
+    },
+    { 
+        "name": {
+            "full": "Breakout Score Total",
+            "short": "breakoutLevel"
+        },
+        "type": "level",
+        "target": "breakout",
+        "condition": 2,
+        "reward": {
+            "xp": 20,
+            "gold": 2
         },
         "repeat": false,
         "active": false

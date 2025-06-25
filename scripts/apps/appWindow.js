@@ -25,8 +25,8 @@ class AppWindow {
             storage: {
                 x: undefined,
                 y: undefined,
-                h: 400,
-                w: 600
+                h: 600,
+                w: 900
             }
         }
     }
@@ -349,3 +349,7 @@ function startApp(app) {
     windows.object.push(window);
     windows.index++;
 }
+
+// Failsafe
+sessionStorage.removeItem("suActive");
+sessionStorage.removeItem("suData");

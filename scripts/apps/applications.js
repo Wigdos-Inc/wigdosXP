@@ -191,3 +191,14 @@ const applications = {
         ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
     )
 }
+
+
+
+/* SU Data Tracking */
+window.addEventListener("message", (event) => {
+
+    if (event.data.type == "taskUpdate" && sessionStorage.getItem("suActive")) windows.object.forEach(window => {
+
+        if (window.app.name.s == "su") window.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, "*");
+    });
+});

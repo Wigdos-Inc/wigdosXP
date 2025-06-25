@@ -83,7 +83,7 @@ const elements = {
             }
 
             // Enable Nav with Enough Entries
-            if (window.suData.tasks.length > 3) this.cont.style.overflowX = "auto";
+            if (window.suData.tasks.all.length > 2) this.cont.style.overflowX = "auto";
             else this.cont.style.overflowX = "hidden";
             
             window.suData.tasks.all.forEach((task, index) => {
@@ -99,7 +99,7 @@ const elements = {
                     this.prog[index].innerHTML = `${task.progress}/${task.condition}`;
 
                     // Display Icon and Glow
-                    this.icon[index].src = `assets/images/su/tasks/${task.type}.jpg`;
+                    this.icon[index].src = `assets/images/su/tasks/${task.type}.png`;
                     if (success) this.icon[index].style.boxShadow = `0 0 50px ${colors[task.type]}`;
 
                 }
@@ -149,7 +149,7 @@ window.addEventListener("dataReady", () => {
 });
 
 // DB Update
-window.addEventListener("dbUpdate", () => {
+window.addEventListener("dataUpdate", () => {
 
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
     elements.tasks.display(true);
