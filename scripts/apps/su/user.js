@@ -147,3 +147,8 @@ window.addEventListener("resize", () => {
 
 /* Startup Code */
 elements.stats.xp.ini();
+
+
+/*
+I want the user page to track progress in tasks but am unsure on how to approach it. The current existing task tracks app time, but others will have to track progress from external apps as well like reaching levels or playtime.
+*/
