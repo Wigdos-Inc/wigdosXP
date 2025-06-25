@@ -36,3 +36,22 @@ for (let i=0; i < imgs.length; i++) {
 
     imgs[i].src = `assets/images/icons/${size}/bombs.png`;
 }
+
+
+
+// Catch errors for further handling if needed
+const realConsoleError = console.error;
+console.error = function(...args) {
+
+    // Display Error in Console
+    realConsoleError.apply(console, args);
+
+    // Log Out User when Database Overloaded
+    if (args[1] && typeof args[1] === "string" && args[1].includes("resource-exhausted")) {
+
+        window.alert("Account functions are currently unavailable. Please try again later.\nYou will now be logged out.");
+
+        power.stage1(false);
+
+    }
+}
