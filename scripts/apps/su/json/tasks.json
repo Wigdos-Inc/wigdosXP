@@ -19,7 +19,10 @@
         "type": "timer",
         "target": "breakout",
         "condition": 300,
-        "reward": 20,
+        "reward": {
+            "xp": 20,
+            "gold": 1
+        },
         "repeat": false,
         "active": false
     }

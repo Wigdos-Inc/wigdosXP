@@ -21,9 +21,11 @@ function taskProg(type, prog, target) {
 
             if (task.progress >= task.condition) {
 
-                // Add XP
-                window.suData.xp += task.reward;
-                console.log("Task Complete: " + task.reward + "XP", `${getUser()}: ${window.suData.xp}/100 XP`);
+                // Add XP & Gold
+                window.suData.xp += task.reward.xp;
+                window.suData.gold += task.reward.gold;
+                console.log("Task Complete: " + task.reward.xp + "XP", `${getUser()}: ${window.suData.xp}/100 XP`);
+                console.log(task.reward.gold + " G");
 
                 // Complete/Reset the Task
                 if (!task.repeat) task = undefined;
