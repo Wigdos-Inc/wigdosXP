@@ -99,7 +99,7 @@ html, body {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 0px;
+    gap: 10px;
 }
 .taskItems {
     width: 100%;

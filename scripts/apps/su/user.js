@@ -23,7 +23,18 @@ const elements = {
         display: function(type) {
 
             // Colour XP Blocks
-            if (type.xp) for (let i=0; i < type.xp[1]; i++) this.xp.blocks[i].style.backgroundColor = "green";
+            if (type.xp) {
+
+                const limit = Math.round((window.suData.xp / 100) * this.xp.blocks.length);
+                let rest;
+                for (let i=0; i < limit; i++) {
+
+                    this.xp.blocks[i].classList.add("blockFill");
+                    rest++;
+                }
+                for (let i=rest; i < this.xp.blocks.length; i++) this.xp.blocks[i].classList.remove("blockFill");
+
+            }
 
             if (type.name) this.name.innerHTML = getUser().toUpperCase();
             if (type.lvl) this.lvl.innerHTML = `LVL ${window.suData.level}`;
@@ -109,6 +120,15 @@ const elements = {
                     }
 
                 }
+
+                let rest;
+                const limit = Math.floor((task.progress / task.condition) * this.bar[index].children.length);
+                for (let i=0; i < limit; i++) {
+                    
+                    this.bar[index].children[i].classList.add("blockFill");
+                    rest++;
+                }
+                for (let i=rest; i < this.bar[index].children.length; i++) this.bar[index].children[i].classList.remove("blockFill");
             });
         }
     }
@@ -123,12 +143,16 @@ window.addEventListener("dataReady", () => {
     // Display Stats & Tasks
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
     elements.tasks.display(true);
+
+    // Enable all Tasks
+    window.suData.tasks.all.forEach(task => task.active = true);
 });
 
 // DB Update
 window.addEventListener("dbUpdate", () => {
 
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
+    elements.tasks.display(true);
 });
 
 

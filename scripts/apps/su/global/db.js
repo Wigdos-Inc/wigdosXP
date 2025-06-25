@@ -25,6 +25,8 @@ async function suDB(type, data) {
                 }
                 else sessionStorage.setItem("suData", JSON.stringify(data));
 
+                window.dispatchEvent(new Event("dbUpdate"));
+
                 break;
 
                 
@@ -125,7 +127,6 @@ let task = {
 
         let tasks = {
             all : await this.list(),
-            c: undefined,
             p: [],
 
             r: function() {
@@ -134,15 +135,16 @@ let task = {
                 const number = Math.floor(Math.random() * this.all.length);
                 if (this.p.includes(number) && this.p.length >= this.all.length) return;
                 else if (this.p.includes(number)) this.r();
-                else {
-                    this.c = number;
-                    this.p.push(number);
-                }
+                else this.p.push(number);
             }
         }
 
         // Store Random Tasks
-        for (let i=0; i < 5; i++) tasks.r();
+        for (let i=0; i < 5; i++) {
+
+            if (i == 0) tasks.p.push(i); // Ensure SU Apptime Goes First
+            else tasks.r();
+        }
 
         tasks.p.forEach(taskID => {
 

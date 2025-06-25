@@ -1,42 +1,68 @@
-window.addEventListener("dataReady", () => {
+// Receive Data from Message
+window.addEventListener("message", (event) => {
 
-    // Receive Data from Message
-    window.addEventListener("message", (event) => {
+    const messageData = {
+        type: event.data.type,
+        prog: event.data.prog,
+        src : event.data.origin
+    }
 
-        const messageData = {
-            type: event.data.type,
-            prog: event.data.prog,
-            src : event.data.origin
-        }
+    taskProg(messageData.type, messageData.prog, messageData.src);
+})
 
-        taskProg(messageData.type, messageData.prog, messageData.src);
-    })
+function taskProg(type, prog, target) {
 
-    function taskProg(type, prog, target) {
+    window.suData.tasks.all.forEach(task => {
 
-        const tasks = window.suData.tasks;
+        if (type == task.type && target == task.target && task.active) {
 
-        tasks.forEach((task, index) => {
+            // Add progress to Stored Progress
+            task.progress += prog;
 
-            if (type == task.type && target == task.target) {
+            if (task.progress >= task.condition) {
 
-                // Add progress to Stored Progress
-                task.progress += prog;
+                // Add XP
+                window.suData.xp += task.reward;
+                console.log("Task Complete: " + task.reward + "XP"), `${getUser()}: ${window.suData.xp}/100 XP`;
 
-                if (task.progress > task.condition) {
+                // Complete/Reset the Task
+                if (!task.repeat) task = undefined;
+                else task.progress = 0;
 
-                    // Complete the Task
-                    window.suData.tasks[index].xp += task.reward;
-                    window.suData.tasks[index] = undefined;
-
-                }
 
             }
-        });
+
+        }
+    });
+
+    // Handle Level Up
+    while (window.suData.xp >= 100) {
+
+        console.log("Levelup!");
+
+        window.suData.xp -= 100;
+        window.suData.level++;
+
+        if (window.suData.xp < 100) {
+
+            const lvlText = elements.stats.lvl;
+
+            lvlText.style.transition = "all 0.5s";
+            lvlText.style.color = "gold";
+            lvlText.style.textShadow = "0 0 5px white";
+
+            setTimeout(() => {
+
+                lvlText.style.color = "whitesmoke";
+                lvlText.style.textShadow = "none";
+
+                lvlText.addEventListener("transitionend", () => lvlText.style.transition = "none");
+            }, 3000)
+
+        }
     }
 
-    function finish(task) {
 
-
-    }
-});
+    // Store to DB
+    suDB("store", window.suData);
+}

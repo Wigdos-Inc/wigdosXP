@@ -211,7 +211,8 @@ window.addEventListener("dbReady", () => {
                 window.suData.time++;
                 suDB("store", window.suData);
 
-                window.dispatchEvent(new Event("dbUpdate"));
+                // Track App Timer Task
+                if (window.suData.tasks.all.length) taskProg("timer", 1, "su");
             }, 1000);
 
         }

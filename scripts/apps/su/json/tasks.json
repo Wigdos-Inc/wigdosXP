@@ -6,8 +6,10 @@
         },
         "type": "timer",
         "target": "su",
-        "condition": 120,
-        "reward": 5
+        "condition": 180,
+        "reward": 5,
+        "repeat": true,
+        "active": false
     },
     {
         "name": {
@@ -16,7 +18,9 @@
         },
         "type": "timer",
         "target": "breakout",
-        "condition": 180,
-        "reward": 20
+        "condition": 300,
+        "reward": 20,
+        "repeat": false,
+        "active": false
     }
 ]
