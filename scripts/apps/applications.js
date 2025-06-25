@@ -183,5 +183,11 @@ const applications = {
         "other",
         false,
         ["internal", "apps/games/"]
+    ),
+    jeff: new Application(
+        ["jeff", "Super Jeff"],
+        "other",
+        true,
+        ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
     )
 }
