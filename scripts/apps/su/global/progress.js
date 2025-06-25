@@ -31,6 +31,8 @@ function taskProg(type, prog, target) {
                 if (!task.repeat) task = undefined;
                 else task.progress = 0;
 
+                // Store to DB if no Levelup
+                if (window.suData.xp < 100) suDB("store", window.suData);
 
             }
 
@@ -59,12 +61,11 @@ function taskProg(type, prog, target) {
                 lvlText.style.textShadow = "none";
 
                 lvlText.addEventListener("transitionend", () => lvlText.style.transition = "none");
-            }, 3000)
+            }, 3000);
+
+            // Store to DB
+            suDB("store", window.suData);
 
         }
     }
-
-
-    // Store to DB
-    suDB("store", window.suData);
 }

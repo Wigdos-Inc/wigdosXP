@@ -64,6 +64,9 @@ const pageData = {
 
 function navigate(slide, destination) {
 
+    // Save Data
+    suDB("store", window.suData);
+
     main.style.transform = `translate(${slide})`;
     main.addEventListener("transitionend", () => {
 
@@ -205,11 +208,11 @@ window.addEventListener("dbReady", () => {
 
             window.dispatchEvent(new Event("dataReady"));
 
-            // App Timer & Save Interval
+            // App Timer
             setInterval(() => {
 
+                // Add to Total Apptime
                 window.suData.time++;
-                suDB("store", window.suData);
 
                 // Track App Timer Task
                 if (window.suData.tasks.all.length) taskProg("timer", 1, "su");
