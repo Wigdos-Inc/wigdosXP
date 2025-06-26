@@ -64,7 +64,7 @@ main {
 }
 
 #appMain {
-background-color: rgb(255, 255, 255);
+background-color: whitesmoke);
 text-align: center;
 }
 
@@ -108,5 +108,5 @@ text-align: center;
     }
 
     body.default-bg {
-      background: #f0f0f0;
+      background: whitesmoke;
     }
