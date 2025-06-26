@@ -41,7 +41,7 @@ bg.id = "bg";
 
 /* Global Variables */
 
-const main = document.getElementById("main-container");
+const main = document.getElementById("main-container") || document.getElementsByClassName("app-container")[0];
 
 // Arrow Positional Margin
 let screenMargin = window.innerWidth < 1000 ? window.innerWidth/10+bWidth : 100+bWidth;
