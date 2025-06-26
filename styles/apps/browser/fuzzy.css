@@ -74,3 +74,39 @@ text-align: center;
     height: auto;
     margin-top: 135px;
 }
+
+#content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding-top: 100px;
+    }
+
+    #gif {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 150px;
+      display: none;
+      z-index: 3;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    #bgVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1;
+      display: none;
+    }
+
+    body.default-bg {
+      background: #f0f0f0;
+    }

@@ -8,7 +8,7 @@
     <base href="../../">
     <link rel="stylesheet" href="styles/global/main.css">
     <link rel="stylesheet" href="styles/apps/appContent.css">
-    
+    <link
     <link rel="stylesheet" href="styles/apps/browser/fuzzy.css">
 </head>
 <body>
@@ -36,7 +36,19 @@
     
     <div id="bottomBar"></div>
     
-   
+   <body class="default-bg">
+
+  <video id="bgVideo" muted autoplay loop></video>
+
+  <div id="content">
+    <h2>Enter the Secret Code</h2>
+    <input type="text" id="codeInput" placeholder="Enter code here" />
+    <button onclick="checkCode()">Submit</button>
+  </div>
+
+  <img id="gif" src="assets/secrets/gif/tenna.gif" draggable="false" >
+  <audio id="music" src="assets/music/27. Its TV Time! (DELTARUNE Chapter 34 Soundtrack) - Toby Fox.mp3"></audio>
     
+  <script src="scripts/apps/browser/fuzzy.js"></script>
 </body>
 </html>
