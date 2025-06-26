@@ -7,11 +7,11 @@ window.addEventListener("message", (event) => {
     taskProg(data.taskType, data.prog, data.src);
 })
 
-function taskProg(type, prog, target) {
+function taskProg(type, prog, target, override) {
 
-    console.log(window.suData.xp, window.suData.gold);
+    const overVar = override;
 
-    window.suData.tasks.all.forEach(task => {
+    window.suData.tasks.all.forEach((task, index) => {
 
         if (type == task.type && target == task.target && task.active) {
 
@@ -22,16 +22,16 @@ function taskProg(type, prog, target) {
 
                 // Add XP & Gold
                 window.suData.xp += task.reward.xp;
-                window.suData.gold += task.reward.gold;
+                window.suData.gold += task.reward.gold; glow(elements.stats.gold);
                 console.log("Task Complete: " + task.reward.xp + "XP", `${getUser()}: ${window.suData.xp}/100 XP`);
                 console.log(task.reward.gold + " G");
 
                 // Complete/Reset the Task
-                if (!task.repeat) task = undefined;
+                if (!task.repeat) window.suData.tasks.all.splice(index, 1);
                 else task.progress = 0;
 
                 // Store to DB & Display if no Levelup
-                if (window.suData.xp < 100) {
+                if (window.suData.xp < 100 && !overVar) {
                     suDB("store", window.suData);
                 }
 
@@ -50,26 +50,32 @@ function taskProg(type, prog, target) {
 
         if (window.suData.xp < 100) {
 
-            const lvlText = elements.stats.lvl;
-
-            lvlText.style.transition = "all 0.5s";
-            lvlText.style.color = "gold";
-            lvlText.style.textShadow = "0 0 5px white";
-
-            setTimeout(() => {
-
-                lvlText.style.color = "whitesmoke";
-                lvlText.style.textShadow = "none";
-
-                lvlText.addEventListener("transitionend", () => lvlText.style.transition = "none");
-            }, 3000);
+            glow(elements.stats.lvl);
 
             // Store to DB
-            suDB("store", window.suData);
+            if (!overVar) suDB("store", window.suData);
 
         }
         
     }
     
     window.dispatchEvent(new Event("dataUpdate"));
+}
+
+
+
+
+function glow(element) {
+
+    element.style.transition = "all 0.5s";
+    element.style.color = "gold";
+    element.style.textShadow = "0 0 10px white";
+
+    setTimeout(() => {
+
+        element.style.color = "whitesmoke";
+        element.style.textShadow = "none";
+
+        element.addEventListener("transitionend", () => element.style.transition = "none");
+    }, 1000);
 }

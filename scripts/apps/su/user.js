@@ -150,10 +150,12 @@ window.addEventListener("dataReady", () => {
     // Task Completion (Debug)
     document.addEventListener("keypress", (event) => {
 
-        if (event.key === "t") {
+        if (event.key === "t" && task.admin) {
             const task = window.suData.tasks.all[0];
-            taskProg(task.type, 180, task.target);
+            taskProg(task.type, 180, task.target, true);
         }
+        else if (event.key == "s" && task.admin) suDB("store", window.suData);
+        else if (!task.admin) console.warn("You don't have rights.");
     })
 });
 

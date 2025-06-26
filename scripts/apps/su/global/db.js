@@ -8,6 +8,8 @@ async function suDB(type, data) {
         const time = Date.now();
         const date = new Date(); date.setHours(0, 0, 0, 0);
         const day = date.getTime();
+
+        console.log("DB");
         
         switch (type) {
 
@@ -161,7 +163,7 @@ let task = {
 let override = false;
 window.onkeydown = async function(event) {
 
-    if (event.key === "Enter") {
+    if (event.key === "r" || event.key === "Enter") {
 
         if (task.admin) {
 
