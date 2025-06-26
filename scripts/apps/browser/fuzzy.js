@@ -16,6 +16,11 @@
         audio: "assets/music/Buddy Holly but just the riff.mp3",
         gif: ""
       },
+      "Disturbing the peace!!!": {
+        video: "assets/mp4/Persona 5 - Opening Cinematic.mp4",
+        audio: "assets/music/It's Going Down Now.mp3",
+        gif: "assets/secrets/gif/haru-haru-okumura.gif"
+      },
       // add for more secrets
     };
 
