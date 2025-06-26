@@ -363,14 +363,19 @@ function startApp(app) {
 
             if (getUser() != "guest") {
 
+                console.log(1)
+
                 // Retrieve Save Data from DB
                 try {
                     const { db, getDoc, doc } = window.firebaseAPI;
                     const userDoc = await getDoc(doc(db, "game_saves", username));
 
+                    console.log(2);
+
                     // Check if Save Data exists
                     if (userDoc.exists() && userDoc.data()[app.name.s]) {
                         saveData = JSON.parse(userDoc.data()[app.name.s]);
+                        console.log(3);
                     }
                 }
                 catch (error) {
@@ -383,6 +388,7 @@ function startApp(app) {
 
             
             // Send Data to App
+            console.log(saveData);
             window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
             console.log("Save Data Sent");
         }
