@@ -654,7 +654,17 @@ function start() {
     const accBox = document.getElementsByClassName("accBox")[0];
     accBox.classList.add("startup-hidden");
 
-    accBox.addEventListener("transitionend", () => accBox.remove());
+    accBox.addEventListener("transitionend", () => {
+        accBox.remove();
+
+        // Get the query string from the URL
+        const queryString = window.location.search;
+        // Create a URLSearchParams object
+        const urlParams = new URLSearchParams(queryString);
+        // Get the value of a specific parameter
+        const paramValue = urlParams.get('opdracht'); // Replace 'paramName' with the actual parameter name
+        if (paramValue == "minor") window.alert("Hallo docent, de Minor opdracht staat in Singular Upgrading.\nAls u verder wilt testen, speel dan Breakout en kijk naar hoe de Stats in Singular Upgrading veranderen.");
+    });
     sessionStorage.setItem("loaded", true);
 }
 

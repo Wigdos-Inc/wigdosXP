@@ -213,9 +213,7 @@ window.addEventListener("dbReady", () => {
 
                 // Add to Total Apptime
                 window.suData.time++;
-
-                // Track App Timer Task
-                if (window.suData.tasks.all.length) taskProg("timer", 1, "su");
+                sessionStorage.setItem("timer", window.suData.time);
             }, 1000);
 
         }

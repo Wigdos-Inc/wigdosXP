@@ -88,6 +88,7 @@ async function suDB(type, data) {
 
         // Store data in Window
         if (data.level == 0) data.level = 1;
+        if (sessionStorage.getItem("timer") > data.time) data.time = sessionStorage.getItem("timer");
         window.suData = data;
         return true;
 

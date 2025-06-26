@@ -103,7 +103,7 @@ html, body {
 }
 #taskOuter {
     height: 100%;
-    width: 200%;
+    width: fit-content;
     
     display: flex;
     justify-content: center;
@@ -111,7 +111,8 @@ html, body {
     gap: 10px;
 }
 .taskItems {
-    width: 100%;
+    min-width: 300px;
+    width: 20vw;
     height: 100%;
     padding: 5px 20px;
 

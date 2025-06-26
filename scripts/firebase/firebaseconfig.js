@@ -1,6 +1,6 @@
-    // Firebase v9+ modular imports
+// Firebase v9+ modular imports
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
     const firebaseConfig = {
@@ -18,7 +18,7 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    window.firebaseAPI = { db, auth, setDoc, getDoc, doc, createUserWithEmailAndPassword, signInWithEmailAndPassword };
+    window.firebaseAPI = { db, auth, setDoc, getDoc, doc, createUserWithEmailAndPassword, signInWithEmailAndPassword, collection, getDocs };
 
     // Create Event to Signal DB Readiness
     window.dispatchEvent(new Event("dbReady"));

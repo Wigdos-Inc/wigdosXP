@@ -11,6 +11,43 @@ body {
     user-select: none;
 }
 
+#leaderboard {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+}
+#leaderboard th, #leaderboard td {
+    padding: 10px 15px;
+    text-align: center;
+    color: whitesmoke;
+}
+#leaderboard tr#userStats {
+    background-color: rgba(33,10,63,0.8);
+    display: table-row !important;
+    width: auto !important;
+}
+#leaderboard tr#userStats th {
+    font-size: 1.2em;
+    font-weight: 600;
+    border-bottom: 2px solid whitesmoke;
+}
+#leaderboard tr:not(#userStats):nth-child(even) {
+    background-color: rgba(255,255,255,0.05);
+}
+#leaderboard tr:not(#userStats):hover {
+    background-color: rgba(97,91,190,0.2);
+}
+
+#userStats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+.userItems {
+    height: 100%;
+    width: 100%;
+}
 
 #topBar {
     width: 50%;
@@ -27,5 +64,14 @@ body {
 
 #contentBox {
     width: 50%;
-    height: 500px;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: auto;
+    background-color: rgba(1,1,1,0.6);
+    border: 3px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    border-radius: 10px;
 }

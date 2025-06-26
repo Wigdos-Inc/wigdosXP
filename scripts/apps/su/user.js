@@ -63,13 +63,13 @@ const elements = {
     tasks: {
         cont : document.getElementById("task-box"),
         outer: document.getElementById("taskOuter"),
-        box  : document.getElementsByClassName("taskItems"),
-        name : document.getElementsByClassName("taskName"),
-        icon : document.getElementsByClassName("taskIcon"),
-        prog : document.getElementsByClassName("taskProg"),
-        bar  : document.getElementsByClassName("progBar"),
+        box  : [],
+        name : [],
+        icon : [],
+        prog : [],
+        bar  : [],
 
-        display: async function(all) {
+        display: async function(create) {
 
             let success = true;
             try {
@@ -81,26 +81,42 @@ const elements = {
                 success = false;
                 console.warn("Warning: Color JSON Connection Failed");
             }
-
-            // Enable Nav with Enough Entries
-            if (window.suData.tasks.all.length > 2) this.cont.style.overflowX = "auto";
-            else this.cont.style.overflowX = "hidden";
             
             window.suData.tasks.all.forEach((task, index) => {
 
-                if (all) {
+                if (create) {
 
-                    // Attach Task to Box and Display Box
+                    // Create Task Box
+                    this.box.push(this.outer.appendChild(document.createElement("div")));
+                    this.box[index].classList.add("taskItems");
                     this.box[index].task = task;
-                    this.box[index].style.opacity = 1;
 
-                    // Display Task Info
+                    // Create Task Top
+                    const top = this.box[index].appendChild(document.createElement("div"));
+                    top.classList.add("taskTop");
+
+                    // Create Task Bottom
+                    const bottom = this.box[index].appendChild(document.createElement("div"));
+                    bottom.classList.add("taskBottom");
+
+                    // Create Task Info
+                    const iconBox = top.appendChild(document.createElement("div"));
+                    iconBox.classList.add("taskIconBox", "topContent");
+                    this.icon.push(iconBox.appendChild(document.createElement("img")));
+                    this.icon[index].classList.add("taskIcon");
+                    this.icon[index].src = `assets/images/su/tasks/${task.type}.png`;
+
+                    this.name.push(top.appendChild(document.createElement("div")));
+                    this.name[index].classList.add("taskName", "topContent");
                     this.name[index].innerHTML = task.name.full;
+
+                    this.prog.push(top.appendChild(document.createElement("div")));
+                    this.prog[index].classList.add("taskProg", "topContent");
                     this.prog[index].innerHTML = `${task.progress}/${task.condition}`;
 
-                    // Display Icon and Glow
-                    this.icon[index].src = `assets/images/su/tasks/${task.type}.png`;
-                    if (success) this.icon[index].style.boxShadow = `0 0 50px ${colors[task.type]}`;
+                    // Create progress Bar
+                    this.bar.push(top.appendChild(document.createElement("div")));
+                    this.bar[index].classList.add("progBar", "bar");
 
                 }
 
@@ -163,7 +179,7 @@ window.addEventListener("dataReady", () => {
 window.addEventListener("dataUpdate", () => {
 
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
-    elements.tasks.display(true);
+    elements.tasks.display(false);
 });
 
 
