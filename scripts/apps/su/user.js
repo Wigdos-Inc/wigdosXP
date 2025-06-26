@@ -146,6 +146,15 @@ window.addEventListener("dataReady", () => {
 
     // Enable all Tasks
     window.suData.tasks.all.forEach(task => task.active = true);
+
+    // Task Completion (Debug)
+    document.addEventListener("keypress", (event) => {
+
+        if (event.key === "t") {
+            const task = window.suData.tasks.all[0];
+            taskProg(task.type, 180, task.target);
+        }
+    })
 });
 
 // DB Update

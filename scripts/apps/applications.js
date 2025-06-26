@@ -199,6 +199,7 @@ window.addEventListener("message", (event) => {
 
     if (event.data.type == "taskUpdate" && sessionStorage.getItem("suActive")) windows.object.forEach(window => {
 
+        console.log(window, window.app);
         if (window.app.name.s == "su") window.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, "*");
     });
 });

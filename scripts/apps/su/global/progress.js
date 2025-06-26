@@ -9,6 +9,8 @@ window.addEventListener("message", (event) => {
 
 function taskProg(type, prog, target) {
 
+    console.log(window.suData.xp, window.suData.gold);
+
     window.suData.tasks.all.forEach(task => {
 
         if (type == task.type && target == task.target && task.active) {

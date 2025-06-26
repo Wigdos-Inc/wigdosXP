@@ -7,7 +7,10 @@
         "type": "timer",
         "target": "su",
         "condition": 180,
-        "reward": 5,
+        "reward": {
+            "xp": 5,
+            "gold": 1
+        },
         "repeat": true,
         "active": false
     },
@@ -24,7 +27,7 @@
         "condition": 300,
         "reward": {
             "xp": 20,
-            "gold": 1
+            "gold": 3
         },
         "repeat": false,
         "active": false
@@ -46,7 +49,7 @@
     },
     { 
         "name": {
-            "full": "Breakout Score Total",
+            "full": "Breakout Levels",
             "short": "breakoutLevel"
         },
         "type": "level",
