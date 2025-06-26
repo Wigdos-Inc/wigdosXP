@@ -9,7 +9,13 @@
         video: "assets/mp4/Asgore runs over Dess.mp4",
         audio: "assets/mp4/Asgore runs over Dess.mp4",
         gif: ""
-      }
+      },
+
+      "Github": {
+        video: "assets/mp4/Far Cry New Dawn release me.mp4",
+        audio: "assets/music/Buddy Holly but just the riff.mp3",
+        gif: ""
+      },
       // add for more secrets
     };
 
