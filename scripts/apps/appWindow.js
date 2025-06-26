@@ -311,19 +311,52 @@ class AppWindow {
 
             const channel = new MessageChannel();
 
-            channel.port1.onmessage = (event) => {
-                if (event.data === "save-complete") {
-                    console.log("✅ Save confirmed by iframe");
+            // Handle Save Response
+            channel.port1.onmessage = async (event) => {
+
+                if (event.data.status === "success") {
+
+                    console.log("✅ Iframe Confirms Save Request");
+
+                    // Engage in Save Shenanigans
+                    if (event.data.saveData) {
+
+                        try {
+                            const { db, setDoc, doc } = window.firebaseAPI;
+                            const saveData = JSON.stringify(event.data.saveData);
+
+                            console.log("DB Used");
+
+                            if (getUser() != "guest") {
+
+                                // Upload Save Data to DB
+                                await setDoc(
+                                    doc(db, "game_saves", getUser()), 
+                                    { [this.app.name.s]: saveData },
+                                    { merge: true }
+                                );
+
+                            }
+                            else sessionStorage.setItem(`${this.app.name.s}SaveData`, saveData); // Store in SessionStorage
+                        }
+                        catch (error) {
+                            console.warn("Save Failed!");
+                            console.warn(error);
+                        }
+
+                    }
 
                     // After save finishes, clean up
                     this.element.remove();
                     windows.object[this.index] = null;
+
                 }
+                else console.warn("Save Failed!");
             };
 
             // Send message and port to iframe
             iframeWindow.postMessage(
-                { type: "saveGame" },
+                { type: "save" },
                 "*",
                 [channel.port2] // pass the port for reply
             );
@@ -382,23 +415,11 @@ class AppWindow {
 
         }
     }
-
-    focusing(focus) {
-
-        if (focus) {
-
-        }
-    }
-}
-
-function getUser() {
-    // Use your existing logic to get the username
-    // This assumes you store the username in localStorage after login.
-    return localStorage.getItem("username") || "guest";
 }
 
 // Handle Application Loading
 function startApp(app) {
+
     // Create new Application Window
     const window = new AppWindow(app)
     window.create();
@@ -418,18 +439,41 @@ function startApp(app) {
         window.iframe.src = app.path;
     }, 50);
 
-    // If this is Undertale, send username via postMessage after iframe loads
-    // Use app.name.s or add an id property for clarity
-    if (app.name.s === "ut") {
-        window.iframe.onload = () => {
-            const username = getUser();
-            // Send to the iframe's window
-            window.iframe.contentWindow.postMessage({
-                type: "setUser",
-                username: username
-            }, "*");
-            console.log("[WigdosXP] Sent setUser postMessage:", username);
-        };
+
+    // If Saving is Enabled, Send Save Data
+    if (app.save) {
+
+        window.iframe.onload = async () => {
+
+            // Prep Save Data (Default: Null)
+            let saveData = null;
+
+            if (getUser() != "guest") {
+
+                // Retrieve Save Data from DB
+                try {
+                    const { db, getDoc, doc } = window.firebaseAPI;
+                    const userDoc = await getDoc(doc(db, "game_saves", username));
+
+                    // Check if Save Data exists
+                    if (userDoc.exists() && userDoc.data()[app.name.s]) {
+                        saveData = JSON.parse(userDoc.data()[app.name.s]);
+                    }
+                }
+                catch (error) {
+                    console.warn("Could not retrieve Save Data");
+                    console.warn(error);
+                }
+
+            }
+            else if (sessionStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(sessionStorage.getItem(`${app.name.s}SaveData`));
+
+            
+            // Send Data to App
+            window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
+            console.log("Save Data Sent");
+        }
+
     }
 
     // Store AppWindow

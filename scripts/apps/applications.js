@@ -170,7 +170,8 @@ const applications = {
         ["su", "Singular Upgrading"],
         "other",
         true, 
-        ["internal", "apps/su/"]
+        ["internal", "apps/su/"],
+        true
     ),
     breakout: new Application(
         ["breakout", "Breakout"],
