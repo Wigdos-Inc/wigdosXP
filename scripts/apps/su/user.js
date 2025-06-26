@@ -175,5 +175,15 @@ window.addEventListener("resize", () => {
 
 
 
+// Add horizontal scroll via mouse wheel for #task-box after initialization
+const taskBox = document.getElementById("task-box");
+if (taskBox) {
+    taskBox.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        taskBox.scrollLeft += e.deltaY;
+    });
+}
+
+
 /* Startup Code */
 elements.stats.xp.ini();

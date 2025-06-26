@@ -45,6 +45,7 @@ html, body {
     border: 1px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);
+    
 }
 
 #stat-box1 {
@@ -92,7 +93,13 @@ html, body {
 #task-box {
     height: fit-content;
     max-height: 250px;
+    overflow-x: auto;
     overflow-y: hidden;
+    scrollbar-width: none;      /* Firefox */
+    -ms-overflow-style: none;   /* IE 10+ */
+}
+#task-box::-webkit-scrollbar {
+    display: none;              /* Chrome, Safari, Opera */
 }
 #taskOuter {
     height: 100%;
