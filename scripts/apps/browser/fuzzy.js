@@ -4,6 +4,7 @@
         audio: "assets/music/27. Its TV Time! (DELTARUNE Chapter 34 Soundtrack) - Toby Fox.mp3",
         gif: "assets/secrets/gif/tenna.gif"
       },
+      //where the "Asgore" is placed at will be the code that will need to be inputted
       "Asgore": {
         video: "assets/mp4/Asgore runs over Dess.mp4",
         audio: "assets/mp4/Asgore runs over Dess.mp4",
