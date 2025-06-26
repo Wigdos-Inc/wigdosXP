@@ -450,19 +450,16 @@ function startApp(app) {
 
             if (getUser() != "guest") {
 
-                console.log(1)
-
                 // Retrieve Save Data from DB
                 try {
-                    const { db, getDoc, doc } = window.firebaseAPI;
-                    const userDoc = await getDoc(doc(db, "game_saves", username));
+                    const { db, getDoc, doc } = lazy();
+                    const userDoc = await getDoc(doc(db, "game_saves", getUser()));
 
-                    console.log(2);
+                    console.log(userDoc.exists(), userDoc.data()[app.name.s]);
 
                     // Check if Save Data exists
                     if (userDoc.exists() && userDoc.data()[app.name.s]) {
                         saveData = JSON.parse(userDoc.data()[app.name.s]);
-                        console.log(3);
                     }
                 }
                 catch (error) {
@@ -486,6 +483,7 @@ function startApp(app) {
     windows.object.push(window);
     windows.index++;
 }
+function lazy() { return window.firebaseAPI };
 
 // Failsafe
 sessionStorage.removeItem("suActive");
