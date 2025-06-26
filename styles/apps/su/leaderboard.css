@@ -1,3 +1,8 @@
+#bg {
+    background-image: url(../../../assets/images/su/leaderboard.jpg);
+    filter: blur(0.8px);
+}
+
 body {
     display: flex;
     flex-direction: column;
