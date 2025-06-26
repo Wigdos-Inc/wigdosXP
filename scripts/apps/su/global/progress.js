@@ -1,11 +1,15 @@
 // Receive Data from Message
 window.addEventListener("message", (event) => {
 
-    const data = JSON.parse(event.data.taskData);
-
-    console.log("Incoming: ", data.taskType, data.prog, data.src);
-    taskProg(data.taskType, data.prog, data.src);
-})
+    if (event.data.type == "save" && event.ports && event.ports[0]) {
+        suDB("store", window.suData);
+        event.ports[0].postMessage({ status: "success" });
+    }
+    else if (event.data.taskData) {
+        const data = JSON.parse(event.data.taskData);
+        taskProg(data.taskType, data.prog, data.src);
+    }
+});
 
 function taskProg(type, prog, target, override) {
 
