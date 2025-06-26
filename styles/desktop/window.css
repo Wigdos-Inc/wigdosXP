@@ -7,12 +7,92 @@
 
     z-index: 5;
     background-color: #efecde;
-    overflow: hidden;
+    /* Allow resize handles to be visible outside window edges */
+    overflow: visible;
 
     transition: all 0.1s;
 }
-
-
+/* Resize handle for window resizing */
+/* Base style for resize handles */
+.appWindow .resize-handle {
+    position: absolute;
+    z-index: 25; /* ensure handles are above content */
+}
+/* Directional resize handles (full edge length, placed outside) */
+.appWindow .resize-handle.n {
+    top: -8px;
+    left: 0;
+    width: 100%;
+    height: 16px;
+    cursor: n-resize;
+}
+.appWindow .resize-handle.s {
+    bottom: -8px;
+    left: 0;
+    width: 100%;
+    height: 16px;
+    cursor: s-resize;
+}
+.appWindow .resize-handle.e {
+    right: -8px;
+    top: 0;
+    width: 16px;
+    height: 100%;
+    cursor: e-resize;
+}
+.appWindow .resize-handle.w {
+    left: -8px;
+    top: 0;
+    width: 16px;
+    height: 100%;
+    cursor: w-resize;
+}
+/* Corners (outside) */
+.appWindow .resize-handle.ne {
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    cursor: ne-resize;
+}
+.appWindow .resize-handle.nw {
+    top: -8px;
+    left: -8px;
+    width: 16px;
+    height: 16px;
+    cursor: nw-resize;
+}
+.appWindow .resize-handle.se {
+    bottom: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    cursor: se-resize;
+}
+.appWindow .resize-handle.sw {
+    bottom: -8px;
+    left: -8px;
+    width: 16px;
+    height: 16px;
+    cursor: sw-resize;
+}
+/* Overlay during drag/resize */
+.drag-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: move;
+    background: transparent;
+}
+/* Prevent selecting iframe content when dragging */
+.appWindow .appContent {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
 
 .appHeader {
     width: 100%;
@@ -74,8 +154,6 @@
 .appClose {
     background-image: linear-gradient(to bottom right, #efa693, #e07358, #e3523f, #d64418, #d13707);
 }
-
-
 
 .appMain {
     width: 100%;

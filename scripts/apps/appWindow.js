@@ -29,6 +29,17 @@ class AppWindow {
                 w: 900
             }
         }
+
+        // Resize state initialization
+        this.resize = {
+            current: false,
+            startX: 0,
+            startY: 0,
+            startWidth: 0,
+            startHeight: 0
+        };
+        // Drag overlay placeholder to capture pointer events during drag
+        this.dragOverlay = null;
     }
 
     // Create the Application Window
@@ -135,6 +146,11 @@ class AppWindow {
                 this.move.current = true;
                 this.element.style.transition = "unset";
 
+                // Create transparent overlay to capture all pointer events while dragging
+                this.dragOverlay = document.createElement("div");
+                this.dragOverlay.classList.add("drag-overlay");
+                this.element.appendChild(this.dragOverlay);
+
                 // Turn off Iframe Detection
                 this.iframe.style.pointerEvents = "none";
 
@@ -198,6 +214,11 @@ class AppWindow {
                 this.move.storage.y = pos.y;
 
                 this.iframe.style.pointerEvents = "unset";
+                // Remove drag overlay after finishing drag
+                if (this.dragOverlay) {
+                    this.dragOverlay.remove();
+                    this.dragOverlay = null;
+                }
                     
             }
         });
@@ -205,6 +226,72 @@ class AppWindow {
         // Focus Logic
         document.addEventListener("mousedown", (event) => this.element.style.zIndex = this.element.contains(event.target) ? 5 : 4);
         this.iframe.addEventListener("mousedown", () => this.element.style.zIndex = 5);
+
+        // Resize Handles (edges and corners)
+        const directions = ["n","e","s","w","ne","nw","se","sw"];
+        directions.forEach(dir => {
+            const handle = document.createElement("div");
+            handle.classList.add("resize-handle", dir);
+            handle.dataset.direction = dir;
+            this.element.appendChild(handle);
+            handle.addEventListener("mousedown", event => {
+                event.stopPropagation();
+                this.resize.current = true;
+                this.resize.direction = dir;
+                this.resize.startX = event.clientX;
+                this.resize.startY = event.clientY;
+                const rect = this.element.getBoundingClientRect();
+                this.resize.startWidth = rect.width;
+                this.resize.startHeight = rect.height;
+                this.resize.startLeft = rect.left;
+                this.resize.startTop = rect.top;
+                this.element.style.transition = "unset";
+                this.iframe.style.pointerEvents = "none";
+                this.dragOverlay = document.createElement("div");
+                this.dragOverlay.classList.add("drag-overlay");
+                this.element.appendChild(this.dragOverlay);
+            });
+        });
+        document.addEventListener("mousemove", event => {
+            if (!this.resize.current) return;
+            const dx = event.clientX - this.resize.startX;
+            const dy = event.clientY - this.resize.startY;
+            let newLeft = this.resize.startLeft;
+            let newTop = this.resize.startTop;
+            let newWidth = this.resize.startWidth;
+            let newHeight = this.resize.startHeight;
+            const dir = this.resize.direction;
+            if (dir.includes('e')) newWidth = this.resize.startWidth + dx;
+            if (dir.includes('s')) newHeight = this.resize.startHeight + dy;
+            if (dir.includes('w')) { newWidth = this.resize.startWidth - dx; newLeft = this.resize.startLeft + dx; }
+            if (dir.includes('n')) { newHeight = this.resize.startHeight - dy; newTop = this.resize.startTop + dy; }
+            const minW = 350, minH = 225
+            if (newWidth < minW) {
+                newWidth = minW;
+                if (dir.includes('w')) newLeft = this.resize.startLeft + (this.resize.startWidth - minW);
+            }
+            if (newHeight < minH) {
+                newHeight = minH;
+                if (dir.includes('n')) newTop = this.resize.startTop + (this.resize.startHeight - minH);
+            }
+            // Apply
+            this.element.style.width = `${newWidth}px`;
+            this.element.style.height = `${newHeight}px`;
+            this.element.style.left = `${newLeft}px`;
+            this.element.style.top = `${newTop}px`;
+            // Store
+            this.move.storage.w = newWidth;
+            this.move.storage.h = newHeight;
+            this.move.storage.x = newLeft;
+            this.move.storage.y = newTop;
+        });
+        document.addEventListener("mouseup", () => {
+            if (!this.resize.current) return;
+            this.resize.current = false;
+            this.element.style.transition = "all 0.1s";
+            this.iframe.style.pointerEvents = "unset";
+            if (this.dragOverlay) { this.dragOverlay.remove(); this.dragOverlay = null; }
+        });
     }
 
     // Close the Application Window
