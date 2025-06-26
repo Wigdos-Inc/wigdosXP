@@ -176,11 +176,20 @@ window.addEventListener("dataReady", () => {
 });
 
 // DB Update
-window.addEventListener("dataUpdate", () => {
+window.addEventListener("dataReady", () => {
 
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
+    elements.tasks.display(true);
+});
+window.addEventListener("dataUpdate", () => {
+
+    elements.stats.display({ xp: true, lvl: true, time: true, gold: true });
     elements.tasks.display(false);
 });
+
+// Timer Update
+
+window.addEventListener("timerUpdate", () => elements.stats.display({ time: true }));
 
 
 // Screenchange

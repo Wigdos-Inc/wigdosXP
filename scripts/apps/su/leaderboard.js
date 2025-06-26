@@ -19,12 +19,36 @@ async function loadLeaderboard() {
             entries.push({ username: doc.id, data });
         });
 
-        // Sort by level descending
-        entries.sort((a, b) => (b.data.level || 0) - (a.data.level || 0));
+        // Sort entries based on current sortConfig
+        if (sortConfig.key) {
+            entries.sort((a, b) => {
+                let aval, bval;
+                switch (sortConfig.key) {
+                    case 'username':
+                        aval = a.username.toLowerCase();
+                        bval = b.username.toLowerCase();
+                        return sortConfig.asc ? aval.localeCompare(bval) : bval.localeCompare(aval);
+                    case 'time':
+                        aval = a.data.time || 0;
+                        bval = b.data.time || 0;
+                        break;
+                    case 'tasksCompleted':
+                        aval = Array.isArray(a.data.tasks?.all) ? a.data.tasks.all.filter(t => t.progress >= t.condition).length : 0;
+                        bval = Array.isArray(b.data.tasks?.all) ? b.data.tasks.all.filter(t => t.progress >= t.condition).length : 0;
+                        break;
+                    default:
+                        aval = a.data[sortConfig.key] || 0;
+                        bval = b.data[sortConfig.key] || 0;
+                }
+                return sortConfig.asc ? aval - bval : bval - aval;
+            });
+        }
 
         // Render rows
-        entries.forEach(({ username, data }) => {
+        entries.forEach(({ username, data }, idx) => {
             const row = table.insertRow();
+            // Insert place number
+            row.insertCell().textContent = idx + 1;
             // Level, xp, gold, runtime, tasksCompleted calculation
             const level = data.level || "";
             const xp = data.xp ?? "";
@@ -39,11 +63,49 @@ async function loadLeaderboard() {
             row.insertCell().textContent = gold;
             row.insertCell().textContent = runtime;
             row.insertCell().textContent = tasksCompleted;
+
+            window.addEventListener("timerUpdate", () => {
+
+
+                //row.children[4].textContent = 
+            });
         });
     } catch (err) {
         console.error("Error loading leaderboard:", err);
     }
 }
+
+// Global sort configuration
+const sortConfig = { key: 'level', asc: false };
+
+// Attach header click listeners once DOM is ready
+function setupSorting() {
+    const table = document.getElementById('leaderboard');
+    // First column '#' is non-sortable
+    const keys = [null, 'username', 'level', 'xp', 'gold', 'time', 'tasksCompleted'];
+    table.querySelectorAll('tr#userStats th').forEach((th, i) => {
+        const key = keys[i];
+        if (!key) return;
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+            if (sortConfig.key === key) {
+                sortConfig.asc = !sortConfig.asc;
+            } else {
+                sortConfig.key = key;
+                // default descending for numeric fields, ascending for username
+                sortConfig.asc = (key === 'username');
+            }
+            loadLeaderboard();
+        });
+    });
+}
+
+// Initialize on DB ready
+window.addEventListener('dbReady', () => {
+    setupSorting();
+    loadLeaderboard();
+    setInterval(loadLeaderboard, 1000);
+});
 function timer(data) {
 
     let rawr = data;
@@ -56,8 +118,3 @@ function timer(data) {
     if (s < 10) s = `0${s}`;
     return `${h}:${m}:${s}`;
 }
-
-window.addEventListener("dbReady", () => {
-    loadLeaderboard();
-    setInterval(loadLeaderboard, 1000);
-});

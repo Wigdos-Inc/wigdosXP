@@ -212,8 +212,10 @@ window.addEventListener("dbReady", () => {
             setInterval(() => {
 
                 // Add to Total Apptime
+                console.log(window.suData.time);
                 window.suData.time++;
                 sessionStorage.setItem("timer", window.suData.time);
+                window.dispatchEvent(new Event("timerUpdate"));
             }, 1000);
 
         }
