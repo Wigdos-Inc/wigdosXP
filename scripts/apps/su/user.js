@@ -112,14 +112,15 @@ const elements = {
 
                     this.prog.push(top.appendChild(document.createElement("div")));
                     this.prog[index].classList.add("taskProg", "topContent");
-                    this.prog[index].innerHTML = `${task.progress}/${task.condition}`;
 
                     // Create progress Bar
-                    this.bar.push(top.appendChild(document.createElement("div")));
+                    this.bar.push(bottom.appendChild(document.createElement("div")));
                     this.bar[index].classList.add("progBar", "bar");
 
                 }
 
+                // Assign/Update Data
+                this.prog[index].innerHTML = `${task.progress}/${task.condition}`;
                 // Create / Update Progress Bar Content
                 if (!this.bar[index].children.length) {
 
@@ -163,24 +164,36 @@ window.addEventListener("dataReady", () => {
     // Enable all Tasks
     window.suData.tasks.all.forEach(task => task.active = true);
 
-    // Task Completion (Debug)
+    // Task Completion (Admin Overrides)
     document.addEventListener("keypress", (event) => {
 
         if (event.key === "t" && task.admin) {
             const task = window.suData.tasks.all[0];
             taskProg(task.type, 180, task.target, true);
         }
-        else if (event.key == "s" && task.admin) suDB("store", window.suData);
+        else if (event.key === "s" && task.admin) suDB("store", window.suData);
+        else if (event.key === "o" && task.admin) var add = window.prompt("How much Progress do you wanna add to SU Apptime?");
         else if (!task.admin) console.warn("You don't have rights.");
-    })
+
+        if (add) {
+            console.log(add, window.suData.tasks.all[0].progress);
+            const task = window.suData.tasks.all[0];
+            taskProg(task.type, parseInt(add), task.target, true);
+        }
+    });
+
+    // Stored Mini Rewards
+    if (sessionStorage.lvlUp) {
+        sessionStorage.removeItem("lvlUp");
+        glow(elements.stats.lvl);
+    }
+    if (sessionStorage.goldUp) {
+        sessionStorage.removeItem("goldUp");
+        glow(elements.stats.gold);
+    }
 });
 
 // DB Update
-window.addEventListener("dataReady", () => {
-
-    elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
-    elements.tasks.display(true);
-});
 window.addEventListener("dataUpdate", () => {
 
     elements.stats.display({ xp: true, lvl: true, time: true, gold: true });
@@ -188,7 +201,6 @@ window.addEventListener("dataUpdate", () => {
 });
 
 // Timer Update
-
 window.addEventListener("timerUpdate", () => elements.stats.display({ time: true }));
 
 

@@ -9,7 +9,7 @@ async function suDB(type, data) {
         const date = new Date(); date.setHours(0, 0, 0, 0);
         const day = date.getTime();
 
-        console.log("DB");
+        console.log("DB Used");
         
         switch (type) {
 

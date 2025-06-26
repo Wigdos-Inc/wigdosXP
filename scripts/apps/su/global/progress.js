@@ -3,7 +3,7 @@ window.addEventListener("message", (event) => {
 
     const data = JSON.parse(event.data.taskData);
 
-    console.log(data.taskType, data.prog, data.src);
+    console.log("Incoming: ", data.taskType, data.prog, data.src);
     taskProg(data.taskType, data.prog, data.src);
 })
 
@@ -22,9 +22,12 @@ function taskProg(type, prog, target, override) {
 
                 // Add XP & Gold
                 window.suData.xp += task.reward.xp;
-                window.suData.gold += task.reward.gold; glow(elements.stats.gold);
-                console.log("Task Complete: " + task.reward.xp + "XP", `${getUser()}: ${window.suData.xp}/100 XP`);
-                console.log(task.reward.gold + " G");
+                window.suData.gold += task.reward.gold; 
+
+                // (Store) Mini Reward
+                if (typeof elements !== "undefined") glow(elements.stats.gold);
+                else sessionStorage.setItem("goldUp", true);
+                console.log("Task Complete: " + task.reward.xp + "XP", `${getUser()}: ${window.suData.xp}/100 XP`, task.reward.gold + " G");
 
                 // Complete/Reset the Task
                 if (!task.repeat) window.suData.tasks.all.splice(index, 1);
@@ -50,7 +53,9 @@ function taskProg(type, prog, target, override) {
 
         if (window.suData.xp < 100) {
 
-            glow(elements.stats.lvl);
+            // (Store) Mini Reward
+            if (typeof elements !== "undefined") glow(elements.stats.lvl);
+            else sessionStorage.setItem("lvlUp", true);
 
             // Store to DB
             if (!overVar) suDB("store", window.suData);

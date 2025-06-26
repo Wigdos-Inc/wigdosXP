@@ -122,7 +122,6 @@ html, body {
     align-items: center;
     gap: 15px;
 
-    opacity: 0;
     border: 1px solid;
     border-image-slice: 1;
     border-image-source: linear-gradient(to top right, #615BBE, #9F9DA2);

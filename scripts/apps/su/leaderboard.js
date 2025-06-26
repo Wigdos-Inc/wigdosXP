@@ -53,22 +53,19 @@ async function loadLeaderboard() {
             const level = data.level || "";
             const xp = data.xp ?? "";
             const gold = data.gold ?? "";
-            const runtime = timer(data.time || 0);
+            const runtime = timeFormat(data.time || 0);
             const tasksCompleted = Array.isArray(data.tasks?.all)
                 ? data.tasks.all.filter(t => t.progress >= t.condition).length
                 : 0;
-            row.insertCell().textContent = username;
+            row.insertCell().textContent = username.toUpperCase();
             row.insertCell().textContent = level;
             row.insertCell().textContent = xp;
             row.insertCell().textContent = gold;
-            row.insertCell().textContent = runtime;
+            const timeCell = row.insertCell();
             row.insertCell().textContent = tasksCompleted;
 
-            window.addEventListener("timerUpdate", () => {
-
-
-                //row.children[4].textContent = 
-            });
+            timeCell.textContent = runtime;
+            if (username == getUser()) window.addEventListener("timerUpdate", () => timeCell.textContent = timeFormat(window.suData.time));
         });
     } catch (err) {
         console.error("Error loading leaderboard:", err);
@@ -104,17 +101,4 @@ function setupSorting() {
 window.addEventListener('dbReady', () => {
     setupSorting();
     loadLeaderboard();
-    setInterval(loadLeaderboard, 1000);
 });
-function timer(data) {
-
-    let rawr = data;
-    sessionStorage.setItem("timer", "data");
-    let h = Math.floor(rawr / 3600);
-    let m = Math.floor((rawr % 3600) / 60);
-    let s = rawr % 60;
-    if (h < 10) h = `0${h}`;
-    if (m < 10) m = `0${m}`;
-    if (s < 10) s = `0${s}`;
-    return `${h}:${m}:${s}`;
-}

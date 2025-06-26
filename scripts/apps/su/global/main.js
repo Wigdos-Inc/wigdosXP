@@ -75,6 +75,22 @@ function navigate(slide, destination) {
     });
 }
 
+function timeFormat(data) {
+
+    const rawr = data;
+    let h = Math.floor(rawr / 3600);
+    let m = Math.floor((rawr % 3600) / 60);
+    let s = rawr % 60;
+
+    // Time Formatting
+    if (h < 10) h = `0${h}`;
+    if (m < 10) m = `0${m}`;
+    if (s < 10) s = `0${s}`;
+
+    // Display Time
+    return `${h}:${m}:${s}`;
+}
+
 
 
 
@@ -212,10 +228,10 @@ window.addEventListener("dbReady", () => {
             setInterval(() => {
 
                 // Add to Total Apptime
-                console.log(window.suData.time);
                 window.suData.time++;
                 sessionStorage.setItem("timer", window.suData.time);
                 window.dispatchEvent(new Event("timerUpdate"));
+                taskProg("timer", 1, "su");
             }, 1000);
 
         }
