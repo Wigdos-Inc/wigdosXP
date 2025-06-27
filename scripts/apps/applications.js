@@ -200,6 +200,7 @@ window.addEventListener("message", (event) => {
 
     if (event.data.type == "taskUpdate") windows.object.forEach(window => {
 
-        if (window.app.name.s == "su") window.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, "*");
+        if (!window) return;
+        else if (window.app.name.s == "su") window.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, "*");
     });
 });
