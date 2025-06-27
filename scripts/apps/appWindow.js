@@ -12,6 +12,7 @@ class AppWindow {
         this.index   = windows.index;
         this.app     = app;
         this.full    = app.full;
+        this.loaded  = false;
 
         // Inner Elements
         this.header  = undefined; // Replaced by appHeader at line 40
@@ -445,36 +446,41 @@ function startApp(app) {
 
         window.iframe.onload = async () => {
 
-            // Prep Save Data (Default: Null)
-            let saveData = null;
+            if (!window.loaded) {
 
-            if (getUser() != "guest") {
+                // Prep Save Data (Default: Null)
+                let saveData = null;
 
-                // Retrieve Save Data from DB
-                try {
-                    const { db, getDoc, doc } = lazy();
-                    const userDoc = await getDoc(doc(db, "game_saves", getUser()));
+                if (getUser() != "guest" && !localStorage.getItem(`${app.name.s}Data`)) {
 
-                    console.log(userDoc.exists(), userDoc.data()[app.name.s]);
+                    // Retrieve Save Data from DB
+                    try {
+                        const { db, getDoc, doc } = lazy();
+                        const userDoc = await getDoc(doc(db, "game_saves", getUser()));
 
-                    // Check if Save Data exists
-                    if (userDoc.exists() && userDoc.data()[app.name.s]) {
-                        saveData = JSON.parse(userDoc.data()[app.name.s]);
+                        console.log(userDoc.exists(), userDoc.data()[app.name.s]);
+                        console.log("DB Used");
+
+                        // Check if Save Data exists
+                        if (userDoc.exists() && userDoc.data()[app.name.s]) {
+                            saveData = JSON.parse(userDoc.data()[app.name.s]);
+                        }
                     }
+                    catch (error) {
+                        console.warn("Could not retrieve Save Data");
+                        console.warn(error);
+                    }
+
                 }
-                catch (error) {
-                    console.warn("Could not retrieve Save Data");
-                    console.warn(error);
-                }
+                else if (sessionStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(sessionStorage.getItem(`${app.name.s}SaveData`));
+
+
+                // Send Data to App
+                window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
+                console.log("Save Data Sent");
+                window.loaded = true;
 
             }
-            else if (sessionStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(sessionStorage.getItem(`${app.name.s}SaveData`));
-
-            
-            // Send Data to App
-            console.log(saveData);
-            window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
-            console.log("Save Data Sent");
         }
 
     }

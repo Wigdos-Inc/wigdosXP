@@ -552,6 +552,8 @@ async function db(data, type) {
     try {
         const { db, setDoc, getDoc, doc } = window.firebaseAPI;
 
+        console.log("DB Used");
+
         if (type === "signin") {
 
             // Check for existing username (used as document ID/KEY)

@@ -69,6 +69,7 @@ function taskProg(type, prog, target, override) {
     }
     
     window.dispatchEvent(new Event("dataUpdate"));
+    localStorage.setItem("suData", JSON.stringify(window.suData));
 }
 
 

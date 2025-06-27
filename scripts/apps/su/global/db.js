@@ -8,8 +8,6 @@ async function suDB(type, data) {
         const time = Date.now();
         const date = new Date(); date.setHours(0, 0, 0, 0);
         const day = date.getTime();
-
-        console.log("DB Used");
         
         switch (type) {
 
@@ -17,6 +15,8 @@ async function suDB(type, data) {
 
                 // Store Data
                 if (username != "guest") {
+
+                    console.log("DB Used");
 
                     // NaN Failsafe
                     if (!data.xp) data.xp = 0;
@@ -29,7 +29,6 @@ async function suDB(type, data) {
                     );
 
                 }
-                else sessionStorage.setItem("suData", JSON.stringify(data));
 
                 window.dispatchEvent(new Event("dataUpdate"));
 
@@ -38,23 +37,50 @@ async function suDB(type, data) {
                 
             case "load":
 
-                // Check if User has SU Data
-                const userDoc = await getDoc(doc(db, "game_saves", username));
-                if (userDoc.exists() && userDoc.data().su) data = JSON.parse(userDoc.data().su); // Store Data in Variable
+                // Check if Data has been Loaded Before
+                if (localStorage.suData) data = JSON.parse(localStorage.suData);
+                else if (localStorage.suData && document.title.toLowerCase().includes("hub")) {
+
+                    // Store Data in DB if in Hub
+                    suDB("store", JSON.parse(localStorage.suData));
+                    return;
+                    
+                }
                 else {
+                    
+                    let newData = false;
 
                     // Temporary Storage Load for Guests
-                    if (username == "guest" && sessionStorage.getItem("suData")) data = JSON.parse(sessionStorage.getItem("suData"));
-                    else {
+                    if (username == "guest") {
+                        if (sessionStorage.suData) data = JSON.parse(sessionStorage.suData);
+                        else newData = true;
+                    }
+                    else if (username != "guest") {
+
+                        console.log("DB Used");
+
+                        // Check if User has SU Data
+                        const userDoc = await getDoc(doc(db, "game_saves", username));
+                        if (userDoc.exists() && userDoc.data().su) {
+
+                            // Store Data in Variable
+                            data = JSON.parse(userDoc.data().su);
+
+                        }
+                        else newData = true;
+
+                    }
+
+                    if (newData) {
 
                         // Create Tasklist
                         await task.override();
 
                         // Store Empty Dataset
                         data = {
-                            time : 0, 
-                            level: 1, 
-                            xp   : 0, 
+                            time : 0,
+                            level: 1,
+                            xp   : 0,
                             gold : 0,
                             tasks: {
                                 all : task.user.all,
@@ -69,6 +95,7 @@ async function suDB(type, data) {
                     }
 
                 }
+                
 
                 break;
 
@@ -79,6 +106,8 @@ async function suDB(type, data) {
         // Refresh Tasklist if needed
         if (!data.tasks.date || time - data.tasks.date > 86400000) {
 
+            console.log("Daily Task Reset");
+
             await task.override();
             data.tasks.date = day;
             data.tasks.all = task.user.all;
@@ -86,10 +115,11 @@ async function suDB(type, data) {
 
         }
 
-        // Store data in Window
-        if (data.level == 0) data.level = 1;
+        // Store Data
+        if (data.level == 0) data.level = 1; // Failsafe
         if (sessionStorage.getItem("timer") > data.time) data.time = sessionStorage.getItem("timer");
         window.suData = data;
+        localStorage.setItem("suData", JSON.stringify(data));
         return true;
 
     }
