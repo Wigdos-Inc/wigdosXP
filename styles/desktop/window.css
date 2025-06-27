@@ -19,28 +19,28 @@
     z-index: 25; /* ensure handles are above content */
 }
 /* Directional resize handles (full edge length, placed outside) */
-.appWindow .resize-handle.n {
+.appWindow:not(.fullscreen) .resize-handle.n {
     top: -8px;
     left: 0;
     width: 100%;
     height: 16px;
     cursor: n-resize;
 }
-.appWindow .resize-handle.s {
+.appWindow:not(.fullscreen) .resize-handle.s {
     bottom: -8px;
     left: 0;
     width: 100%;
     height: 16px;
     cursor: s-resize;
 }
-.appWindow .resize-handle.e {
+.appWindow:not(.fullscreen) .resize-handle.e {
     right: -8px;
     top: 0;
     width: 16px;
     height: 100%;
     cursor: e-resize;
 }
-.appWindow .resize-handle.w {
+.appWindow:not(.fullscreen) .resize-handle.w {
     left: -8px;
     top: 0;
     width: 16px;
@@ -48,33 +48,36 @@
     cursor: w-resize;
 }
 /* Corners (outside) */
-.appWindow .resize-handle.ne {
+.appWindow:not(.fullscreen) .resize-handle.ne {
     top: -8px;
     right: -8px;
     width: 16px;
     height: 16px;
     cursor: ne-resize;
 }
-.appWindow .resize-handle.nw {
+.appWindow:not(.fullscreen) .resize-handle.nw {
     top: -8px;
     left: -8px;
     width: 16px;
     height: 16px;
     cursor: nw-resize;
 }
-.appWindow .resize-handle.se {
+.appWindow:not(.fullscreen) .resize-handle.se {
     bottom: -8px;
     right: -8px;
     width: 16px;
     height: 16px;
     cursor: se-resize;
 }
-.appWindow .resize-handle.sw {
+.appWindow:not(.fullscreen) .resize-handle.sw {
     bottom: -8px;
     left: -8px;
     width: 16px;
     height: 16px;
     cursor: sw-resize;
+}
+.appwindow.fullscreen .resize-handle {
+    cursor: default !important;
 }
 /* Overlay during drag/resize */
 .drag-overlay {

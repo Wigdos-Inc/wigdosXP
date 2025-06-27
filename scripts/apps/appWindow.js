@@ -236,21 +236,32 @@ class AppWindow {
             handle.dataset.direction = dir;
             this.element.appendChild(handle);
             handle.addEventListener("mousedown", event => {
-                event.stopPropagation();
-                this.resize.current = true;
-                this.resize.direction = dir;
-                this.resize.startX = event.clientX;
-                this.resize.startY = event.clientY;
-                const rect = this.element.getBoundingClientRect();
-                this.resize.startWidth = rect.width;
-                this.resize.startHeight = rect.height;
-                this.resize.startLeft = rect.left;
-                this.resize.startTop = rect.top;
-                this.element.style.transition = "unset";
-                this.iframe.style.pointerEvents = "none";
-                this.dragOverlay = document.createElement("div");
-                this.dragOverlay.classList.add("drag-overlay");
-                this.element.appendChild(this.dragOverlay);
+                if (!this.full) {
+                    // In the mousedown handler for resize handles, before starting resize:
+                    if (this.element.style.left === "50%" || this.element.style.top === "50%") {
+                        const rect = this.element.getBoundingClientRect();
+                        this.element.style.left = `${rect.left}px`;
+                        this.element.style.top = `${rect.top}px`;
+                        this.element.style.transform = "unset";
+                    }
+                    event.stopPropagation();
+                    this.resize.current = true;
+                    this.resize.direction = dir;
+                    this.resize.startX = event.clientX;
+                    this.resize.startY = event.clientY;
+                    const rect = this.element.getBoundingClientRect();
+                    this.resize.startWidth = rect.width;
+                    this.resize.startHeight = rect.height;
+                    this.resize.startLeft = rect.left;
+                    this.resize.startTop = rect.top;
+                    this.element.style.transition = "unset";
+                    this.iframe.style.pointerEvents = "none";
+                    this.dragOverlay = document.createElement("div");
+                    this.dragOverlay.classList.add("drag-overlay");
+                    this.element.appendChild(this.dragOverlay);
+                    // Remove centering transform when resizing
+                    this.element.style.transform = "unset";
+                }
             });
         });
         document.addEventListener("mousemove", event => {
@@ -262,29 +273,57 @@ class AppWindow {
             let newWidth = this.resize.startWidth;
             let newHeight = this.resize.startHeight;
             const dir = this.resize.direction;
-            if (dir.includes('e')) newWidth = this.resize.startWidth + dx;
-            if (dir.includes('s')) newHeight = this.resize.startHeight + dy;
-            if (dir.includes('w')) { newWidth = this.resize.startWidth - dx; newLeft = this.resize.startLeft + dx; }
-            if (dir.includes('n')) { newHeight = this.resize.startHeight - dy; newTop = this.resize.startTop + dy; }
-            const minW = 350, minH = 225
-            if (newWidth < minW) {
-                newWidth = minW;
-                if (dir.includes('w')) newLeft = this.resize.startLeft + (this.resize.startWidth - minW);
+            const minW = 350, minH = 225;
+
+            // Horizontal resizing
+            if (dir.includes('e')) {
+                newWidth = this.resize.startWidth + dx;
+                if (newWidth < minW) newWidth = minW;
             }
-            if (newHeight < minH) {
-                newHeight = minH;
-                if (dir.includes('n')) newTop = this.resize.startTop + (this.resize.startHeight - minH);
+            if (dir.includes('w')) {
+                newWidth = this.resize.startWidth - dx;
+                if (newWidth < minW) {
+                    newLeft = this.resize.startLeft + (this.resize.startWidth - minW);
+                    newWidth = minW;
+                } else {
+                    newLeft = this.resize.startLeft + dx;
+                }
             }
-            // Apply
+        
+            // Vertical resizing
+            if (dir.includes('s')) {
+                newHeight = this.resize.startHeight + dy;
+                if (newHeight < minH) newHeight = minH;
+            }
+            if (dir.includes('n')) {
+                newHeight = this.resize.startHeight - dy;
+                if (newHeight < minH) {
+                    newTop = this.resize.startTop + (this.resize.startHeight - minH);
+                    newHeight = minH;
+                } else {
+                    newTop = this.resize.startTop + dy;
+                }
+            }
+        
+            // Apply new size
             this.element.style.width = `${newWidth}px`;
             this.element.style.height = `${newHeight}px`;
-            this.element.style.left = `${newLeft}px`;
-            this.element.style.top = `${newTop}px`;
+        
+            // Only update left if resizing from the west
+            if (dir.includes('w')) {
+                this.element.style.left = `${newLeft}px`;
+            }
+        
+            // Only update top if resizing from the north
+            if (dir.includes('n')) {
+                this.element.style.top = `${newTop}px`;
+            }
+        
             // Store
             this.move.storage.w = newWidth;
             this.move.storage.h = newHeight;
-            this.move.storage.x = newLeft;
-            this.move.storage.y = newTop;
+            if (dir.includes('w')) this.move.storage.x = newLeft;
+            if (dir.includes('n')) this.move.storage.y = newTop;
         });
         document.addEventListener("mouseup", () => {
             if (!this.resize.current) return;
@@ -382,6 +421,8 @@ class AppWindow {
 
         if (this.full) {
 
+            this.element.classList.add("fullscreen");
+
             this.element.style.left = 0;
             this.element.style.top = 0;
             this.element.style.transform = "unset"
@@ -393,6 +434,8 @@ class AppWindow {
             this.element.style.borderTopRightRadius = 0;
 
         } else {
+
+            this.element.classList.remove("fullscreen");
 
             if (this.move.storage.x) {
 

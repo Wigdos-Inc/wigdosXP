@@ -86,8 +86,14 @@ const elements = {
 
                 if (create) {
 
+                    // Empty old Tasks if they Exist
+                    if (this.box[index]) {
+                        this.box[index].remove();
+                        this.box[index] = undefined;
+                    }
+
                     // Create Task Box
-                    this.box.push(this.outer.appendChild(document.createElement("div")));
+                    this.box[index] = this.outer.appendChild(document.createElement("div"));
                     this.box[index].classList.add("taskItems");
                     this.box[index].task = task;
 
@@ -102,19 +108,19 @@ const elements = {
                     // Create Task Info
                     const iconBox = top.appendChild(document.createElement("div"));
                     iconBox.classList.add("taskIconBox", "topContent");
-                    this.icon.push(iconBox.appendChild(document.createElement("img")));
+                    this.icon[index] = iconBox.appendChild(document.createElement("img"));
                     this.icon[index].classList.add("taskIcon");
                     this.icon[index].src = `assets/images/su/tasks/${task.type}.png`;
 
-                    this.name.push(top.appendChild(document.createElement("div")));
+                    this.name[index] = top.appendChild(document.createElement("div"));
                     this.name[index].classList.add("taskName", "topContent");
                     this.name[index].innerHTML = task.name.full;
 
-                    this.prog.push(top.appendChild(document.createElement("div")));
+                    this.prog[index] = top.appendChild(document.createElement("div"));
                     this.prog[index].classList.add("taskProg", "topContent");
 
                     // Create progress Bar
-                    this.bar.push(bottom.appendChild(document.createElement("div")));
+                    this.bar[index] = bottom.appendChild(document.createElement("div"));
                     this.bar[index].classList.add("progBar", "bar");
 
                 }
@@ -197,7 +203,7 @@ window.addEventListener("dataReady", () => {
 window.addEventListener("dataUpdate", () => {
 
     elements.stats.display({ xp: true, lvl: true, time: true, gold: true });
-    elements.tasks.display(false);
+    elements.tasks.display(true);
 });
 
 // Timer Update
@@ -208,7 +214,7 @@ window.addEventListener("timerUpdate", () => elements.stats.display({ time: true
 window.addEventListener("resize", () => {
 
     elements.stats.display({ xp: true, name: true, lvl: true, time: true, gold: true });
-    elements.tasks.display(true);
+    elements.tasks.display(false);
 })
 
 
