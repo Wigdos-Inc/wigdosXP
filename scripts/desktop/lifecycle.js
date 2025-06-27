@@ -658,8 +658,8 @@ function start() {
         accBox.remove();
 
         const param = new URLSearchParams(window.location.search).get("opdracht");
-        if (param == "minor") window.alert("Hallo docent, de Minor opdracht staat in Singular Upgrading.\nAls u verder wilt testen, speel dan Breakout en kijk naar hoe de Stats in Singular Upgrading veranderen.");
-        else if (param == "beroeps") window.alert("Hallo docent, de Beroeps opdracht staat grotendeels in Singular Upgrading.\nSommige games zijn al verbonden, dat kunt u zien bij uw taken in de Singular Upgrading");
+        if (param == "minor") window.alert("Hallo docent, de Minor opdracht staat in de Singular Upgrading App.\nAls u verder wilt testen, kunt u naar de taken kijken.\nLet op! Singular Upgrading update alleen maar als de applicatie nog open is!");
+        else if (param == "beroeps") window.alert("Hallo docent, de nieuwste Wigdos XP uitbreiding (gemaakt voor beroeps) is Singular Upgrading.\nSommige functies binnen SU werken samen met andere games. Er zal altijd vermeld staan over welke game het gaat.\nLet op! Singular Upgrading update alleen maar de data van andere games als de applicatie zelf nog open is!");
     });
     sessionStorage.setItem("loaded", true);
 }
