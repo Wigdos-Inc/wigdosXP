@@ -237,9 +237,9 @@ class AppWindow {
             this.element.appendChild(handle);
             handle.addEventListener("mousedown", event => {
                 if (!this.full) {
-                    // In the mousedown handler for resize handles, before starting resize:
-                    if (this.element.style.left === "50%" || this.element.style.top === "50%") {
-                        const rect = this.element.getBoundingClientRect();
+                    // Always remove transform when starting resize
+                    const rect = this.element.getBoundingClientRect();
+                    if (this.element.style.transform && this.element.style.transform.includes("translate")) {
                         this.element.style.left = `${rect.left}px`;
                         this.element.style.top = `${rect.top}px`;
                         this.element.style.transform = "unset";
@@ -249,7 +249,6 @@ class AppWindow {
                     this.resize.direction = dir;
                     this.resize.startX = event.clientX;
                     this.resize.startY = event.clientY;
-                    const rect = this.element.getBoundingClientRect();
                     this.resize.startWidth = rect.width;
                     this.resize.startHeight = rect.height;
                     this.resize.startLeft = rect.left;
