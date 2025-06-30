@@ -73,9 +73,10 @@
   ];
   let userInput = [];
   let secretsActive = false;
+  const bInputs = document.getElementsByClassName("search-input");
 
   function pressArrow(direction) {
-    if (!secretsActive) {
+    if (!secretsActive && document.activeElement !== bInputs[0] && document.activeElement !== bInputs[1]) {
       userInput.push(direction); 
       console.log(direction, userInput, konamiSequence);
 
