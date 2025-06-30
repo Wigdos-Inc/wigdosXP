@@ -64,7 +64,7 @@ main {
 }
 
 #appMain {
-background-color: whitesmoke);
+background-color: whitesmoke;
 text-align: center;
 }
 
@@ -76,11 +76,13 @@ text-align: center;
 }
 
 #content {
+      display: none;
       position: relative;
       z-index: 2;
       text-align: center;
       padding-top: 100px;
     }
+
 
     #gif {
       position: fixed;
