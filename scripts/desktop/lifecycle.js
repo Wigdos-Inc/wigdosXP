@@ -1,5 +1,5 @@
 // Windows XP Startup Sound
-const audio = new Audio('assets/sfx/startup.mp3');
+const audio = new Audio('assets/audio/system/startup.mp3');
 /* Startup */
 
 window.onload = () => {
@@ -152,7 +152,7 @@ let power = {
 
 
         // Shutdown Sound
-        const shutDownSFX = new Audio("assets/sfx/shutdown.mp3");
+        const shutDownSFX = new Audio("assets/audio/system/shutdown.mp3");
         shutDownSFX.play();
 
         shutDownSFX.onended = () => {
