@@ -190,6 +190,12 @@ const applications = {
         "other",
         true,
         ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
+    ),
+    pHub: new Application(
+        ["pHub", "PokeHub"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/PokeHub/"]
     )
 }
 
