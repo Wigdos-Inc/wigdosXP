@@ -3,6 +3,7 @@ async function suDB(type, data) {
     try {
         const { db, setDoc, getDoc, doc } = window.firebaseAPI;
         const username = getUser();
+        const isOnline = window.firebaseOnline !== false;
 
         // Load the current Date
         const time = Date.now();
@@ -14,7 +15,7 @@ async function suDB(type, data) {
             case "store":
 
                 // Store Data
-                if (username != "guest") {
+                if (username != "guest" && isOnline) {
 
                     console.log("DB Used");
 
@@ -29,6 +30,10 @@ async function suDB(type, data) {
                     );
 
                 }
+                else if (username != "guest" && !isOnline) {
+                    console.log("Offline mode: Data saved locally only");
+                    // In offline mode, just save to local storage
+                }
 
                 window.dispatchEvent(new Event("dataUpdate"));
 
@@ -41,8 +46,10 @@ async function suDB(type, data) {
                 if (localStorage.suData) data = JSON.parse(localStorage.suData);
                 else if (localStorage.suData && document.title.toLowerCase().includes("hub")) {
 
-                    // Store Data in DB if in Hub
-                    suDB("store", JSON.parse(localStorage.suData));
+                    // Store Data in DB if in Hub and online
+                    if (isOnline) {
+                        suDB("store", JSON.parse(localStorage.suData));
+                    }
                     return;
                     
                 }
@@ -50,12 +57,12 @@ async function suDB(type, data) {
                     
                     let newData = false;
 
-                    // Temporary Storage Load for Guests
-                    if (username == "guest") {
+                    // Temporary Storage Load for Guests or offline users
+                    if (username == "guest" || !isOnline) {
                         if (sessionStorage.suData) data = JSON.parse(sessionStorage.suData);
                         else newData = true;
                     }
-                    else if (username != "guest") {
+                    else if (username != "guest" && isOnline) {
 
                         console.log("DB Used");
 
@@ -123,7 +130,48 @@ async function suDB(type, data) {
         return true;
 
     }
-    catch (error) { return err("DB Connection Failed: " + error) }
+    catch (error) { 
+        // Check if we're in offline mode - if so, try to continue with local data only
+        if (window.firebaseOnline === false) {
+            console.warn("Offline mode: Continuing with local data only");
+            
+            // Try to load from local storage as fallback
+            if (type === "load") {
+                let fallbackData = null;
+                
+                if (sessionStorage.suData) {
+                    fallbackData = JSON.parse(sessionStorage.suData);
+                } else {
+                    // Create new data for offline use
+                    await task.override();
+                    const day = new Date(); 
+                    day.setHours(0, 0, 0, 0);
+                    
+                    fallbackData = {
+                        time : 0,
+                        level: 1,
+                        xp   : 0,
+                        gold : 0,
+                        tasks: {
+                            all : task.user.all,
+                            pin : {},
+                            date: day.getTime()
+                        }
+                    };
+                }
+                
+                if (fallbackData) {
+                    if (fallbackData.level == 0) fallbackData.level = 1;
+                    if (sessionStorage.getItem("timer") > fallbackData.time) fallbackData.time = sessionStorage.getItem("timer");
+                    window.suData = fallbackData;
+                    sessionStorage.setItem("suData", JSON.stringify(fallbackData));
+                    return true;
+                }
+            }
+        }
+        
+        return err("DB Connection Failed: " + error);
+    }
 }
 
 function err(error) {
@@ -133,8 +181,19 @@ function err(error) {
 
     document.body.style.pointerEvents = "none";
     document.body.style.opacity = 0.1;
-    window.alert("Error: Singular Upgrading is not available at this time.\nPlease try again later.");
-    return null;
+    
+    // Show different message for offline mode
+    if (window.firebaseOnline === false) {
+        window.alert("Offline Mode: Some features may not be available.\nData will be stored locally only.");
+        
+        // Restore interactivity for offline mode
+        document.body.style.pointerEvents = "auto";
+        document.body.style.opacity = 1;
+        return null;
+    } else {
+        window.alert("Error: Singular Upgrading is not available at this time.\nPlease try again later.");
+        return null;
+    }
 }
 
 

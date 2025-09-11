@@ -263,12 +263,23 @@ function fill(parent, type) {
         // Guest
         login.guest.id = "guest";
         login.guest.innerHTML = "Log in as a Guest";
+        
         login.guest.onclick = () => {
 
             localStorage.setItem("username", "guest");
             desktopFill("base");
             fill(parent, "in");
         }
+        
+        // Update guest button when Firebase status is available
+        window.addEventListener("dbReady", () => {
+            if (window.firebaseOnline === false && login.guest) {
+                login.guest.innerHTML = "Continue in Offline Mode";
+                login.guest.style.backgroundColor = "#ff9500";
+                login.guest.style.color = "white";
+                login.guest.title = "Internet connection unavailable - running in offline mode";
+            }
+        });
 
         // Output
         login.output.id = "accOutput";
@@ -638,9 +649,16 @@ async function db(data, type) {
 
     } catch (error) {
         output.style.color = "red";
-        output.innerHTML = "Unknown error.";
+        
+        // Check if we're in offline mode
+        if (window.firebaseOnline === false) {
+            output.innerHTML = "Internet connection required for account login. Please use Guest mode for offline access.";
+        } else {
+            output.innerHTML = "Unknown error.";
+            playerrorSound();
+        }
+        
         console.error("Firestore error:", error);
-        playerrorSound();
     }
 }
 
