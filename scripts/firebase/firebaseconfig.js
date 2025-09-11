@@ -1,6 +1,12 @@
 // Firebase v9+ modular imports with offline fallback
 async function initializeFirebase() {
     try {
+        // Check if we're running from file:// protocol
+        if (window.location.protocol === 'file:') {
+            console.warn("Running from file:// protocol - Firebase modules cannot be loaded due to CORS restrictions");
+            throw new Error("CORS restriction: Cannot load Firebase modules from file:// protocol");
+        }
+        
         const { initializeApp } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
         const { getFirestore, doc, setDoc, getDoc, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
         const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js");
