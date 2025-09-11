@@ -59,7 +59,7 @@ async function suDB(type, data) {
 
                     // Temporary Storage Load for Guests or offline users
                     if (username == "guest" || !isOnline) {
-                        if (sessionStorage.suData) data = JSON.parse(sessionStorage.suData);
+                        if (localStorage.suData) data = JSON.parse(localStorage.suData);
                         else newData = true;
                     }
                     else if (username != "guest" && isOnline) {
@@ -124,7 +124,7 @@ async function suDB(type, data) {
 
         // Store Data
         if (data.level == 0) data.level = 1; // Failsafe
-        if (sessionStorage.getItem("timer") > data.time) data.time = sessionStorage.getItem("timer");
+        if (localStorage.getItem("timer") > data.time) data.time = localStorage.getItem("timer");
         window.suData = data;
         localStorage.setItem("suData", JSON.stringify(data));
         return true;
@@ -139,8 +139,8 @@ async function suDB(type, data) {
             if (type === "load") {
                 let fallbackData = null;
                 
-                if (sessionStorage.suData) {
-                    fallbackData = JSON.parse(sessionStorage.suData);
+                if (localStorage.suData) {
+                    fallbackData = JSON.parse(localStorage.suData);
                 } else {
                     // Create new data for offline use
                     await task.override();
@@ -162,9 +162,9 @@ async function suDB(type, data) {
                 
                 if (fallbackData) {
                     if (fallbackData.level == 0) fallbackData.level = 1;
-                    if (sessionStorage.getItem("timer") > fallbackData.time) fallbackData.time = sessionStorage.getItem("timer");
+                    if (localStorage.getItem("timer") > fallbackData.time) fallbackData.time = localStorage.getItem("timer");
                     window.suData = fallbackData;
-                    sessionStorage.setItem("suData", JSON.stringify(fallbackData));
+                    localStorage.setItem("suData", JSON.stringify(fallbackData));
                     return true;
                 }
             }

@@ -46,7 +46,7 @@ class AppWindow {
     // Create the Application Window
     create() {
 
-        if (this.app.name.s == "su") sessionStorage.setItem("suActive", true);
+        if (this.app.name.s == "su") localStorage.setItem("suActive", true);
 
         this.element.classList.add("appWindow");
         this.focus = true;
@@ -336,7 +336,7 @@ class AppWindow {
     // Close the Application Window
     close() {
 
-        if (this.app.name.s == "su") sessionStorage.removeItem("suActive");
+        if (this.app.name.s == "su") localStorage.removeItem("suActive");
 
         const iframeWindow = this.iframe?.contentWindow;
         if (!iframeWindow) {
@@ -376,7 +376,7 @@ class AppWindow {
                                 );
 
                             }
-                            else sessionStorage.setItem(`${this.app.name.s}SaveData`, saveData); // Store in SessionStorage
+                            else localStorage.setItem(`${this.app.name.s}SaveData`, saveData); // Store in localStorage
                         }
                         catch (error) {
                             console.warn("Save Failed!");
@@ -514,7 +514,7 @@ function startApp(app) {
                     }
 
                 }
-                else if (sessionStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(sessionStorage.getItem(`${app.name.s}SaveData`));
+                else if (localStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(localStorage.getItem(`${app.name.s}SaveData`));
 
 
                 // Send Data to App
@@ -534,5 +534,5 @@ function startApp(app) {
 function lazy() { return window.firebaseAPI };
 
 // Failsafe
-sessionStorage.removeItem("suActive");
-sessionStorage.removeItem("suData");
+localStorage.removeItem("suActive");
+localStorage.removeItem("suData");

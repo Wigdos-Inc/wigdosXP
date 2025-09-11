@@ -189,12 +189,12 @@ window.addEventListener("dataReady", () => {
     });
 
     // Stored Mini Rewards
-    if (sessionStorage.lvlUp) {
-        sessionStorage.removeItem("lvlUp");
+    if (localStorage.lvlUp) {
+        localStorage.removeItem("lvlUp");
         glow(elements.stats.lvl);
     }
-    if (sessionStorage.goldUp) {
-        sessionStorage.removeItem("goldUp");
+    if (localStorage.goldUp) {
+        localStorage.removeItem("goldUp");
         glow(elements.stats.gold);
     }
 });

@@ -4,7 +4,7 @@ const audio = new Audio('assets/audio/system/startup.mp3');
 
 window.onload = () => {
 
-    if (sessionStorage.getItem("loaded")) load();
+    if (localStorage.getItem("loaded")) load();
     else {
 
         // Create Power Button UI
@@ -38,7 +38,7 @@ window.onload = () => {
 function load() {
 
     // If the User hasn't loaded before
-    if (!sessionStorage.getItem("loaded")) {
+    if (!localStorage.getItem("loaded")) {
 
         const loader = document.body.appendChild(document.createElement("div")); loader.classList.add("loader");
         loader.style.visibility = "unset";
@@ -66,7 +66,7 @@ function load() {
     else {
 
         document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
-        desktopFill("load", JSON.parse(sessionStorage.getItem("layout")));
+        desktopFill("load", JSON.parse(localStorage.getItem("layout")));
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
 
@@ -160,8 +160,8 @@ let power = {
             // Remove Shutdown Screen
             this.accBox.remove();
 
-            // Clear Session Data
-            sessionStorage.clear();
+            // Clear local Data
+            localStorage.clear();
             localStorage.clear();
 
             // Shutdown
@@ -681,7 +681,7 @@ function start() {
         if (param == "minor") window.alert("Hallo docent, de Minor opdracht staat in de Singular Upgrading App.\nAls u verder wilt testen, kunt u naar de taken kijken.\nLet op! Singular Upgrading update alleen maar als de applicatie nog open is!");
         else if (param == "beroeps") window.alert("Hallo docent, de nieuwste Wigdos XP uitbreiding (gemaakt voor beroeps) is Singular Upgrading.\nSommige functies binnen SU werken samen met andere games. Er zal altijd vermeld staan over welke game het gaat.\nLet op! Singular Upgrading update alleen maar de data van andere games als de applicatie zelf nog open is!");
     });
-    sessionStorage.setItem("loaded", true);
+    localStorage.setItem("loaded", true);
 }
 
 
