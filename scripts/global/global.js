@@ -69,12 +69,15 @@ async function pushIframeSaveToFirestore(gameId) {
     const iframe = document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
     if (!iframe) throw new Error('Game iframe not found');
 
-    // Try to access iframe localStorage (works only if same-origin)
     let raw;
+    
+    // Try direct access first (for same-origin iframes)
     try {
         raw = iframe.contentWindow.localStorage.getItem(`${gameId}SaveData`);
     } catch (err) {
-        throw new Error('Cannot access iframe localStorage — likely cross-origin. Serve the game from the same origin or add a postMessage shim in the game.');
+        // Cross-origin iframe - use postMessage
+        console.log('Cross-origin iframe detected, using postMessage for save operation');
+        return await pushSaveViaPostMessage(iframe, gameId);
     }
 
     if (!raw) return false; // nothing to save
@@ -95,6 +98,65 @@ async function pushIframeSaveToFirestore(gameId) {
     return true;
 }
 
+// Handle cross-origin save via postMessage
+async function pushSaveViaPostMessage(iframe, gameId) {
+    return new Promise((resolve) => {
+        const messageId = `save_${gameId}_${Date.now()}`;
+        
+        // Set up response listener
+        const handleResponse = (event) => {
+            if (event.data.type === 'saveDataResponse' && event.data.messageId === messageId) {
+                window.removeEventListener('message', handleResponse);
+                
+                if (event.data.saveData) {
+                    // Upload to Firebase
+                    uploadSaveDataToFirebase(gameId, event.data.saveData)
+                        .then(success => resolve(success))
+                        .catch(() => resolve(false));
+                } else {
+                    resolve(false); // No save data
+                }
+            }
+        };
+        
+        window.addEventListener('message', handleResponse);
+        
+        // Request save data from iframe
+        iframe.contentWindow.postMessage({
+            type: 'getSaveData',
+            gameId: gameId,
+            messageId: messageId
+        }, '*');
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+            window.removeEventListener('message', handleResponse);
+            resolve(false);
+        }, 5000);
+    });
+}
+
+// Helper function to upload save data to Firebase
+async function uploadSaveDataToFirebase(gameId, saveData) {
+    const user = localStorage.getItem('username') || 'guest';
+    if (user === 'guest') return false;
+
+    const api = window.firebaseAPI;
+    if (!api || !api.db) return false;
+
+    try {
+        await api.setDoc(
+            api.doc(api.db, 'game_saves', user),
+            { [gameId]: JSON.stringify(saveData) },
+            { merge: true }
+        );
+        return true;
+    } catch (err) {
+        console.error('Firebase save error:', err);
+        return false;
+    }
+}
+
 // Parent-side: load from Firestore and put into iframe localStorage
 async function loadFirestoreToIframe(gameId) {
     const iframe = document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
@@ -110,9 +172,16 @@ async function loadFirestoreToIframe(gameId) {
         const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
         if (userDoc.exists() && userDoc.data()[gameId]) {
             const data = userDoc.data()[gameId];
-            // Put data into iframe localStorage
-            iframe.contentWindow.localStorage.setItem(`${gameId}SaveData`, data);
-            return true;
+            
+            // Try direct access first (for same-origin iframes)
+            try {
+                iframe.contentWindow.localStorage.setItem(`${gameId}SaveData`, data);
+                return true;
+            } catch (err) {
+                // Cross-origin iframe - use postMessage
+                console.log('Cross-origin iframe detected, using postMessage for load operation');
+                return await loadSaveViaPostMessage(iframe, gameId, data);
+            }
         }
     } catch (err) {
         console.error('Load error:', err);
@@ -120,6 +189,37 @@ async function loadFirestoreToIframe(gameId) {
     }
     
     return false;
+}
+
+// Handle cross-origin load via postMessage
+async function loadSaveViaPostMessage(iframe, gameId, saveData) {
+    return new Promise((resolve) => {
+        const messageId = `load_${gameId}_${Date.now()}`;
+        
+        // Set up response listener
+        const handleResponse = (event) => {
+            if (event.data.type === 'loadDataResponse' && event.data.messageId === messageId) {
+                window.removeEventListener('message', handleResponse);
+                resolve(event.data.success === true);
+            }
+        };
+        
+        window.addEventListener('message', handleResponse);
+        
+        // Send save data to iframe
+        iframe.contentWindow.postMessage({
+            type: 'loadSaveData',
+            gameId: gameId,
+            saveData: JSON.parse(saveData), // Parse the JSON string
+            messageId: messageId
+        }, '*');
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+            window.removeEventListener('message', handleResponse);
+            resolve(false);
+        }, 5000);
+    });
 }
 
 // Make save functions available globally
