@@ -32,7 +32,13 @@ async function suDB(type, data) {
                 }
                 else if (username != "guest" && !isOnline) {
                     console.log("Offline mode: Data saved locally only");
-                    // In offline mode, just save to local storage
+                    // In offline mode, save to local storage
+                    localStorage.setItem("suData", JSON.stringify(data));
+                }
+                else if (username == "guest") {
+                    console.log("Guest mode: Data saved locally only");
+                    // For guest users, always save to local storage
+                    localStorage.setItem("suData", JSON.stringify(data));
                 }
 
                 window.dispatchEvent(new Event("dataUpdate"));

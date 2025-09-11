@@ -361,26 +361,31 @@ class AppWindow {
                     if (event.data.saveData) {
 
                         try {
-                            const { db, setDoc, doc } = window.firebaseAPI;
                             const saveData = JSON.stringify(event.data.saveData);
+                            console.log(`💾 Saving data for ${this.app.name.s}:`, saveData.substring(0, 100) + "...");
 
-                            console.log("DB Used");
+                            // Always save to localStorage as fallback
+                            localStorage.setItem(`${this.app.name.s}SaveData`, saveData);
+                            console.log(`✅ Local save successful for ${this.app.name.s}`);
 
-                            if (getUser() != "guest") {
+                            // Also save to Firebase if online and not guest
+                            if (getUser() != "guest" && window.firebaseAPI && window.firebaseOnline !== false) {
+                                const { db, setDoc, doc } = window.firebaseAPI;
+                                console.log("🌐 Attempting Firebase save...");
 
-                                // Upload Save Data to DB
                                 await setDoc(
                                     doc(db, "game_saves", getUser()), 
                                     { [this.app.name.s]: saveData },
                                     { merge: true }
                                 );
-
+                                console.log(`✅ Firebase save successful for ${this.app.name.s}`);
+                            } else {
+                                console.log(`⚠️ Firebase save skipped (guest user or offline mode) for ${this.app.name.s}`);
                             }
-                            else localStorage.setItem(`${this.app.name.s}SaveData`, saveData); // Store in localStorage
                         }
                         catch (error) {
-                            console.warn("Save Failed!");
-                            console.warn(error);
+                            console.warn(`❌ Save operation failed for ${this.app.name.s}:`, error);
+                            // Even if Firebase fails, we still have localStorage backup
                         }
 
                     }
@@ -401,11 +406,13 @@ class AppWindow {
             );
 
             // Timeout fallback (in case iframe is frozen or doesn't respond)
+            // Use longer timeout for external apps
+            const timeoutDuration = this.app.path.includes("external") ? 10000 : 5000;
             setTimeout(() => {
-                console.warn("⏱️ Save took too long. Forcing close.");
+                console.warn(`⏱️ Save took too long for ${this.app.name.s}. Forcing close after ${timeoutDuration}ms.`);
                 this.element.remove();
                 windows.object[this.index] = null;
-            }, 5000); // 5 second fallback
+            }, timeoutDuration);
             
         } else {
             // Close the application
@@ -492,34 +499,49 @@ function startApp(app) {
 
                 // Prep Save Data (Default: Null)
                 let saveData = null;
+                console.log(`📂 Loading save data for ${app.name.s}...`);
 
-                if (getUser() != "guest" && !localStorage.getItem(`${app.name.s}Data`)) {
-
-                    // Retrieve Save Data from DB
+                // Try to load from localStorage first (fastest)
+                if (localStorage.getItem(`${app.name.s}SaveData`)) {
                     try {
+                        saveData = JSON.parse(localStorage.getItem(`${app.name.s}SaveData`));
+                        console.log(`✅ Local save data loaded for ${app.name.s}`);
+                    } catch (error) {
+                        console.warn(`❌ Failed to parse local save data for ${app.name.s}:`, error);
+                    }
+                }
+
+                // If no local data and user is not guest, try Firebase
+                if (!saveData && getUser() != "guest" && window.firebaseAPI && window.firebaseOnline !== false) {
+                    try {
+                        console.log(`🌐 Attempting to load from Firebase for ${app.name.s}...`);
                         const { db, getDoc, doc } = lazy();
                         const userDoc = await getDoc(doc(db, "game_saves", getUser()));
 
-                        console.log(userDoc.exists(), userDoc.data()[app.name.s]);
-                        console.log("DB Used");
+                        console.log(`Firebase doc exists: ${userDoc.exists()}, has app data: ${userDoc.exists() && userDoc.data()[app.name.s] ? 'yes' : 'no'}`);
 
                         // Check if Save Data exists
                         if (userDoc.exists() && userDoc.data()[app.name.s]) {
                             saveData = JSON.parse(userDoc.data()[app.name.s]);
+                            // Also save to localStorage for faster future access
+                            localStorage.setItem(`${app.name.s}SaveData`, userDoc.data()[app.name.s]);
+                            console.log(`✅ Firebase save data loaded and cached locally for ${app.name.s}`);
+                        } else {
+                            console.log(`ℹ️ No Firebase save data found for ${app.name.s}`);
                         }
                     }
                     catch (error) {
-                        console.warn("Could not retrieve Save Data");
-                        console.warn(error);
+                        console.warn(`❌ Could not retrieve Firebase save data for ${app.name.s}:`, error);
                     }
-
+                } else if (getUser() == "guest") {
+                    console.log(`👤 Guest user - using local save data only for ${app.name.s}`);
+                } else if (window.firebaseOnline === false) {
+                    console.log(`📴 Offline mode - using local save data only for ${app.name.s}`);
                 }
-                else if (localStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(localStorage.getItem(`${app.name.s}SaveData`));
-
 
                 // Send Data to App
+                console.log(`📤 Sending save data to ${app.name.s}:`, saveData ? "data found" : "no data");
                 window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
-                console.log("Save Data Sent");
                 window.loaded = true;
 
             }

@@ -50,22 +50,31 @@
         return {
             db: null,
             auth: null,
-            setDoc: async () => { 
-                console.log("Mock setDoc called - data will be stored locally only");
+            setDoc: async (docRef, data, options) => { 
+                console.log("Mock setDoc called - data will be stored locally only:", data);
                 return Promise.resolve();
             },
-            getDoc: async () => {
+            getDoc: async (docRef) => {
                 console.log("Mock getDoc called - no remote data available");
-                return { exists: () => false };
+                return { 
+                    exists: () => false,
+                    data: () => ({})
+                };
             },
-            doc: () => null,
+            doc: (...args) => {
+                console.log("Mock doc called with args:", args);
+                return null;
+            },
             createUserWithEmailAndPassword: async () => {
                 throw new Error("Account creation requires internet connection");
             },
             signInWithEmailAndPassword: async () => {
                 throw new Error("Online login requires internet connection");
             },
-            collection: () => null,
+            collection: (path) => {
+                console.log("Mock collection called for path:", path);
+                return null;
+            },
             getDocs: async () => {
                 console.log("Mock getDocs called - no remote data available");
                 return { docs: [] };
