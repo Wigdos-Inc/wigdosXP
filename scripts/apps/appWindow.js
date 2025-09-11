@@ -338,77 +338,27 @@ class AppWindow {
 
         if (this.app.name.s == "su") localStorage.removeItem("suActive");
 
-        const iframeWindow = this.iframe?.contentWindow;
-        if (!iframeWindow) {
-            this.element.remove();
-            windows.object[this.index] = null;
-            return;
-        }
-
         // Only attempts saving for apps that support it
         if (this.app.save) {
-
-            const channel = new MessageChannel();
-
-            // Handle Save Response
-            channel.port1.onmessage = async (event) => {
-
-                if (event.data.status === "success") {
-
-                    console.log("✅ Iframe Confirms Save Request");
-
-                    // Engage in Save Shenanigans
-                    if (event.data.saveData) {
-
-                        try {
-                            const { db, setDoc, doc } = window.firebaseAPI;
-                            const saveData = JSON.stringify(event.data.saveData);
-
-                            console.log("DB Used");
-
-                            if (getUser() != "guest") {
-
-                                // Upload Save Data to DB
-                                await setDoc(
-                                    doc(db, "game_saves", getUser()), 
-                                    { [this.app.name.s]: saveData },
-                                    { merge: true }
-                                );
-
-                            }
-                            else localStorage.setItem(`${this.app.name.s}SaveData`, saveData); // Store in localStorage
-                        }
-                        catch (error) {
-                            console.warn("Save Failed!");
-                            console.warn(error);
-                        }
-
+            // Use new parent-side save system
+            pushIframeSaveToFirestore(this.app.name.s)
+                .then(saved => {
+                    if (saved) {
+                        console.log("✅ Game data saved to Firestore");
+                    } else {
+                        console.log("📝 No save data to upload or guest user");
                     }
-
-                    // After save finishes, clean up
+                })
+                .catch(error => {
+                    console.warn("Save Failed!", error);
+                })
+                .finally(() => {
+                    // Always close the window after save attempt
                     this.element.remove();
                     windows.object[this.index] = null;
-
-                }
-                else console.warn("Save Failed!");
-            };
-
-            // Send message and port to iframe
-            iframeWindow.postMessage(
-                { type: "save" },
-                "*",
-                [channel.port2] // pass the port for reply
-            );
-
-            // Timeout fallback (in case iframe is frozen or doesn't respond)
-            setTimeout(() => {
-                console.warn("⏱️ Save took too long. Forcing close.");
-                this.element.remove();
-                windows.object[this.index] = null;
-            }, 5000); // 5 second fallback
-            
+                });
         } else {
-            // Close the application
+            // Close the application immediately
             this.element.remove();
             windows.object[this.index] = null;
         }
@@ -483,45 +433,26 @@ function startApp(app) {
     }, 50);
 
 
-    // If Saving is Enabled, Send Save Data
+    // If Saving is Enabled, Load Save Data
     if (app.save) {
 
         window.iframe.onload = async () => {
 
             if (!window.loaded) {
 
-                // Prep Save Data (Default: Null)
-                let saveData = null;
-
-                if (getUser() != "guest" && !localStorage.getItem(`${app.name.s}Data`)) {
-
-                    // Retrieve Save Data from DB
-                    try {
-                        const { db, getDoc, doc } = lazy();
-                        const userDoc = await getDoc(doc(db, "game_saves", getUser()));
-
-                        console.log(userDoc.exists(), userDoc.data()[app.name.s]);
-                        console.log("DB Used");
-
-                        // Check if Save Data exists
-                        if (userDoc.exists() && userDoc.data()[app.name.s]) {
-                            saveData = JSON.parse(userDoc.data()[app.name.s]);
-                        }
+                // Use new parent-side save system to load data
+                try {
+                    const loaded = await loadFirestoreToIframe(app.name.s);
+                    if (loaded) {
+                        console.log("✅ Save data loaded from Firestore into iframe");
+                    } else {
+                        console.log("📁 No remote save data found or guest user");
                     }
-                    catch (error) {
-                        console.warn("Could not retrieve Save Data");
-                        console.warn(error);
-                    }
-
+                } catch (error) {
+                    console.warn("Could not load save data:", error);
                 }
-                else if (localStorage.getItem(`${app.name.s}SaveData`)) saveData = JSON.parse(localStorage.getItem(`${app.name.s}SaveData`));
 
-
-                // Send Data to App
-                window.iframe.contentWindow.postMessage({ type: "load", saveData: saveData }, "*");
-                console.log("Save Data Sent");
                 window.loaded = true;
-
             }
         }
 
@@ -531,7 +462,6 @@ function startApp(app) {
     windows.object.push(window);
     windows.index++;
 }
-function lazy() { return window.firebaseAPI };
 
 // Failsafe
 localStorage.removeItem("suActive");
