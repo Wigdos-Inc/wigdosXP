@@ -39,65 +39,8 @@
         <div id="ts_btn"></div>
     </footer>
     
-    <!-- Firebase configuration with CORS fallback for local file access -->
-    <script>
-        // Check if ES6 modules are supported and not blocked by CORS
-        if (window.location.protocol === 'file:') {
-            // Load Firebase config without modules for local file access
-            console.warn("Loading Firebase in compatibility mode for local file access");
-            
-            // Create fallback function for file:// protocol
-            async function initializeFirebase() {
-                console.warn("Firebase connection not available when running from file:// protocol - initializing offline mode");
-                
-                // Create mock Firebase API for offline use
-                window.firebaseAPI = {
-                    db: null,
-                    auth: null,
-                    setDoc: async () => { 
-                        console.log("Mock setDoc called - data will be stored locally only");
-                        return Promise.resolve();
-                    },
-                    getDoc: async () => {
-                        console.log("Mock getDoc called - no remote data available");
-                        return { exists: () => false };
-                    },
-                    doc: () => null,
-                    createUserWithEmailAndPassword: async () => {
-                        throw new Error("Account creation requires internet connection");
-                    },
-                    signInWithEmailAndPassword: async () => {
-                        throw new Error("Online login requires internet connection");
-                    },
-                    collection: () => null,
-                    getDocs: async () => {
-                        console.log("Mock getDocs called - no remote data available");
-                        return { docs: [] };
-                    }
-                };
-                window.firebaseOnline = false;
-                
-                // Auto-login as guest if no user is stored
-                if (!localStorage.getItem("username")) {
-                    localStorage.setItem("username", "guest");
-                }
-
-                // Always dispatch dbReady event
-                window.dispatchEvent(new Event("dbReady"));
-            }
-            
-            // Initialize immediately for file:// protocol
-            initializeFirebase();
-        } else {
-            // Load as module for http/https protocols
-            const script = document.createElement('script');
-            script.type = 'module';
-            script.src = 'scripts/firebase/firebaseconfig.js';
-            document.head.appendChild(script);
-        }
-    </script>
-
     <!-- Prep Scripts -->
+    <script src="scripts/firebase/firebaseconfig.js"></script>
     <script src="scripts/global/global.js"></script>
     <script src="scripts/desktop/lifecycle.js"></script>
     <script src="scripts/apps/appWindow.js"></script>
