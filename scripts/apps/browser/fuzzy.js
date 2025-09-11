@@ -26,6 +26,11 @@
         audio: "assets/music/C418 - Living Mice - Minecraft Volume Alpha.mp3",
         gif: "assets/secrets/gif/steve.gif"
       },
+      "criminal": {
+        video: "assets/mp4/criminal.mp4",
+        audio: "assets/sfx/criminal.mp3",
+        gif: ""
+      },
       // add for more secrets
     };
 
@@ -83,7 +88,7 @@
       userInput.forEach((input, index) => {
         if (input != konamiSequence[index]) {
           userInput = [];
-          window.alert("Reset");
+        
         }
       });
       userInput = userInput.slice(-konamiSequence.length);
@@ -104,3 +109,44 @@
     else if (event.key === "ArrowDown") pressArrow("ArrowDown");
     else if (event.key === "ArrowLeft") pressArrow("ArrowLeft");
   });
+
+  function checkCode() {
+  const input = document.getElementById("codeInput").value.trim().toLowerCase();
+  const secret = secrets[input];
+  const gif = document.getElementById("gif");
+  const music = document.getElementById("music");
+  const video = document.getElementById("bgVideo");
+  const content = document.getElementById("content"); // Add this to control visibility
+
+  if (secret) {
+    // Hide input while secret is playing
+    content.style.display = "none";
+
+    // Set media sources
+    video.src = secret.video;
+    music.src = secret.audio;
+    gif.src = secret.gif;
+
+    // Show video and gif
+    video.style.display = "block";
+    gif.style.display = secret.gif ? "block" : "none";
+
+    video.play();
+    music.play();
+
+    music.onended = () => {
+      // Hide media when finished
+      gif.style.display = "none";
+      video.style.display = "none";
+      video.pause();
+      video.currentTime = 0;
+
+      // Show input again
+      content.style.display = "block";
+    };
+  } else {
+    const errorsound = new Audio("/assets/sfx/deltarune splat sfx.mp3");
+    errorsound.play();
+    alert("❌ Incorrect code.");
+  }
+}
