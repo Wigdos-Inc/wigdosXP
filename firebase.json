@@ -7,7 +7,7 @@
   },
   "hosting": {
     "site": "wigdosinc",
-    "public": "public",
+    "public": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
