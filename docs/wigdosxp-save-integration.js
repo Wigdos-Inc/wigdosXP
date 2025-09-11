@@ -4,6 +4,9 @@
  * This file provides a template for game developers to integrate their games
  * with WigdosXP's cross-origin save system using postMessage communication.
  * 
+ * The system now preserves your game's ENTIRE localStorage, maintaining all
+ * your game's native save data keys and structure.
+ * 
  * Usage: Include this script in your game to enable save/load functionality
  * when your game is running inside WigdosXP's iframe environment.
  */
@@ -33,6 +36,15 @@
         log('Received message:', event.data);
         
         switch (event.data.type) {
+            case 'getAllLocalStorageData':
+                handleGetAllLocalStorageData(event);
+                break;
+                
+            case 'setAllLocalStorageData':
+                handleSetAllLocalStorageData(event);
+                break;
+                
+            // Legacy support for old protocol
             case 'getSaveData':
                 handleGetSaveData(event);
                 break;
@@ -43,7 +55,87 @@
         }
     });
     
-    // Handle save data request from WigdosXP
+    // Handle save data request from WigdosXP (new protocol - entire localStorage)
+    function handleGetAllLocalStorageData(event) {
+        log('Processing getAllLocalStorageData request');
+        
+        try {
+            // Get all localStorage data
+            const allLocalStorageData = {};
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                allLocalStorageData[key] = localStorage.getItem(key);
+            }
+            
+            log('All localStorage data retrieved:', allLocalStorageData);
+            
+            // Send response back to WigdosXP
+            event.source.postMessage({
+                type: 'saveDataResponse',
+                messageId: event.data.messageId,
+                allLocalStorageData: allLocalStorageData
+            }, event.origin);
+            
+            log('All localStorage data response sent');
+            
+        } catch (error) {
+            console.error('Error getting all localStorage data:', error);
+            
+            // Send error response
+            event.source.postMessage({
+                type: 'saveDataResponse',
+                messageId: event.data.messageId,
+                allLocalStorageData: null,
+                error: error.message
+            }, event.origin);
+        }
+    }
+    
+    // Handle load data request from WigdosXP (new protocol - entire localStorage)
+    function handleSetAllLocalStorageData(event) {
+        log('Processing setAllLocalStorageData request');
+        
+        try {
+            if (event.data.allLocalStorageData) {
+                // Clear existing localStorage and restore all data
+                localStorage.clear();
+                
+                Object.keys(event.data.allLocalStorageData).forEach(key => {
+                    localStorage.setItem(key, event.data.allLocalStorageData[key]);
+                });
+                
+                log('All localStorage data restored:', event.data.allLocalStorageData);
+                
+                // Notify the game that save data was loaded
+                window.dispatchEvent(new CustomEvent('wigdosxp-save-loaded', {
+                    detail: event.data.allLocalStorageData
+                }));
+            }
+            
+            // Send success response
+            event.source.postMessage({
+                type: 'loadDataResponse',
+                messageId: event.data.messageId,
+                success: true
+            }, event.origin);
+            
+            log('Set all localStorage data response sent');
+            
+        } catch (error) {
+            console.error('Error setting all localStorage data:', error);
+            
+            // Send error response
+            event.source.postMessage({
+                type: 'loadDataResponse',
+                messageId: event.data.messageId,
+                success: false,
+                error: error.message
+            }, event.origin);
+        }
+    }
+
+    // Handle save data request from WigdosXP (legacy protocol - single key)
     function handleGetSaveData(event) {
         log('Processing getSaveData request');
         
@@ -84,7 +176,7 @@
         }
     }
     
-    // Handle load data request from WigdosXP
+    // Handle load data request from WigdosXP (legacy protocol - single key)
     function handleLoadSaveData(event) {
         log('Processing loadSaveData request');
         
@@ -163,53 +255,42 @@
 /*
  * INTEGRATION INSTRUCTIONS FOR GAME DEVELOPERS:
  * 
+ * The WigdosXP save system now preserves your game's ENTIRE localStorage,
+ * maintaining all your game's natural save data structure and keys.
+ * 
  * 1. Update GAME_CONFIG at the top of this file:
  *    - gameId: Must match the ID used in WigdosXP's applications.js
- *    - saveKey: The localStorage key your game uses for save data
+ *    - saveKey: Only needed for legacy compatibility 
  *    - debug: Set to true for debugging
  * 
  * 2. Include this script in your game's HTML:
  *    <script src="wigdosxp-save-integration.js"></script>
  * 
- * 3. Your game should store save data as JSON in localStorage using the saveKey
+ * 3. Your game can use localStorage normally - all keys/values will be preserved
  * 
  * 4. Optional: Listen for save data being loaded:
- *    WigdosXPSaveSystem.onSaveLoaded(function(saveData) {
- *        // Apply the loaded save data to your game
- *        console.log('Save data loaded:', saveData);
+ *    WigdosXPSaveSystem.onSaveLoaded(function(allLocalStorageData) {
+ *        // All your localStorage has been restored
+ *        console.log('All localStorage restored:', allLocalStorageData);
  *    });
  * 
  * 5. The save system will automatically:
- *    - Save your data when the game window is closed in WigdosXP
- *    - Load your data when the game window is opened in WigdosXP
+ *    - Save ALL your localStorage when the game window is closed in WigdosXP
+ *    - Restore ALL your localStorage when the game window is opened in WigdosXP
  * 
  * EXAMPLE USAGE IN YOUR GAME:
  * 
- * // Save game data
- * function saveGame() {
- *     const saveData = {
- *         level: currentLevel,
- *         score: playerScore,
- *         progress: gameProgress
- *     };
- *     localStorage.setItem('your-game-save-data', JSON.stringify(saveData));
- * }
+ * // Your game can use localStorage naturally:
+ * localStorage.setItem('level', '5');
+ * localStorage.setItem('playerName', 'Alice');
+ * localStorage.setItem('gameSettings', JSON.stringify({sound: true, music: false}));
  * 
- * // Load game data
- * function loadGame() {
- *     const saved = localStorage.getItem('your-game-save-data');
- *     if (saved) {
- *         const saveData = JSON.parse(saved);
- *         currentLevel = saveData.level;
- *         playerScore = saveData.score;
- *         gameProgress = saveData.progress;
- *     }
- * }
+ * // All of these will be automatically preserved by WigdosXP!
  * 
- * // Listen for WigdosXP save loading
- * WigdosXPSaveSystem.onSaveLoaded(function(saveData) {
- *     // The save data has been loaded by WigdosXP
- *     // You might want to reload your game state here
- *     loadGame();
+ * // Listen for WigdosXP save loading (optional)
+ * WigdosXPSaveSystem.onSaveLoaded(function(allData) {
+ *     // All your localStorage has been restored
+ *     console.log('Game data restored by WigdosXP');
+ *     // Optionally refresh your game state here
  * });
  */

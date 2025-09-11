@@ -470,25 +470,32 @@ localStorage.removeItem("suData");
 // WigdosXP Save System - Parent-side iframe localStorage management
 // Reads/writes iframe localStorage directly and syncs with Firebase
 
-// Parent-side: read iframe localStorage and push to Firestore
+// Parent-side: read entire iframe localStorage and push to Firestore
 async function pushIframeSaveToFirestore(gameId) {
     const iframe = document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
     if (!iframe) throw new Error('Game iframe not found');
 
-    let raw;
+    let allLocalStorageData;
     
     // Try direct access first (for same-origin iframes)
     try {
-        raw = iframe.contentWindow.localStorage.getItem(`${gameId}SaveData`);
+        const iframeStorage = iframe.contentWindow.localStorage;
+        allLocalStorageData = {};
+        
+        // Copy all localStorage keys and values
+        for (let i = 0; i < iframeStorage.length; i++) {
+            const key = iframeStorage.key(i);
+            allLocalStorageData[key] = iframeStorage.getItem(key);
+        }
     } catch (err) {
         // Cross-origin iframe - use postMessage
         console.log('Cross-origin iframe detected, using postMessage for save operation');
         return await pushSaveViaPostMessage(iframe, gameId);
     }
 
-    if (!raw) return false; // nothing to save
+    // Check if there's any data to save
+    if (Object.keys(allLocalStorageData).length === 0) return false;
 
-    const data = JSON.parse(raw);
     const user = localStorage.getItem('username') || 'guest';
     if (user === 'guest') return false; // don't upload guest saves
 
@@ -498,7 +505,7 @@ async function pushIframeSaveToFirestore(gameId) {
 
     await api.setDoc(
         api.doc(api.db, 'game_saves', user),
-        { [gameId]: JSON.stringify(data) },
+        { [gameId]: JSON.stringify(allLocalStorageData) },
         { merge: true }
     );
     return true;
@@ -514,9 +521,9 @@ async function pushSaveViaPostMessage(iframe, gameId) {
             if (event.data.type === 'saveDataResponse' && event.data.messageId === messageId) {
                 window.removeEventListener('message', handleResponse);
                 
-                if (event.data.saveData) {
+                if (event.data.allLocalStorageData && Object.keys(event.data.allLocalStorageData).length > 0) {
                     // Upload to Firebase
-                    uploadSaveDataToFirebase(gameId, event.data.saveData)
+                    uploadSaveDataToFirebase(gameId, event.data.allLocalStorageData)
                         .then(success => resolve(success))
                         .catch(() => resolve(false));
                 } else {
@@ -527,9 +534,9 @@ async function pushSaveViaPostMessage(iframe, gameId) {
         
         window.addEventListener('message', handleResponse);
         
-        // Request save data from iframe
+        // Request all localStorage data from iframe
         iframe.contentWindow.postMessage({
-            type: 'getSaveData',
+            type: 'getAllLocalStorageData',
             gameId: gameId,
             messageId: messageId
         }, '*');
@@ -543,7 +550,7 @@ async function pushSaveViaPostMessage(iframe, gameId) {
 }
 
 // Helper function to upload save data to Firebase
-async function uploadSaveDataToFirebase(gameId, saveData) {
+async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
     const user = localStorage.getItem('username') || 'guest';
     if (user === 'guest') return false;
 
@@ -553,7 +560,7 @@ async function uploadSaveDataToFirebase(gameId, saveData) {
     try {
         await api.setDoc(
             api.doc(api.db, 'game_saves', user),
-            { [gameId]: JSON.stringify(saveData) },
+            { [gameId]: JSON.stringify(allLocalStorageData) },
             { merge: true }
         );
         return true;
@@ -563,7 +570,7 @@ async function uploadSaveDataToFirebase(gameId, saveData) {
     }
 }
 
-// Parent-side: load from Firestore and put into iframe localStorage
+// Parent-side: load from Firestore and restore entire iframe localStorage
 async function loadFirestoreToIframe(gameId) {
     const iframe = document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
     if (!iframe) throw new Error('Game iframe not found');
@@ -577,16 +584,23 @@ async function loadFirestoreToIframe(gameId) {
     try {
         const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
         if (userDoc.exists() && userDoc.data()[gameId]) {
-            const data = userDoc.data()[gameId];
+            const allLocalStorageData = JSON.parse(userDoc.data()[gameId]);
             
             // Try direct access first (for same-origin iframes)
             try {
-                iframe.contentWindow.localStorage.setItem(`${gameId}SaveData`, data);
+                const iframeStorage = iframe.contentWindow.localStorage;
+                
+                // Clear existing localStorage and restore all saved data
+                iframeStorage.clear();
+                Object.keys(allLocalStorageData).forEach(key => {
+                    iframeStorage.setItem(key, allLocalStorageData[key]);
+                });
+                
                 return true;
             } catch (err) {
                 // Cross-origin iframe - use postMessage
                 console.log('Cross-origin iframe detected, using postMessage for load operation');
-                return await loadSaveViaPostMessage(iframe, gameId, data);
+                return await loadSaveViaPostMessage(iframe, gameId, allLocalStorageData);
             }
         }
     } catch (err) {
@@ -598,7 +612,7 @@ async function loadFirestoreToIframe(gameId) {
 }
 
 // Handle cross-origin load via postMessage
-async function loadSaveViaPostMessage(iframe, gameId, saveData) {
+async function loadSaveViaPostMessage(iframe, gameId, allLocalStorageData) {
     return new Promise((resolve) => {
         const messageId = `load_${gameId}_${Date.now()}`;
         
@@ -612,11 +626,11 @@ async function loadSaveViaPostMessage(iframe, gameId, saveData) {
         
         window.addEventListener('message', handleResponse);
         
-        // Send save data to iframe
+        // Send all localStorage data to iframe
         iframe.contentWindow.postMessage({
-            type: 'loadSaveData',
+            type: 'setAllLocalStorageData',
             gameId: gameId,
-            saveData: JSON.parse(saveData), // Parse the JSON string
+            allLocalStorageData: allLocalStorageData,
             messageId: messageId
         }, '*');
         
