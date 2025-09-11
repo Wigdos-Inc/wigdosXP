@@ -6,25 +6,25 @@
       },
       //where the "Asgore" is placed at will be the code that will need to be inputted
       "asgore": {
-        video: "assets/mp4/Asgore runs over Dess.mp4",
-        audio: "assets/mp4/Asgore runs over Dess.mp4",
+        video: "assets/videos/bergentruck.mp4",
+        audio: "assets/videos/bergentruck.mp4",
         gif: ""
       },
 
       "github": {
-        video: "assets/mp4/Far Cry New Dawn release me.mp4",
-        audio: "assets/music/Buddy Holly but just the riff.mp3",
+        video: "assets/videos/far.mp4",
+        audio: "assets/audio/misc/buddy_holly_riff.mp3",
         gif: ""
       },
       "disturbing the peace": {
-        video: "assets/mp4/Persona 5 - Opening Cinematic.mp4",
-        audio: "assets/music/It's Going Down Now.mp3",
-        gif: "assets/secrets/gif/haru-haru-okumura.gif"
+        video: "assets/videos/persona5_opening.mp4",
+        audio: "assets/audio/music/going_down.mp3",
+        gif: "assets/gifs/misc/haru_okumura.gif"
       },
       "steve": {
         video: "assets/mp4/steve.mp4",
         audio: "assets/music/C418 - Living Mice - Minecraft Volume Alpha.mp3",
-        gif: "assets/secrets/gif/steve.gif"
+        gif: "assets/gifs/misc/steve.gif"
       },
       // add for more secrets
     };
