@@ -6,7 +6,8 @@
     "indexes": "firebase/firestore.indexes.json"
   },
   "hosting": {
-    "public": ".",
+    "site": "wigdosinc",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
