@@ -30,7 +30,7 @@ function taskProg(type, prog, target, override) {
 
                 // (Store) Mini Reward
                 if (typeof elements !== "undefined") glow(elements.stats.gold);
-                else sessionStorage.setItem("goldUp", true);
+                else localStorage.setItem("goldUp", true);
                 console.log("Task Complete: " + task.reward.xp + "XP", `${getUser()}: ${window.suData.xp}/100 XP`, task.reward.gold + " G");
 
                 // Complete/Reset the Task
@@ -59,7 +59,7 @@ function taskProg(type, prog, target, override) {
 
             // (Store) Mini Reward
             if (typeof elements !== "undefined") glow(elements.stats.lvl);
-            else sessionStorage.setItem("lvlUp", true);
+            else localStorage.setItem("lvlUp", true);
 
             // Store to DB
             if (!overVar) suDB("store", window.suData);

@@ -229,7 +229,7 @@ window.addEventListener("dbReady", () => {
 
                 // Add to Total Apptime
                 window.suData.time++;
-                sessionStorage.setItem("timer", window.suData.time);
+                localStorage.setItem("timer", window.suData.time);
                 window.dispatchEvent(new Event("timerUpdate"));
                 taskProg("timer", 1, "su");
             }, 1000);

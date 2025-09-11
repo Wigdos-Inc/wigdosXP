@@ -139,7 +139,7 @@ const applications = {
         ["ut", "Undertale"],
         "other",
         true, 
-        ["external", "https://michaeld1b.github.io/Undertale-HTML/"],
+        ["external", "https://wigdos-inc.github.io/Undertale-HTML/"],
         true
     ),
 
@@ -190,6 +190,12 @@ const applications = {
         "other",
         true,
         ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
+    ),
+    pHub: new Application(
+        ["pHub", "PokeHub"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/PokeHub/"]
     )
 }
 

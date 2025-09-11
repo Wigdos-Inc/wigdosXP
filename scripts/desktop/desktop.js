@@ -44,11 +44,11 @@ class DKGridBox {
 
 
         // Update Layout
-        if (sessionStorage.getItem("layout") && getUser() != "guest") {
+        if (localStorage.getItem("layout") && getUser() != "guest") {
 
-            let layout = JSON.parse(sessionStorage.getItem("layout"));
+            let layout = JSON.parse(localStorage.getItem("layout"));
             layout[this.pos.row][this.pos.col] = this.app.name.s;
-            sessionStorage.setItem("layout", JSON.stringify(layout));
+            localStorage.setItem("layout", JSON.stringify(layout));
             desktopFill("update");
 
         }
@@ -71,11 +71,11 @@ class DKGridBox {
 
 
         // Update Layout
-        if (sessionStorage.getItem("layout") && getUser() != "guest") {
+        if (localStorage.getItem("layout") && getUser() != "guest") {
 
-            let layout = JSON.parse(sessionStorage.getItem("layout"));
+            let layout = JSON.parse(localStorage.getItem("layout"));
             layout[this.pos.row][this.pos.col] = null;
-            sessionStorage.setItem("layout", JSON.stringify(layout));
+            localStorage.setItem("layout", JSON.stringify(layout));
             desktopFill("update");
 
         }
@@ -189,7 +189,7 @@ function desktopFill(type, layout) {
             }
 
             // Save and Return Layout
-            sessionStorage.setItem("layout", JSON.stringify(layout));
+            localStorage.setItem("layout", JSON.stringify(layout));
             return JSON.stringify(layout);
 
         case "load":
@@ -237,7 +237,7 @@ function desktopFill(type, layout) {
                 }
 
                 // Save Layout
-                sessionStorage.setItem("layout", JSON.stringify(layout));
+                localStorage.setItem("layout", JSON.stringify(layout));
                 if (newApps.i) desktopFill("update");
 
             }
@@ -253,7 +253,7 @@ function desktopFill(type, layout) {
                     const { db, setDoc, doc } = window.firebaseAPI;
                     await setDoc (
                         doc(db, "users", getUser()),
-                        { layout: sessionStorage.getItem("layout") },
+                        { layout: localStorage.getItem("layout") },
                         { merge: true }
                     );
                 } catch (error) {

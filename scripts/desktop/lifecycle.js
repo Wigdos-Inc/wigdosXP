@@ -1,10 +1,10 @@
 // Windows XP Startup Sound
-const audio = new Audio('assets/sfx/startup.mp3');
+const audio = new Audio('assets/audio/system/startup.mp3');
 /* Startup */
 
 window.onload = () => {
 
-    if (sessionStorage.getItem("loaded")) load();
+    if (localStorage.getItem("loaded")) load();
     else {
 
         // Create Power Button UI
@@ -38,7 +38,7 @@ window.onload = () => {
 function load() {
 
     // If the User hasn't loaded before
-    if (!sessionStorage.getItem("loaded")) {
+    if (!localStorage.getItem("loaded")) {
 
         const loader = document.body.appendChild(document.createElement("div")); loader.classList.add("loader");
         loader.style.visibility = "unset";
@@ -66,7 +66,7 @@ function load() {
     else {
 
         document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
-        desktopFill("load", JSON.parse(sessionStorage.getItem("layout")));
+        desktopFill("load", JSON.parse(localStorage.getItem("layout")));
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
 
@@ -152,7 +152,7 @@ let power = {
 
 
         // Shutdown Sound
-        const shutDownSFX = new Audio("assets/sfx/shutdown.mp3");
+        const shutDownSFX = new Audio("assets/audio/system/shutdown.mp3");
         shutDownSFX.play();
 
         shutDownSFX.onended = () => {
@@ -160,8 +160,8 @@ let power = {
             // Remove Shutdown Screen
             this.accBox.remove();
 
-            // Clear Session Data
-            sessionStorage.clear();
+            // Clear local Data
+            localStorage.clear();
             localStorage.clear();
 
             // Shutdown
@@ -263,12 +263,23 @@ function fill(parent, type) {
         // Guest
         login.guest.id = "guest";
         login.guest.innerHTML = "Log in as a Guest";
+        
         login.guest.onclick = () => {
 
             localStorage.setItem("username", "guest");
             desktopFill("base");
             fill(parent, "in");
         }
+        
+        // Update guest button when Firebase status is available
+        window.addEventListener("dbReady", () => {
+            if (window.firebaseOnline === false && login.guest) {
+                login.guest.innerHTML = "Continue in Offline Mode";
+                login.guest.style.backgroundColor = "#ff9500";
+                login.guest.style.color = "white";
+                login.guest.title = "Internet connection unavailable - running in offline mode";
+            }
+        });
 
         // Output
         login.output.id = "accOutput";
@@ -638,9 +649,16 @@ async function db(data, type) {
 
     } catch (error) {
         output.style.color = "red";
-        output.innerHTML = "Unknown error.";
+        
+        // Check if we're in offline mode
+        if (window.firebaseOnline === false) {
+            output.innerHTML = "Internet connection required for account login. Please use Guest mode for offline access.";
+        } else {
+            output.innerHTML = "Unknown error.";
+            playerrorSound();
+        }
+        
         console.error("Firestore error:", error);
-        playerrorSound();
     }
 }
 
@@ -663,7 +681,7 @@ function start() {
         if (param == "minor") window.alert("Hallo docent, de Minor opdracht staat in de Singular Upgrading App.\nAls u verder wilt testen, kunt u naar de taken kijken.\nLet op! Singular Upgrading update alleen maar als de applicatie nog open is!");
         else if (param == "beroeps") window.alert("Hallo docent, de nieuwste Wigdos XP uitbreiding (gemaakt voor beroeps) is Singular Upgrading.\nSommige functies binnen SU werken samen met andere games. Er zal altijd vermeld staan over welke game het gaat.\nLet op! Singular Upgrading update alleen maar de data van andere games als de applicatie zelf nog open is!");
     });
-    sessionStorage.setItem("loaded", true);
+    localStorage.setItem("loaded", true);
 }
 
 
