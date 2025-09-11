@@ -493,7 +493,7 @@ function startApp(app) {
                 // Prep Save Data (Default: Null)
                 let saveData = null;
 
-                if (getUser() != "guest" && !localStorage.getItem(`${app.name.s}Data`)) {
+                if (getUser() != "guest" && !sessionStorage.getItem(`${app.name.s}SaveData`)) {
 
                     // Retrieve Save Data from DB
                     try {
