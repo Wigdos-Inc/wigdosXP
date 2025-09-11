@@ -139,7 +139,7 @@ const applications = {
         ["ut", "Undertale"],
         "other",
         true, 
-        ["external", "https://michaeld1b.github.io/Undertale-HTML/"],
+        ["external", "https://wigdos-inc.github.io/Undertale-HTML/"],
         true
     ),
 
