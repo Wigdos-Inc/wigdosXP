@@ -1,40 +1,35 @@
 # Simple Save System for WigdosXP Games
 
-A single JavaScript file that receives save data from Firebase and stores it in localStorage for games running in WigdosXP.
+A single JavaScript file that reads save data from iframe localStorage and pushes it to Firestore using WigdosXP's existing Firebase connection.
 
 ## Usage
 
-1. Include the script in your game:
+1. Include the script in WigdosXP (parent window):
 ```html
 <script src="simple-save.js"></script>
 ```
 
-2. Use it in your game:
+2. Use it from the parent window to sync iframe saves:
 ```javascript
-const saves = new SimpleSaveSystem();
+// Push iframe save data to Firestore
+const saved = await pushIframeSaveToFirestore('undertale');
 
-// Load save data
-const data = await saves.load('undertale');
-if (data) {
-    // Use the loaded data
-    console.log('Loaded game data:', data);
-}
-
-// Save game data  
-const gameData = { level: 5, score: 1000, playerName: 'Frisk' };
-await saves.save('undertale', gameData);
+// Load Firestore data into iframe localStorage
+const loaded = await loadFirestoreToIframe('undertale');
 ```
 
 ## How it works
 
-- Automatically uses WigdosXP's existing Firebase connection
-- Receives data from Firebase and stores it in localStorage
-- Always saves to localStorage as backup
-- Simple and lightweight - just 2KB
+- Runs from parent window (WigdosXP) 
+- Accesses iframe localStorage directly (same-origin required)
+- Uses existing WigdosXP Firebase connection
+- Handles the `${gameId}SaveData` format automatically
+- Simple two-function approach
 
 ## Requirements
 
-- Must be used within WigdosXP (requires `window.firebaseAPI`)
-- User must be logged in for Firebase sync (guests use localStorage only)
+- iframe must have id `gameIframe`
+- Game must be served from same origin as WigdosXP
+- User must be logged in for Firebase sync (guests ignored)
 
-That's it! No complex setup, no configuration needed.
+Perfect for games like Undertale that need simple save/load functionality.
