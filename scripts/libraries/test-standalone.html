@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Standalone Version Test</title>
+</head>
+<body>
+    <h1>Testing Standalone Universal Save System</h1>
+    <div id="output"></div>
+    
+    <script src="../firebase/firebaseconfig.js"></script>
+    <script src="universal-save-standalone.js"></script>
+    <script>
+        async function test() {
+            const output = document.getElementById('output');
+            
+            try {
+                // Test the standalone version
+                const saves = new UniversalSaveSystem();
+                output.innerHTML += '✅ Created UniversalSaveSystem instance<br>';
+                
+                await saves.init();
+                output.innerHTML += '✅ Initialized save system<br>';
+                
+                const status = saves.status();
+                output.innerHTML += `📊 Status: ${JSON.stringify(status)}<br>`;
+                
+                // Test save/load
+                const testData = { message: 'Hello from standalone!', timestamp: Date.now() };
+                await saves.save('standalone-test', testData);
+                output.innerHTML += '✅ Saved test data<br>';
+                
+                const loaded = await saves.load('standalone-test');
+                output.innerHTML += `✅ Loaded data: ${JSON.stringify(loaded)}<br>`;
+                
+                // Test list
+                const gameList = await saves.list();
+                output.innerHTML += `📋 Available saves: ${gameList.join(', ')}<br>`;
+                
+                output.innerHTML += '<br>🎉 All tests passed!';
+                
+            } catch (error) {
+                output.innerHTML += `❌ Error: ${error.message}<br>`;
+                console.error(error);
+            }
+        }
+        
+        // Wait for Firebase to be ready and then test
+        window.addEventListener('dbReady', test);
+        
+        // Fallback in case Firebase doesn't initialize
+        setTimeout(test, 2000);
+    </script>
+</body>
+</html>
