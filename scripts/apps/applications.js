@@ -82,6 +82,12 @@ const applications = {
         false, 
         ["internal", "apps/"]
     ),
+    gspot: new Application(
+        ["gspot", "GameSpot"], 
+        "",
+        false, 
+        ["internal", "apps/"]
+    ),
 
 
 

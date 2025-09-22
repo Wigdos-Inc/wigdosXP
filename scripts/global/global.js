@@ -26,19 +26,6 @@ function getUser() {
 
 
 
-const imgs = document.getElementsByTagName("img");
-for (let i=0; i < imgs.length; i++) {
-
-    let size;
-    if (imgs[i].offsetWidth < 100) size = "16x";
-    else if (imgs[i].offsetWidth < 200) size = "32x";
-    else size = "48x";
-
-    imgs[i].src = `assets/images/icons/${size}/bombs.png`;
-}
-
-
-
 // Catch errors for further handling if needed
 const realConsoleError = console.error;
 console.error = function(...args) {
