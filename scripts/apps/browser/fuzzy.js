@@ -22,13 +22,18 @@
         gif: "assets/gifs/misc/haru_okumura.gif"
       },
       "steve": {
-        video: "assets/mp4/steve.mp4",
+        video: "assets/videos/steve.mp4",
         audio: "assets/music/C418 - Living Mice - Minecraft Volume Alpha.mp3",
         gif: "assets/gifs/misc/steve.gif"
       },
       "criminal": {
-        video: "assets/mp4/criminal.mp4",
+        video: "assets/videos/criminal.mp4",
         audio: "assets/sfx/criminal.mp3",
+        gif: ""
+      },
+        "nword": {
+        video: "assets/videos/Nword.mp4",
+        audio: "assets/audio/music/Nword.mp3",
         gif: ""
       },
       // add for more secrets
