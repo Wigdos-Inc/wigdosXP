@@ -1,15 +1,32 @@
-// Receive Data from Message
-window.addEventListener("message", (event) => {
+// Receive Data from Message (named handler with basic validation)
+function handleProgressMessage(event) {
+    if (!event || !event.data) return;
 
-    if (event.data.type == "save" && event.ports && event.ports[0]) {
+    // Basic origin check (allow same-origin or messages from iframes without strict origin)
+    try {
+        if (event.origin && event.origin !== window.location.origin) {
+            // If you have a known set of allowed origins, check against them here.
+            // For now, ignore cross-origin messages that don't contain expected structure.
+            if (!event.data.type && !event.data.taskData) return;
+        }
+    } catch (err) {
+        // Ignore origin check failures
+    }
+
+    if (event.data.type === "save" && event.ports && event.ports[0]) {
         suDB("store", window.suData);
         event.ports[0].postMessage({ status: "success" });
+    } else if (event.data.taskData) {
+        try {
+            const data = JSON.parse(event.data.taskData);
+            taskProg(data.taskType, data.prog, data.src);
+        } catch (err) {
+            console.warn('Invalid taskData in progress message', err);
+        }
     }
-    else if (event.data.taskData) {
-        const data = JSON.parse(event.data.taskData);
-        taskProg(data.taskType, data.prog, data.src);
-    }
-});
+}
+
+window.addEventListener('message', handleProgressMessage);
 
 function taskProg(type, prog, target, override) {
 

@@ -15,6 +15,52 @@ document.getElementById("qa_icon2").onclick = () => startApp(applications.files)
 
 const tsBtn = document.getElementById("ts_btn");
 
+// Add a small restore button to quick access
+const restoreBtn = document.createElement('div');
+restoreBtn.id = 'restore_btn';
+restoreBtn.classList.add('qa_icon');
+restoreBtn.title = 'Restore previous session windows';
+document.getElementById('qa_iconBox').appendChild(restoreBtn);
+
+restoreBtn.addEventListener('click', (e) => {
+    // If no sessions API, nothing to show
+    if (!window.windowSessions) return;
+
+    const sessions = window.windowSessions.getSessions();
+    // Create a simple menu
+    const menu = document.createElement('div');
+    menu.classList.add('restoreMenu');
+    menu.style.position = 'absolute';
+    menu.style.bottom = '48px';
+    menu.style.left = '8px';
+    menu.style.padding = '8px';
+    menu.style.background = '#f2f2f2';
+    menu.style.border = '1px solid #ccc';
+
+    if (!sessions || sessions.length === 0) {
+        const item = menu.appendChild(document.createElement('div'));
+        item.innerText = 'No saved windows';
+    } else {
+        sessions.forEach(s => {
+            const item = menu.appendChild(document.createElement('div'));
+            item.classList.add('restoreItem');
+            item.innerText = `${s.appId} (${s.w || '?'}x${s.h || '?'})`;
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
+                // Simple re-open: look up app by id and startApp
+                if (applications && applications[s.appId]) startApp(applications[s.appId], s);
+                menu.remove();
+            });
+        });
+    }
+
+    document.getElementsByTagName('main')[0].appendChild(menu);
+
+    // Dismiss when clicking elsewhere
+    const onDoc = (ev) => { if (!menu.contains(ev.target) && ev.target !== restoreBtn) { menu.remove(); document.removeEventListener('mousedown', onDoc); } };
+    document.addEventListener('mousedown', onDoc);
+});
+
 
 
 /* Time Stuff */
@@ -130,6 +176,20 @@ smBtnBox.addEventListener("click", (event) => {
 
         smFooter.appendChild(document.createElement("div"));
         const smFooterRight = smFooter.appendChild(document.createElement("div")); smFooterRight.id = "smFooterRight";
+
+        // Auto-restore toggle
+        const restoreToggleBox = smFooterRight.appendChild(document.createElement('div'));
+        restoreToggleBox.classList.add('powerOptionBox');
+        const restoreToggle = restoreToggleBox.appendChild(document.createElement('input'));
+        restoreToggle.type = 'checkbox';
+        restoreToggle.id = 'restoreOnStartToggle';
+        const restoreLabel = restoreToggleBox.appendChild(document.createElement('p'));
+        restoreLabel.innerText = 'Restore on startup';
+        // Initialize from localStorage
+        restoreToggle.checked = localStorage.getItem('wigdos_restore_on_start') === 'true';
+        restoreToggle.addEventListener('change', (e) => {
+            localStorage.setItem('wigdos_restore_on_start', e.target.checked ? 'true' : 'false');
+        });
 
         const restartBox = smFooterRight.appendChild(document.createElement("div")); restartBox.classList.add("powerOptionBox");
         const restartBtn = restartBox.appendChild(document.createElement("img")); restartBtn.id = "restartBtn";
