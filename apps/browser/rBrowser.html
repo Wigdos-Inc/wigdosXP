@@ -3,20 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FuzzyExplosions</title>
+    <title>rBrowser - Internet Explorer Style</title>
 
     <base href="../../">
     <link rel="stylesheet" href="styles/global/main.css">
     <link rel="stylesheet" href="styles/apps/appContent.css">
-    <link
+    <!-- Removed stray link tag -->
     <link rel="stylesheet" href="styles/apps/browser/fuzzy.css">
 </head>
-<body>
+<body class="default-bg">
 <!-- cursor shit  sowwy if its too long >_<--> <!--  >:(  -->
     <style type="text/css">body { cursor: url('data:image/x-icon;base64,AAACAAEAICACAAAAAAAwAQAAFgAAACgAAAAgAAAAQAAAAAEAAQAAAAAAgAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAwAAAAMAAAAGAAAARgAAAGwAAAB8AAAAf4AAAH8AAAB+AAAAfAAAAHgAAABwAAAAYAAAAEAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////+f////D////w////4f///eH///zD///8Q////Af///wAf//8AP///AH///wD///8B////A////wf///8P////H////z////9/////////8='), auto; }</style>
      
 
     <div id="topBar">
+      <!-- Fake Chrome-like tab strip -->
+      <div class="tabstrip" role="tablist" aria-label="Tabs">
+        <div class="tabs-scroll">
+          <button class="tab active" role="tab" aria-selected="true">
+            <img class="favicon" src="assets/images/icons/32x/rBrowser.png" alt="" aria-hidden="true"/>
+            <span class="title">Wiggle Search</span>
+            <span class="close" aria-hidden="true">✕</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false">
+            <img class="favicon" src="assets/images/icons/48x/WigleTube.png" alt="" aria-hidden="true"/>
+            <span class="title">WigTube</span>
+            <span class="close" aria-hidden="true">✕</span>
+          </button>
+          <button class="tab" role="tab" aria-selected="false">
+            <img class="favicon" src="assets/images/icons/32x/rBrowser.png" alt="" aria-hidden="true"/>
+            <span class="title">New Tab</span>
+            <span class="close" aria-hidden="true">✕</span>
+          </button>
+        </div>
+        <div class="tabs-actions">
+          <button class="tab-action add" aria-label="New tab"></button>
+        </div>
+      </div>
     <div class="search-container">
 
     <input type="text" class="search-input" placeholder="Search...">
@@ -25,33 +48,61 @@
     </div>
 
     <div id="appMain">
-          <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logobar">
-    <div class="container">     
-    <input type="text" class="search-input " placeholder="Search..." class="searchbar2">
-    <div class="button2">
-    <button>Wiggle Search</button> <button>GAMBLING</button>
+        <div id="wiggle-search" class="page-content active">
+            <div class="google-layout">
+                <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
+                
+                <div class="search-section">
+                    <div class="search-box-container">
+                        <input type="text" class="main-search-input" placeholder="Search...">
+                    </div>
+                    
+                    <div class="search-buttons">
+                        <button class="search-btn">Wiggle Search</button>
+                        <button class="search-btn">GAMBLING</button>
+                    </div>
+                </div>
+            </div>
 
-   <div id="content">
-    <h2>Enter the Secret Code</h2>
-    <input type="text" id="codeInput" placeholder="Enter code here" />
-    <button onclick="checkCode()">Submit</button>
-  </div>
+            <div id="content">
+                <h2>Enter the Secret Code</h2>
+                <input type="text" id="codeInput" placeholder="Enter code here" />
+                <button onclick="checkCode()">Submit</button>
+            </div>
+        </div>
 
-  </div>
-    </div>
+        <div id="wigtube" class="page-content">
+            <iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: calc(100vh - 72px); border: none;"></iframe>
+        </div>
+
+        <div id="new-tab" class="page-content">
+            <div class="new-tab-page">
+                <h1>New Tab</h1>
+                <p>New Tab</p>
+                <div class="quick-links">
+                    <div class="quick-link" onclick="switchToPage('wiggle-search')">
+                        <img src="../.././assets/images/icons/32x/rBrowser.png" alt="Search">
+                        <span>Wiggle Search</span>
+                    </div>
+                    <div class="quick-link" onclick="switchToPage('wigtube')">
+                        <img src="../.././assets/images/icons/48x/WigleTube.png" alt="WigTube">
+                        <span>WigTube</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div id="bottomBar"></div>
-    
-   <body class="default-bg">
-
+  
   <video id="bgVideo" muted autoplay loop></video>
 
   
 
   <img id="gif" src="assets/secrets/gif/tenna.gif" draggable="false" >
   <audio id="music" src="assets/music/27. Its TV Time! (DELTARUNE Chapter 34 Soundtrack) - Toby Fox.mp3"></audio>
-    
+  
+  
   <script src="scripts/apps/browser/fuzzy.js"></script>
 </body>
 </html>

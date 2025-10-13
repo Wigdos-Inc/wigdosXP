@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigTube - Video Portal</title>
+    <base href="../../../">
+    <link rel="stylesheet" href="styles/apps/browser/wigtube.css">
+</head>
+<body>
+    <div class="wigtube-header">
+        <div class="header-left">
+            <div class="logo">
+                <img src="../../../assets/images/icons/48x/WigleTube.png" alt="WigTube">
+                WigTube Video Portal
+            </div>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" class="search-box" placeholder="Search videos...">
+            <button class="search-btn">Search</button>
+        </div>
+        
+        <div class="header-right">
+            <span style="font-size: 10px;">Welcome, Guest!</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <nav class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-header">Navigation</div>
+                <a href="#" class="sidebar-item">🏠 Home Page</a>
+                <a href="#" class="sidebar-item">🔥 What's Hot</a>
+                <a href="#" class="sidebar-item">� New Videos</a>
+                <a href="#" class="sidebar-item">⭐ Top Rated</a>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-header">Categories</div>
+                <a href="#" class="sidebar-item">🎵 Music Videos</a>
+                <a href="#" class="sidebar-item">🎮 Gaming</a>
+                <a href="#" class="sidebar-item">� Comedy</a>
+                <a href="#" class="sidebar-item">� News</a>
+                <a href="#" class="sidebar-item">🏆 Sports</a>
+                <a href="#" class="sidebar-item">🎬 Movies</a>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-header">My Account</div>
+                <a href="#" class="sidebar-item">📚 My Videos</a>
+                <a href="#" class="sidebar-item">� Favorites</a>
+                <a href="#" class="sidebar-item">📜 History</a>
+                <a href="#" class="sidebar-item">⚙️ Settings</a>
+            </div>
+        </nav>
+
+        <main class="content">
+            <div class="content-header">
+                📺 Featured Videos - Updated Daily!
+            </div>
+
+            <div class="featured-box">
+                <div class="featured-label">HOT!</div>
+                <strong>Don't miss:</strong> The latest viral videos are here! Click to watch the most popular content on WigTube!
+            </div>
+
+            <div class="video-categories">
+                <a href="#" class="category-btn active">All Videos</a>
+                <a href="#" class="category-btn">Music</a>
+                <a href="#" class="category-btn">Gaming</a>
+                <a href="#" class="category-btn">Comedy</a>
+                <a href="#" class="category-btn">Tech</a>
+                <a href="#" class="category-btn">Educational</a>
+                <a href="#" class="category-btn">Sports</a>
+            </div>
+
+            <div class="video-grid">
+                <!-- Videos will be dynamically populated by JavaScript -->
+            </div>
+
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="status-bar">
+        <span>Ready</span>
+        <div class="marquee">
+            <span class="marquee-text">🎬 blah blah blah i love twinks blah blah blah 🎮</span>
+        </div>
+    </div>
+
+    <script src="scripts/apps/browser/wigtube.js"></script>
+</body>
+</html>
