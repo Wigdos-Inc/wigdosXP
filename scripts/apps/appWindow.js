@@ -91,15 +91,15 @@ function wrapSaveData(gameId, data) {
 }
 
 function unwrapSaveData(wrapped) {
-    if (!wrapped || !wrapped.version) {
-        Logger.warn('SaveSystem', 'Save data missing version, treating as legacy format');
+    // If it's not wrapped (old data or plain object), return as-is
+    if (!wrapped || !wrapped.version || !wrapped.data) {
+        Logger.info('SaveSystem', 'Save data is not wrapped format, returning as-is');
         return wrapped;
     }
     
+    // Validate checksum
     if (!validateChecksum(wrapped.data, wrapped.checksum)) {
-        // Be forgiving for compatibility: log and return inner data when possible
-        Logger.warn('SaveSystem', 'Save data checksum validation failed, returning inner data for compatibility');
-        return wrapped.data || wrapped;
+        Logger.warn('SaveSystem', 'Save data checksum validation failed, returning inner data anyway');
     }
     
     return wrapped.data;
@@ -213,10 +213,7 @@ class AppWindow {
         this.iframe.classList.add("appContent");
         this.iframe.dataset.appIndex = this.index;
 
-        // Optional sandboxing: if the app requests sandboxing, give the iframe
-        // a restrictive sandbox that does NOT include "allow-same-origin" so
-        // the iframe gets an opaque origin and separate storage from the parent.
-        // Note: sandboxing may break features that require same-origin access.
+        // Optional sandboxing
         if (this.app && this.app.sandbox) {
             this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms');
             this.iframe.dataset.sandboxed = 'true';
@@ -869,7 +866,8 @@ async function pushSaveViaPostMessage(iframe, gameId) {
                         .then(success => {
                             Logger.info('SaveSystem', `Firebase upload ${success ? 'successful' : 'failed'} for ${gameId}`);
                             resolve(success);
-                        }) .catch((err) => {
+                        })
+                        .catch((err) => {
                             Logger.error('SaveSystem', `Firebase upload error for ${gameId}`, err);
                             resolve(false);
                         });
@@ -926,12 +924,9 @@ async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
     try {
         const wrappedData = wrapSaveData(gameId, allLocalStorageData);
 
-        // Write both legacy and v2 formats for backward compatibility.
-        // Legacy key: gameId (stringified raw localStorage object)
-        // v2 key: `${gameId}_v2` (stringified wrapped object)
+        // Save only the wrapped format (no legacy system)
         const docPatch = {
-            [gameId]: JSON.stringify(allLocalStorageData),
-            [`${gameId}_v2`]: JSON.stringify(wrappedData)
+            [gameId]: JSON.stringify(wrappedData)
         };
 
         await api.setDoc(
@@ -1016,37 +1011,33 @@ async function loadFirestoreToIframe(gameId, iframe) {
         Logger.debug('SaveSystem', `Fetching save data from Firebase for ${gameId}`);
         const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
         
-        const docData = userDoc.exists() ? userDoc.data() : {};
-        // Prefer v2 formatted saves if present
+        if (!userDoc.exists()) {
+            Logger.info('SaveSystem', `No save document found for ${gameId}`);
+            return false;
+        }
+
+        const docData = userDoc.data();
+        
+        if (!docData[gameId]) {
+            Logger.info('SaveSystem', `No save data found for ${gameId}`);
+            return false;
+        }
+
         let allLocalStorageData = null;
-        if (docData[`${gameId}_v2`]) {
-            try {
-                const raw = JSON.parse(docData[`${gameId}_v2`]);
-                allLocalStorageData = unwrapSaveData(raw);
-            } catch (e) {
-                Logger.warn('SaveSystem', 'Failed to parse/unwrap v2 save, falling back to legacy', e);
-                allLocalStorageData = null;
-            }
-        }
-
-        // Fallback to legacy key if v2 not present or failed
-        if (!allLocalStorageData && docData[gameId]) {
-            try {
-                allLocalStorageData = JSON.parse(docData[gameId]);
-            } catch (e) {
-                Logger.warn('SaveSystem', 'Failed to parse legacy save data', e);
-                allLocalStorageData = null;
-            }
-        }
-
-        if (allLocalStorageData) {
+        
+        try {
+            const raw = JSON.parse(docData[gameId]);
+            allLocalStorageData = unwrapSaveData(raw);
             Logger.info('SaveSystem', `Save data found for ${gameId}`, {
                 keys: Object.keys(allLocalStorageData).length
             });
+        } catch (e) {
+            Logger.error('SaveSystem', 'Failed to parse save data', e);
+            return false;
+        }
 
-            // Always ask the iframe to restore its own localStorage via postMessage.
-            // This avoids accidentally writing to the parent's localStorage when
-            // same-origin checks are unreliable or edge-cases occur.
+        if (allLocalStorageData && Object.keys(allLocalStorageData).length > 0) {
+            // Always use postMessage to restore save data
             try {
                 return await loadSaveViaPostMessage(iframe, gameId, allLocalStorageData);
             } catch (err) {
@@ -1054,7 +1045,7 @@ async function loadFirestoreToIframe(gameId, iframe) {
                 return false;
             }
         } else {
-            Logger.info('SaveSystem', `No save data found for ${gameId}`);
+            Logger.info('SaveSystem', `No save data to load for ${gameId}`);
         }
     } catch (err) {
         Logger.error('SaveSystem', `Load error for ${gameId}`, err);
@@ -1178,28 +1169,23 @@ async function handleInitialSaveDataRequest(event) {
         const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
 
         let allLocalStorageData = {};
-        const docData = userDoc.exists() ? userDoc.data() : {};
-
-        // Try v2 first
-        if (docData[`${gameId}_v2`]) {
-            try {
-                const raw = JSON.parse(docData[`${gameId}_v2`]);
-                allLocalStorageData = unwrapSaveData(raw);
-                Logger.info('SaveSystem', `Found v2 save data for ${gameId}`, { keys: Object.keys(allLocalStorageData).length });
-            } catch (e) {
-                Logger.warn('SaveSystem', 'Failed to parse/unwrap v2 save data, falling back to legacy', e);
-                allLocalStorageData = {};
-            }
-        }
-
-        // Fallback to legacy
-        if ((!allLocalStorageData || Object.keys(allLocalStorageData).length === 0) && docData[gameId]) {
-            try {
-                allLocalStorageData = JSON.parse(docData[gameId]);
-                Logger.info('SaveSystem', `Found legacy save data for ${gameId}`, { keys: Object.keys(allLocalStorageData).length });
-            } catch (e) {
-                Logger.warn('SaveSystem', 'Failed to parse legacy save data', e);
-                allLocalStorageData = {};
+        
+        if (userDoc.exists()) {
+            const docData = userDoc.data();
+            
+            if (docData[gameId]) {
+                try {
+                    const raw = JSON.parse(docData[gameId]);
+                    allLocalStorageData = unwrapSaveData(raw);
+                    Logger.info('SaveSystem', `Found save data for ${gameId}`, { 
+                        keys: Object.keys(allLocalStorageData).length 
+                    });
+                } catch (e) {
+                    Logger.warn('SaveSystem', 'Failed to parse save data', e);
+                    allLocalStorageData = {};
+                }
+            } else {
+                Logger.info('SaveSystem', `No save data found for ${gameId}`);
             }
         }
 
@@ -1221,4 +1207,3 @@ async function handleInitialSaveDataRequest(event) {
         }, event.origin);
     }
 }
-
