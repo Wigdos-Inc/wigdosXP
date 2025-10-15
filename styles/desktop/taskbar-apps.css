@@ -1,0 +1,188 @@
+/* Taskbar App Buttons Styling - Windows XP Style with Multi-Row Support */
+
+.taskbar-app-buttons-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex: 1;
+  margin-left: 10px;
+  overflow: hidden;
+}
+
+.taskbar-app-buttons {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 2px;
+  flex: 1;
+  padding-left: 0;
+}
+
+/* Arrow Container - appears on right side when needed */
+.taskbar-arrows-container {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  margin-left: 8px;
+  margin-right: 128px;
+}
+
+/* Scroll Arrows - stacked vertically */
+.taskbar-scroll-arrow {
+  width: 16px;
+  height: 20px;
+  background: linear-gradient(to bottom, #3c8ddc, #2571d6);
+  border: 1px solid #133b80;
+  color: white;
+  text-align: center;
+  line-height: 18px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 8px;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.taskbar-scroll-arrow:hover {
+  background: linear-gradient(to bottom, #4c9dec, #3581e6);
+}
+
+.taskbar-scroll-arrow:active {
+  background: linear-gradient(to bottom, #2571d6, #1a5fc9);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.taskbar-scroll-arrow.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Quick Launch Icons (left side - icon only) */
+.quick-launch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 1px solid #1147a1;
+  margin-right: 6px;
+  height: 100%;
+}
+
+.quick-launch-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.quick-launch-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.quick-launch-btn:active {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.quick-launch-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+/* Active Window Buttons (horizontal layout) */
+.taskbar-app-btn {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to bottom, #3c8ddc, #2571d6);
+  border: 1.5px solid #133b80;
+  border-radius: 2px 2px 2px 2px;
+  padding: 4px 18px 4px 10px;
+  height: 40px;
+  min-width: 160px;
+  max-width: 200px;
+  cursor: pointer;
+  transition: all 0.1s;
+  box-shadow: 
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  flex-shrink: 0;
+}
+
+.taskbar-app-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.taskbar-app-btn:active {
+  background: linear-gradient(to bottom, #2571d6, #1a5fc9);
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Focused/Active window state */
+
+.taskbar-app-btn.focused {
+  background: linear-gradient(to top, #1C59D1, #1C59D1, #2763DC, #2763DC, #5186D5);
+  border: 1.5px solid #1147a1;
+  box-shadow: 0 2px 8px rgba(44, 90, 209, 0.18);
+}
+
+.taskbar-app-btn.focused:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.taskbar-app-btn.focused .taskbar-app-btn-name {
+  font-weight: 700;
+}
+
+.taskbar-app-btn-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.taskbar-app-btn-name {
+  font-family: Tahoma, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+  line-height: 1.2;
+  flex: 1;
+}
+
+.taskbar-app-btn.focused .taskbar-app-btn-name {
+  color: white;
+  text-shadow: none;
+}
+
+/* Flashing state for notifications */
+.taskbar-app-btn.flashing {
+  animation: xp-flash 0.6s ease-in-out infinite;
+}
+
+@keyframes xp-flash {
+  0%, 100% {
+    background: linear-gradient(to bottom, #3c8ddc, #2571d6);
+  }
+  50% {
+    background: linear-gradient(to bottom, #ff8800, #ff6600);
+  }
+}

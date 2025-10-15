@@ -32,6 +32,13 @@ const windowManager = (function(){
             if (w === appWindow) w.element.classList.add('focused');
             else w.element.classList.remove('focused');
         });
+        
+        // Update taskbar button focus states
+        try {
+            if (window.taskbarFunctions) {
+                window.taskbarFunctions.updateButtons();
+            }
+        } catch (e) {}
     }
 
     function getWindows() { return windows.slice(); }

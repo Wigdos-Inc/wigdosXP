@@ -1,3 +1,4 @@
+@import url('taskbar-apps.css');
 footer {
     display: flex;
     height: 5vh;
@@ -64,10 +65,9 @@ footer div {
 
 #qa_iconBox {
     width: 120px;
-
+    padding: 0 15px;
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 20px;
 }
 

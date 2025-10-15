@@ -3,64 +3,213 @@
 const taskbar = document.getElementsByTagName("footer")[0];
 const desktop = document.getElementsByTagName("main")[0];
 
+// --- Taskbar App Buttons Container ---
+let appButtonsWrapper = document.createElement('div');
+appButtonsWrapper.id = 'taskbar-app-buttons-wrapper';
+appButtonsWrapper.classList.add('taskbar-app-buttons-wrapper');
+
+let appButtonsContainer = document.createElement('div');
+appButtonsContainer.id = 'taskbar-app-buttons';
+appButtonsContainer.classList.add('taskbar-app-buttons');
+appButtonsWrapper.appendChild(appButtonsContainer);
+
+// Add scroll arrows container (right side)
+const arrowsContainer = document.createElement('div');
+arrowsContainer.id = 'taskbar-arrows-container';
+arrowsContainer.classList.add('taskbar-arrows-container');
+arrowsContainer.style.display = 'none'; // Hidden by default
+
+const upArrow = document.createElement('div');
+upArrow.id = 'taskbar-scroll-up';
+upArrow.classList.add('taskbar-scroll-arrow');
+upArrow.innerHTML = '▲';
+upArrow.onclick = () => scrollTaskbarRow(-1);
+
+const downArrow = document.createElement('div');
+downArrow.id = 'taskbar-scroll-down';
+downArrow.classList.add('taskbar-scroll-arrow');
+downArrow.innerHTML = '▼';
+downArrow.onclick = () => scrollTaskbarRow(1);
+
+arrowsContainer.appendChild(upArrow);
+arrowsContainer.appendChild(downArrow);
+
+// Insert wrapper and arrows before the clock
+const clockBtn = document.getElementById("ts_btn");
+if (clockBtn && clockBtn.parentNode === taskbar) {
+    taskbar.insertBefore(appButtonsWrapper, clockBtn);
+    taskbar.insertBefore(arrowsContainer, clockBtn);
+} else {
+    taskbar.appendChild(appButtonsWrapper);
+    taskbar.appendChild(arrowsContainer);
+}
+
+// Track current visible row
+let currentRow = 0;
+let totalRows = 1;
+
+// Calculate how many buttons fit per row and organize into rows
+function organizeTaskbarRows() {
+    const buttons = Array.from(appButtonsContainer.children);
+    if (buttons.length === 0) {
+        arrowsContainer.style.display = 'none';
+        return;
+    }
+
+    // Get available width (wrapper width minus padding)
+    const wrapperWidth = appButtonsWrapper.offsetWidth - 20; // Account for padding
+    
+    // Estimate button width (adjust based on your styling)
+    const buttonWidth = 180; // Approximate width including margin/gap
+    const buttonsPerRow = Math.max(1, Math.floor(wrapperWidth / buttonWidth));
+    
+    totalRows = Math.ceil(buttons.length / buttonsPerRow);
+    
+    // Show/hide arrows based on row count
+    if (totalRows > 1) {
+        arrowsContainer.style.display = 'flex';
+    } else {
+        arrowsContainer.style.display = 'none';
+        currentRow = 0;
+    }
+    
+    // Ensure current row is valid
+    if (currentRow >= totalRows) {
+        currentRow = totalRows - 1;
+    }
+    
+    // Show/hide buttons based on current row
+    buttons.forEach((btn, index) => {
+        const btnRow = Math.floor(index / buttonsPerRow);
+        if (btnRow === currentRow) {
+            btn.style.display = 'flex';
+        } else {
+            btn.style.display = 'none';
+        }
+    });
+    
+    // Update arrow states
+    updateArrowStates();
+}
+
+// Navigate between rows
+function scrollTaskbarRow(direction) {
+    const newRow = currentRow + direction;
+    
+    // Bounds check
+    if (newRow < 0 || newRow >= totalRows) {
+        return; // Can't go beyond first or last row
+    }
+    
+    currentRow = newRow;
+    organizeTaskbarRows();
+}
+
+// Update arrow button states (disabled appearance when at limits)
+function updateArrowStates() {
+    if (currentRow === 0) {
+        upArrow.classList.add('disabled');
+    } else {
+        upArrow.classList.remove('disabled');
+    }
+    
+    if (currentRow === totalRows - 1) {
+        downArrow.classList.add('disabled');
+    } else {
+        downArrow.classList.remove('disabled');
+    }
+}
+
+// Helper to create an app button in the taskbar
+function createAppTaskbarButton(appWindow) {
+    const btn = document.createElement('div');
+    btn.classList.add('taskbar-app-btn');
+    btn.dataset.appIndex = appWindow.index;
+
+    // App icon
+    const icon = document.createElement('img');
+    icon.src = appWindow.app.icon.s;
+    icon.classList.add('taskbar-app-btn-icon');
+    btn.appendChild(icon);
+
+    // App name
+    const name = document.createElement('span');
+    name.innerText = appWindow.app.name.l;
+    name.classList.add('taskbar-app-btn-name');
+    btn.appendChild(name);
+
+    // Focus/restore on click
+    btn.onclick = () => {
+        if (window.windowManager && window.windowManager.bringToFront) {
+            window.windowManager.bringToFront(appWindow);
+        }
+        if (appWindow.minimized && appWindow.restore) {
+            appWindow.restore();
+        }
+    };
+
+    if (appWindow.focus) {
+        btn.classList.add('focused');
+    }
+
+    appButtonsContainer.appendChild(btn);
+    appWindow._taskbarBtn = btn;
+
+    // Reorganize rows after adding button
+    setTimeout(() => organizeTaskbarRows(), 50);
+}
+
+// Remove app button from taskbar
+function removeAppTaskbarButton(appWindow) {
+    if (appWindow._taskbarBtn && appWindow._taskbarBtn.parentNode) {
+        appWindow._taskbarBtn.parentNode.removeChild(appWindow._taskbarBtn);
+        appWindow._taskbarBtn = null;
+    }
+
+    // Reorganize rows after removing button
+    setTimeout(() => organizeTaskbarRows(), 50);
+}
+
+// Update all app buttons (e.g. on focus change)
+function updateAppTaskbarButtons() {
+    if (!window.windows || !window.windows.object) return;
+    window.windows.object.forEach(appWin => {
+        if (appWin && appWin._taskbarBtn) {
+            if (appWin.focus) {
+                appWin._taskbarBtn.classList.add('focused');
+            } else {
+                appWin._taskbarBtn.classList.remove('focused');
+            }
+        }
+    });
+}
+
+// Recalculate on window resize
+window.addEventListener('resize', () => {
+    organizeTaskbarRows();
+});
+
+// Make functions globally accessible so AppWindow can call them
+window.taskbarFunctions = {
+    createButton: createAppTaskbarButton,
+    removeButton: removeAppTaskbarButton,
+    updateButtons: updateAppTaskbarButtons
+};
+
+console.log('[Taskbar] Functions ready and exported globally');
+
 
 /* HTML Setup */
 
 // Store Start Menu Button
 const smBtnBox = document.getElementById("sm_btn");
 
+
 // Quick Access Icon Functionality
 document.getElementById("qa_icon1").onclick = () => startApp(applications.notes);
 document.getElementById("qa_icon2").onclick = () => startApp(applications.files);
 
 const tsBtn = document.getElementById("ts_btn");
-
-// Add a small restore button to quick access
-const restoreBtn = document.createElement('div');
-restoreBtn.id = 'restore_btn';
-restoreBtn.classList.add('qa_icon');
-restoreBtn.title = 'Restore previous session windows';
-document.getElementById('qa_iconBox').appendChild(restoreBtn);
-
-restoreBtn.addEventListener('click', (e) => {
-    // If no sessions API, nothing to show
-    if (!window.windowSessions) return;
-
-    const sessions = window.windowSessions.getSessions();
-    // Create a simple menu
-    const menu = document.createElement('div');
-    menu.classList.add('restoreMenu');
-    menu.style.position = 'absolute';
-    menu.style.bottom = '48px';
-    menu.style.left = '8px';
-    menu.style.padding = '8px';
-    menu.style.background = '#f2f2f2';
-    menu.style.border = '1px solid #ccc';
-
-    if (!sessions || sessions.length === 0) {
-        const item = menu.appendChild(document.createElement('div'));
-        item.innerText = 'No saved windows';
-    } else {
-        sessions.forEach(s => {
-            const item = menu.appendChild(document.createElement('div'));
-            item.classList.add('restoreItem');
-            item.innerText = `${s.appId} (${s.w || '?'}x${s.h || '?'})`;
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', () => {
-                // Simple re-open: look up app by id and startApp
-                if (applications && applications[s.appId]) startApp(applications[s.appId], s);
-                menu.remove();
-            });
-        });
-    }
-
-    document.getElementsByTagName('main')[0].appendChild(menu);
-
-    // Dismiss when clicking elsewhere
-    const onDoc = (ev) => { if (!menu.contains(ev.target) && ev.target !== restoreBtn) { menu.remove(); document.removeEventListener('mousedown', onDoc); } };
-    document.addEventListener('mousedown', onDoc);
-});
-
 
 
 /* Time Stuff */
