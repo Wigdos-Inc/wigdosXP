@@ -433,3 +433,27 @@ document.addEventListener("mouseup", () => {
 
 // Detach Box from User
 document.addEventListener("mouseup", () => userBox = undefined);
+
+
+// Auto-restore saved windows on startup if the user opted-in
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const enabled = localStorage.getItem('wigdos_restore_on_start') === 'true';
+        if (!enabled) return;
+        if (!window.windowSessions || !window.windowSessions.getSessions) return;
+
+        const sessions = window.windowSessions.getSessions();
+        if (!sessions || !sessions.length) return;
+
+        // Delay a tick so the app environment is ready (applications should be defined)
+        setTimeout(() => {
+            sessions.forEach(s => {
+                try {
+                    if (applications && applications[s.appId]) {
+                        startApp(applications[s.appId], s);
+                    }
+                } catch (e) { /* noop */ }
+            });
+        }, 50);
+    } catch (e) { /* noop */ }
+});

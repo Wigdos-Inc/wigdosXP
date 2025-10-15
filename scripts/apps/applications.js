@@ -208,11 +208,24 @@ const applications = {
 
 
 /* SU Data Tracking */
-window.addEventListener("message", (event) => {
+function handleSuMessage(event) {
+    // Basic validation
+    if (!event || !event.data || typeof event.data.type !== 'string') return;
 
-    if (event.data.type == "taskUpdate") windows.object.forEach(window => {
+    // Only handle taskUpdate messages here
+    if (event.data.type !== 'taskUpdate') return;
 
-        if (!window) return;
-        else if (window.app.name.s == "su") window.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, "*");
+    // Iterate windows and forward message to any SU app iframe that exists
+    windows.object.forEach(appWin => {
+        if (!appWin) return;
+        if (appWin.app && appWin.app.name && appWin.app.name.s === 'su' && appWin.iframe && appWin.iframe.contentWindow) {
+            try {
+                appWin.iframe.contentWindow.postMessage({ type: event.data.type, taskData: event.data.taskData }, '*');
+            } catch (err) {
+                console.warn('Failed to postMessage to SU iframe', err);
+            }
+        }
     });
-});
+}
+
+window.addEventListener('message', handleSuMessage);
