@@ -326,20 +326,6 @@ smBtnBox.addEventListener("click", (event) => {
         smFooter.appendChild(document.createElement("div"));
         const smFooterRight = smFooter.appendChild(document.createElement("div")); smFooterRight.id = "smFooterRight";
 
-        // Auto-restore toggle
-        const restoreToggleBox = smFooterRight.appendChild(document.createElement('div'));
-        restoreToggleBox.classList.add('powerOptionBox');
-        const restoreToggle = restoreToggleBox.appendChild(document.createElement('input'));
-        restoreToggle.type = 'checkbox';
-        restoreToggle.id = 'restoreOnStartToggle';
-        const restoreLabel = restoreToggleBox.appendChild(document.createElement('p'));
-        restoreLabel.innerText = 'Restore on startup';
-        // Initialize from localStorage
-        restoreToggle.checked = localStorage.getItem('wigdos_restore_on_start') === 'true';
-        restoreToggle.addEventListener('change', (e) => {
-            localStorage.setItem('wigdos_restore_on_start', e.target.checked ? 'true' : 'false');
-        });
-
         const restartBox = smFooterRight.appendChild(document.createElement("div")); restartBox.classList.add("powerOptionBox");
         const restartBtn = restartBox.appendChild(document.createElement("img")); restartBtn.id = "restartBtn";
         restartBtn.src = "assets/images/icons/32x/restart.png";
