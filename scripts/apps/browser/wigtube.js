@@ -8,31 +8,20 @@ const videoData = [
         author: 'WigCraft',
         uploadDate: '3 days ago',
         duration: '10:24',
-        views: '45,283 views',
+        views: '2 views',
         rating: '★★★★☆',
         thumbnail: 'assets/images/thumbnail/steve.png',
         category: 'gaming'
     },
     {
-        id: 'persona-5-best-moments',
-        title: 'Persona 5 Best Moments',
-        author: 'WigGaming',
-        uploadDate: '1 week ago',
-        duration: '5:42',
-        views: '23,891 views',
+        id: 'yo Darren',
+        title: 'Yo Darren',
+        author: 'Codemittens',
+        uploadDate: '05-11-2025',
+        duration: '01:41',
+        views: '1042 personas',
         rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/eggman.png',
-        category: 'gaming'
-    },
-    {
-        id: 'deltarune-chapter-3-theories',
-        title: 'DELTARUNE Chapter 3 Theories',
-        author: 'WigTheory',
-        uploadDate: '2 days ago',
-        duration: '15:33',
-        views: '67,542 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/deltarrune.png',
+        thumbnail: 'assets/images/thumbnail/yodarren.png',
         category: 'gaming'
     },
     {
@@ -69,26 +58,112 @@ const videoData = [
         category: 'gaming'
     },
     {
-        id: 'roaring-twenties-documentary',
-        title: 'The Roaring Twenties Documentary',
-        author: 'WigHistory',
-        uploadDate: '6 days ago',
-        duration: '45:12',
-        views: '15,789 views',
+        id: 'fredrick-fazbear-touches-youtubers-dingalings',
+        title: 'Fredrick Fazbear Touches Youtubers Dingalings',
+        author: 'fredbear',
+        uploadDate: '1987 days ago',
+        duration: '04:37',
+        views: '4 views',
         rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/roaring.png',
-        category: 'educational'
+        thumbnail: 'assets/images/thumbnail/dingaling.png',
+        category: 'gaming'
     },
     {
-        id: 'mystery-review-episode-1',
-        title: 'Mystery Review Episode 1',
-        author: 'MrWigReviews',
-        uploadDate: '2 weeks ago',
-        duration: '12:34',
-        views: '98,234 views',
+        id: 'fnaf-squid-games-real',
+        title: 'Fnaf squid games real',
+        author: 'MrPenis',
+        uploadDate: '2 centuries ago',
+        duration: '00:56',
+        views: '1B views',
         rating: '★★★★☆',
         thumbnail: 'assets/images/thumbnail/mr.png',
         category: 'comedy'
+    },
+    {
+        id: 'schlaubum1',
+        title: 'jschlatt — Santa Claus Is Coming To Town',
+        author: 'schlatt & Co',
+        uploadDate: '1 day ago',
+        duration: '00:15',
+        views: '420 views',
+        rating: '★★★★★',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        category: 'music'
+    },
+    {
+        id: 'schlaubum2',
+        title: 'jschlatt — The Christmas Song ',
+        author: 'schlatt & Co',
+        uploadDate: '1 day ago',
+        duration: '00:20',
+        views: '380 views',
+        rating: '★★★★★',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        category: 'music'
+    },
+    {
+        id: 'schlaubum3',
+        title: 'jschlatt — Let It Snow! Let It Snow! Let It Snow!',
+        author: 'schlatt & Co',
+        uploadDate: '1 day ago',
+        duration: '00:18',
+        views: '512 views',
+        rating: '★★★★★',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        category: 'music'
+    },
+    {
+        id: 'schlaubum4',
+        title: 'jschlatt — Baby It\'s Cold Outside',
+        author: 'schlatt & Co',
+        uploadDate: '1 day ago',
+        duration: '00:25',
+        views: '445 views',
+        rating: '★★★★★',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        category: 'music'
+    },
+    {
+        id: 'schlaubum5',
+        title: 'jschlatt — Happy Holiday',
+        author: 'schlatt & Co',
+        uploadDate: '1 day ago',
+        duration: '00:30',
+        views: '390 views',
+        rating: '★★★★★',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        category: 'music'
+    }
+];
+ 
+// Album/Playlist data - Premade collections
+const albumData = [
+    {
+        id: 'schlaubum',
+        title: 'The Schlaubum - Christmas Songs',
+        description: 'Christmas songs from a totally good guy',
+        thumbnail: 'assets/images/thumbnail/schlatt.png',
+        trackCount: 5,
+        totalDuration: '1:48',
+        creator: 'schlatt & Co'
+    },
+    {
+        id: 'gaming-highlights',
+        title: 'Epic Gaming Moments',
+        description: 'The best gaming content on WigTube',
+        thumbnail: 'assets/images/thumbnail/steve.png',
+        trackCount: 3,
+        totalDuration: '40:22',
+        creator: 'WigTube'
+    },
+    {
+        id: 'fnaf-collection',
+        title: 'Five Nights Collection',
+        description: 'All FNAF content in one place',
+        thumbnail: 'assets/images/thumbnail/dingaling.png',
+        trackCount: 2,
+        totalDuration: '5:33',
+        creator: 'Horror Fans'
     }
 ];
 
@@ -164,13 +239,19 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const itemText = this.textContent.trim();
-            updateStatus(`Navigation: ${itemText} - Feature coming soon`);
             
-            // Add visual feedback
-            this.style.background = '#d0d8ff';
-            setTimeout(() => {
-                this.style.background = 'white';
-            }, 200);
+            // Special handling for Albums link
+            if (this.id === 'albumsLink' || itemText.includes('Albums')) {
+                showAlbumsView();
+            } else {
+                updateStatus(`Navigation: ${itemText} - Feature coming soon`);
+                
+                // Add visual feedback
+                this.style.background = '#d0d8ff';
+                setTimeout(() => {
+                    this.style.background = 'white';
+                }, 200);
+            }
         });
     });
 
@@ -377,3 +458,126 @@ setTimeout(() => {
         marqueeText.textContent = '🎉 Welcome to WigTube! All content loaded successfully. Enjoy browsing our video collection! 🎬';
     }
 }, 4000);
+
+// ============================================
+// Album/Playlist Functions
+// ============================================
+
+/**
+ * Show albums view in 2003 YouTube style
+ */
+function showAlbumsView() {
+    const videoGrid = document.querySelector('.video-grid');
+    const contentHeader = document.querySelector('.content-header');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Update header
+    contentHeader.innerHTML = '📀 Albums & Playlists - Click to play';
+    
+    // Hide category buttons
+    const categoryButtons = document.querySelector('.video-categories');
+    if (categoryButtons) {
+        categoryButtons.style.display = 'none';
+    }
+    
+    // Clear video grid and show albums
+    videoGrid.innerHTML = '';
+    
+    // Add back button
+    const backButton = document.createElement('div');
+    backButton.style.cssText = `
+        margin-bottom: 15px;
+        padding: 8px 12px;
+        background: white;
+        border: 2px outset #ddd;
+        display: inline-block;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+    `;
+    backButton.innerHTML = '⬅ Back to Videos';
+    backButton.onclick = () => {
+        if (categoryButtons) categoryButtons.style.display = 'flex';
+        renderVideos(videoData);
+        contentHeader.innerHTML = '📺 Featured Videos - Updated Daily!';
+        updateStatus('Returned to video view');
+    };
+    
+    videoGrid.appendChild(backButton);
+    
+    // Create albums grid
+    albumData.forEach(album => {
+        const albumCard = createAlbumCard(album);
+        videoGrid.appendChild(albumCard);
+    });
+    
+    updateStatus(`Showing ${albumData.length} album(s)`);
+    showLoadingProgress();
+}
+
+/**
+ * Create album card in 2003 YouTube style
+ */
+function createAlbumCard(album) {
+    const card = document.createElement('div');
+    card.className = 'video-card album-card';
+    card.style.cursor = 'pointer';
+    
+    card.innerHTML = `
+        <div class="video-thumbnail" style="position: relative;">
+            <img src="${album.thumbnail}" alt="${album.title}" 
+                 onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #c0c0c0 25%, transparent 25%)'; this.parentElement.style.backgroundSize='20px 20px';">
+            <div style="
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 3px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                border: 1px solid white;
+            ">
+                📀 ALBUM
+            </div>
+            <div class="video-duration" style="background: rgba(204,0,0,0.9);">
+                ${album.trackCount} tracks
+            </div>
+        </div>
+        <div class="video-info">
+            <h3 style="color: #c00;">🎵 ${album.title}</h3>
+            <div class="video-meta">
+                by ${album.creator}<br>
+                Total: ${album.totalDuration}
+            </div>
+            <div class="video-stats">
+                <span style="font-size: 10px; color: #666;">
+                    ${album.description}
+                </span>
+            </div>
+            <div style="margin-top: 8px; padding: 5px; background: #ffffcc; border: 1px solid #cc9; font-size: 10px; text-align: center;">
+                <strong>▶ Click to play all tracks in order</strong>
+            </div>
+        </div>
+    `;
+    
+    // Add click handler
+    card.addEventListener('click', function() {
+        updateStatus(`Loading album: ${album.title}`);
+        window.location.href = `apps/browser/pages/wigtube-player.html?album=${album.id}`;
+    });
+    
+    // Hover effect
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.02)';
+        this.style.boxShadow = '4px 4px 0px #999';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+        this.style.boxShadow = '2px 2px 0px #999';
+    });
+    
+    return card;
+}
