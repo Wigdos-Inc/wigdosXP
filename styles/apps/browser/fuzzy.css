@@ -4,42 +4,41 @@
     box-sizing: border-box;
 }
 
-
-body { 
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
+html {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
 }
 
+body { 
+    background: #c0c0c0;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    height: 100%;
 
+    display: flex;
+    flex-direction: column;
+}
 
 main, footer {
     opacity: 0;
 }
 
-
-
 main {
     height: 95vh;
     width: 100vw;
-
     position: relative;
-
     display: grid;
     grid-template-columns: repeat(9, 1fr);
-    grid-template-rows: repeat(5, minmax(0, 1fr)); /* Ensures uniform row height */
-
+    grid-template-rows: repeat(5, minmax(0, 1fr));
     padding: 5px;
-
-    color: whitesmoke;
-    text-shadow: 
-        0 0 2px black,
-        0 0 2px black,
-        1px 1.5px 2px rgba(0, 0, 0, 0.5);
-
+    color: #000000;
     cursor: url("../../assets/cursor/cursor.cur");
 }
-
+#topBar { 
+    flex-direction: column;
+    height: auto;
+}
 
 .filled:hover, 
 .filled:active, 
@@ -50,65 +49,375 @@ main {
 }
 
 .search-container {
-      background-color: #d4d0c8;
-      border: 2px solid #f0e3e3;
-      box-shadow: inset 1px 1px white, inset -1px -1px #404040;
-      width: 100%;
-      padding: 4px;
-      display: flex;
-      align-items: center;
-    }
+    background-color: #d4d0c8;
+    border: 2px outset #d4d0c8;
+    width: 100%;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
 
 .search-container input {
     width: 100%;
+    border: 2px inset #d4d0c8;
+    padding: 2px 4px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+}
+
+.search-button {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 1px outset #d4d0c8;
+    padding: 2px 8px;
+    margin-left: 2px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.search-button:active {
+    border: 1px inset #d4d0c8;
 }
 
 #appMain {
-background-color: whitesmoke;
-text-align: center;
+    background-color: #c0c0c0;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
 }
 
+.page-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+}
 
-.logobar {
-    max-width: 100%;
+.page-content.active {
+    display: block;
+}
+
+#wiggle-search {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #c0c0c0;
+}
+
+#wigtube {
+    background-color: #ffffff;
+}
+
+.new-tab-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    background: linear-gradient(to bottom, #c0c0c0 0%, #989898 100%);
+    color: white;
+}
+
+.new-tab-page h1 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: white;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-weight: bold;
+}
+
+.new-tab-page p {
+    font-size: 11px;
+    color: white;
+    margin-bottom: 32px;
+    font-family: 'MS Sans Serif', sans-serif;
+}
+
+.quick-links {
+    display: flex;
+    gap: 16px;
+}
+
+.quick-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    border: 2px outset #d4d0c8;
+    background: #d4d0c8;
+    cursor: pointer;
+    min-width: 80px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 10px;
+    color: black;
+}
+
+.quick-link:hover {
+    background: #e0e0e0;
+}
+
+.quick-link:active {
+    border: 2px inset #d4d0c8;
+}
+
+.quick-link img {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 4px;
+}
+
+.google-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 600px;
+    width: 100%;
+    margin-top: -100px;
+}
+
+.logo {
+    width: 92px;
     height: auto;
-    margin-top: 135px;
+    margin-bottom: 30px;
+}
+
+.search-section {
+    width: 100%;
+    max-width: 584px;
+}
+
+.search-box-container {
+    width: 100%;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.main-search-input {
+    width: 100%;
+    height: 24px;
+    border: 2px inset #d4d0c8;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: 'MS Sans Serif', sans-serif;
+    background: white;
+    color: black;
+}
+
+.main-search-input:focus {
+    outline: none;
+}
+
+.search-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.search-btn {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 2px outset #d4d0c8;
+    color: black;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    font-weight: bold;
+    margin: 0;
+    padding: 4px 16px;
+    height: 23px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.search-btn:hover {
+    background: linear-gradient(to bottom, #f2efea 0%, #ddd9d4 100%);
+}
+
+.search-btn:active {
+    border: 2px inset #d4d0c8;
+    background: linear-gradient(to bottom, #d6d3ce 0%, #ece9d8 100%);
 }
 
 #content {
-      display: none;
-      position: relative;
-      z-index: 2;
-      text-align: center;
-      padding-top: 100px;
-    }
+    display: none;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding-top: 50px;
+    background: #c0c0c0;
+    border: 2px inset #d4d0c8;
+    margin: 20px;
+    padding: 20px;
+    font-family: 'MS Sans Serif', sans-serif;
+}
 
+#content h2 {
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: black;
+}
 
-    #gif {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 150px;
-      display: none;
-      z-index: 3;
-    }
+#content input {
+    border: 2px inset #d4d0c8;
+    padding: 2px 4px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    margin-right: 5px;
+}
 
-    input, button {
-      padding: 10px;
-      font-size: 16px;
-    }
+#content button {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 2px outset #d4d0c8;
+    padding: 2px 8px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+}
 
-    #bgVideo {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      z-index: 1;
-      display: none;
-    }
+#content button:active {
+    border: 2px inset #d4d0c8;
+}
 
-    body.default-bg {
-      background: whitesmoke;
-    }
+#gif {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 150px;
+    display: none;
+    z-index: 3;
+    border: 2px outset #d4d0c8;
+}
+
+#bgVideo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 1;
+    display: none;
+}
+
+body.default-bg {
+    background: #c0c0c0;
+}
+
+/* --- Windows XP Style Tab Strip --- */
+.tabstrip {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border-bottom: 1px solid #7a7a7a;
+    padding: 2px 4px 0 4px;
+    position: relative;
+    z-index: 5;
+}
+
+.tabs-scroll {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 1px;
+    flex: 1 1 auto;
+    scrollbar-width: thin;
+}
+
+.tabstrip .tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    height: 22px;
+    min-width: 100px;
+    max-width: 200px;
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 1px solid #7a7a7a;
+    border-bottom: none;
+    color: black;
+    text-shadow: none;
+    cursor: pointer;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+}
+
+.tabstrip .tab.active {
+    background: #ffffff;
+    border-top: 1px solid #316ac5;
+    border-left: 1px solid #316ac5;
+    border-right: 1px solid #316ac5;
+    border-bottom: 1px solid #ffffff;
+    z-index: 2;
+}
+
+.tabstrip .tab .favicon {
+    width: 16px;
+    height: 16px;
+}
+
+.tabstrip .tab .title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    max-width: 120px;
+}
+
+.tabstrip .tab .close {
+    margin-left: auto;
+    font-size: 10px;
+    color: #666;
+    font-weight: bold;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+}
+
+.tabstrip .tab:hover .close {
+    color: #000;
+    border: 1px solid #7a7a7a;
+    background: #ffcccc;
+}
+
+.tabstrip .tabs-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.tabstrip .tab-action.add {
+    width: 20px;
+    height: 20px;
+    border: 1px outset #d4d0c8;
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    color: black;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tabstrip .tab-action.add:hover {
+    background: linear-gradient(to bottom, #f2efea 0%, #ddd9d4 100%);
+}
+
+.tabstrip .tab-action.add:active {
+    border: 1px inset #d4d0c8;
+}
+
+.tabstrip .tab-action.add::before {
+    content: "+";
+}

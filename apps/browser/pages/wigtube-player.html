@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigTube Video Player</title>
+    <base href="../../../">
+    <link rel="stylesheet" href="styles/apps/browser/wigtube-player.css">
+</head>
+<body>
+    <div class="player-header">
+        <div class="header-left">
+            <div class="logo">
+                <img src="../../../assets/images/icons/48x/WigleTube.png" alt="WigTube">
+                <span>WigTube</span>
+            </div>
+        </div>
+        
+        <div class="breadcrumb">
+            <a href="/apps/browser/pages/wigtube.html" class="back-link">← Back to Videos</a>
+            <button onclick="openPlaylistManager()" style="background: white; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 11px; margin-left: 10px;">📋 My Playlists</button>
+        </div>
+        
+        <div class="header-right">
+            <span style="font-size: 10px;">Welcome </span>
+        </div>
+    </div>
+
+    <div class="player-container">
+        <div class="video-section">
+            <div class="video-player">
+                <div class="video-screen" id="videoScreen">
+                    <div class="play-button" id="playButton">
+                        <div class="play-icon">▶</div>
+                    </div>
+                    <div class="video-placeholder">
+                        <div class="buffering-indicator" id="bufferingIndicator">
+                            <div class="buffering-text">Buffering video...</div>
+                            <div class="buffering-bar">
+                                <div class="buffering-progress" id="bufferingProgress"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="player-controls">
+                    <div class="control-row">
+                        <button class="control-btn" id="playPauseBtn" disabled>Play</button>
+                        <button class="control-btn" id="stopBtn" disabled>Stop</button>
+                        <div class="volume-control">
+                            <span style="font-size: 10px;">Volume:</span>
+                            <input type="range" class="volume-slider" min="0" max="100" value="50" disabled>
+                        </div>
+                        <div class="time-display">
+                            <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+                        </div>
+                    </div>
+                    <div class="progress-row">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="video-info">
+                <h1 id="videoTitle">Loading video...</h1>
+                <div class="video-meta">
+                    <div class="upload-info">
+                        <span>Added: <span id="uploadDate">Unknown</span></span>
+                        <span>by <strong id="uploader">Unknown</strong></span>
+                    </div>
+                    <div class="video-stats">
+                        <span id="viewCount">0 views</span>
+                        <div class="rating-section">
+                            <span class="rating-stars" id="rating">☆☆☆☆☆</span>
+                            <span class="rating-text">(<span id="ratingCount">0</span> ratings)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="description-box">
+                    <div class="description-header">Description:</div>
+                    <div class="description-content" id="videoDescription">
+                        Loading description...
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="action-btn">Add to Favorites</button>
+                    <button class="action-btn">Share Video</button>
+                    <button class="action-btn">Flag as Inappropriate</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="related-videos">
+                <div class="sidebar-header">Related Videos</div>
+                <div class="related-video-list" id="relatedVideosList">
+                    <!-- Related videos will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="comments-section">
+                <div class="sidebar-header">Comments (0)</div>
+                <div class="comment-form">
+                    <textarea class="comment-input" placeholder="Add a comment..." rows="3"></textarea>
+                    <div class="comment-form-bottom">
+                        <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                        <button class="image-btn" onclick="document.getElementById('imageUpload').click()">📷 Add Image</button>
+                        <button class="comment-submit">Post Comment</button>
+                    </div>
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview">
+                        <button class="remove-image" onclick="removeImagePreview()">✕</button>
+                    </div>
+                </div>
+                
+                <div class="comments-list">
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <span id="statusText">Ready</span>
+        <div class="connection-status">
+            <span style="font-size: 9px;">Connection: Broadband (High Quality)</span>
+        </div>
+    </div>
+
+    <script src="scripts/apps/browser/wigtube-player.js"></script>
+</body>
+</html>

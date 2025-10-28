@@ -49,14 +49,16 @@ const applications = {
         ["rBrowser", "WiggleSearch"], 
         "",
         true, 
-        ["internal", "apps/browser/"]
+        ["internal", "apps/browser/"],
+        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
     ),
 
     fBrowser: new Application(
         ["fBrowser", "WigleFari"], 
         "",
         true, 
-        ["internal", "apps/browser/"]
+        ["internal", "apps/browser/"],
+        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
     ),
 
 
