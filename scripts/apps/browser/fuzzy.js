@@ -134,7 +134,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 // Page switching functionality
-let tabCounter = 2; // Start counter after the initial 2 tabs
+let tabCounter = 1; // Start counter after the initial 1 tab
 
 function switchToPage(pageId) {
   // Hide all pages
@@ -157,7 +157,7 @@ function createNewTabContent(tabId) {
     <div class="google-2003-page">
       <div class="google-2003-header">
         <div class="google-2003-topbar">
-          <div class="google-2003-logo-text">Google</div>
+          <div class="google-2003-logo-text">WigTube</div>
           <div class="google-2003-links">
             <a href="#" onclick="alert('Coming Soon!'); return false;">Advanced Search</a>
             <a href="#" onclick="alert('Coming Soon!'); return false;">Preferences</a>
@@ -167,10 +167,9 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-search-area">
           <input type="text" class="google-2003-search-input" placeholder="">
-          <button class="google-2003-search-btn">Google Search</button>
+          <button class="google-2003-search-btn">WigTube Search</button>
         </div>
         <div class="google-2003-nav">
-          <a href="#" class="google-2003-nav-link active">Web</a>
           <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Images</a>
           <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Groups</a>
           <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Directory</a>
@@ -183,29 +182,29 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">Gypsy Born Designs</a>
+            <a href="#" class="google-2003-result-title" onclick="navigateToWigTube('${tabId}'); return false;">Wigtube</a>
             <span class="google-2003-sponsored">Sponsored Link</span>
           </div>
-          <div class="google-2003-result-url">www.gypsyborn.com</div>
-          <div class="google-2003-result-desc">Handcrafted, eclectic jewelry. Original designs by Andrea Brown</div>
+          <div class="google-2003-result-url">www.wigtube.com</div>
+          <div class="google-2003-result-desc">WIGTUBEEEEEEEEEEEEEEEEEE</div>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">BRACELET - Beautiful and Unique Jewelry at RedEnvelope</a>
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">blah - blah blah blah im a placeholder</a>
             <span class="google-2003-sponsored">Sponsored Link</span>
           </div>
-          <div class="google-2003-result-url">www.RedEnvelope.com</div>
-          <div class="google-2003-result-desc">Don't miss RedEnvelope's Jewelry & Accessories Collection!</div>
+          <div class="google-2003-result-url">www.placeholder.com</div>
+          <div class="google-2003-result-desc">i love knocking out teeth</div>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="navigateToWigTube('${tabId}'); return false;">Sterling Tech Charm Bracelet - 9 LEFT!</a>
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">67 </a>
           </div>
           <div class="google-2003-result-snippet">
-            "Charmed" by technology? This fashionable, one-of-a-kind, sterling charm <b>bracelet</b> is always in perfect taste. ... Sterling Tech Charm <b>Bracelet</b> - 9 LEFT! ...
+             ...
           </div>
           <div class="google-2003-result-meta">
-            <span class="google-2003-result-url">www.computergear.com/stertechchabr.html</span>
+            <span class="google-2003-result-url">www.computergear.com/Placeholder.html</span>
             <span class="google-2003-result-size">24k</span>
             <span class="google-2003-result-date">Oct 10, 2003</span>
             <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
@@ -214,13 +213,13 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">CyberGadgets - Online Catalog Of The Coolest Gadgets In ...</a>
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">placeholder</a>
           </div>
           <div class="google-2003-result-snippet">
-            ... The B-Smart <b>Bracelet</b> has an added feature of analog/digital time display. For ages five and up. ... Fold-away carrying handle. QWERTY <b>keyboard</b>. ...
+           ...
           </div>
           <div class="google-2003-result-meta">
-            <span class="google-2003-result-url">www.cybergadgets.com/wccatalog/Home_Learning_Toys_5.html</span>
+            <span class="google-2003-result-url">www.cybergadgets.com/wccatalog/placeholder.html</span>
             <span class="google-2003-result-size">47k</span>
             <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
             <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
@@ -229,7 +228,7 @@ function createNewTabContent(tabId) {
       </div>
       <div class="google-2003-footer">
         <div class="google-2003-pagination">
-          <span class="google-2003-logo-small">Google</span>
+          <span class="google-2003-logo-small">WigTube</span>
           <div class="google-2003-pages">
             <span>Result Page:</span>
             <a href="#" onclick="alert('Coming Soon!'); return false;">Previous</a>
@@ -349,7 +348,7 @@ function loadPageInTab(tabId, pageType) {
     tab.setAttribute('aria-selected', 'true');
     
     // Switch to corresponding page
-    const predefinedPages = ['wiggle-search', 'new-tab'];
+    const predefinedPages = ['wiggle-search'];
     let pageId;
     
     if (tabIndex < predefinedPages.length) {
@@ -371,7 +370,7 @@ function loadPageInTab(tabId, pageType) {
       const tabIndex = Array.from(scroll.children).indexOf(tabEl);
       
       // Remove corresponding page content for dynamic tabs
-      if (tabIndex >= 2) { // Only for dynamically created tabs
+      if (tabIndex >= 1) { // Only for dynamically created tabs
         const pageId = `tab-${tabIndex + 1}`;
         const pageContent = document.getElementById(pageId);
         if (pageContent) {

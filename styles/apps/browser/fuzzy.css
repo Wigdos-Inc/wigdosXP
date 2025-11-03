@@ -284,36 +284,18 @@ main {
     font-size: 36px;
     font-weight: bold;
     font-family: Arial, sans-serif;
-    color: #0000cc;
-}
-
-.google-2003-logo-text::before {
-    content: "G";
-    color: #0000cc;
-}
-
-.google-2003-logo-text::after {
-    content: "oogle";
-    color: #cc0000;
-}
-
-.google-2003-logo-text {
-    background: linear-gradient(to right, #0000cc 0%, #0000cc 16.66%, #cc0000 16.66%, #cc0000 33.33%, #ffcc00 33.33%, #ffcc00 50%, #0000cc 50%, #0000cc 66.66%, #00cc00 66.66%, #00cc00 83.33%, #cc0000 83.33%, #cc0000 100%);
+    background: linear-gradient(to right, 
+        #FF0000 0%, #FF0000 20%,     /* Red for W */
+        #0000FF 20%, #0000FF 35%,    /* Blue for i */
+        #00CC00 35%, #00CC00 50%,    /* Green for g */
+        #0000CC 50%, #0000CC 70%,    /* Dark Blue for T */
+        #CC0000 70%, #CC0000 82%,    /* Dark Red for u */
+        #FFAA00 82%, #FFAA00 93%,    /* Orange for b */
+        #00AA00 93%, #00AA00 100%    /* Dark Green for e */
+    );
     -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 0;
-}
-
-.google-2003-logo-text::before {
-    content: "Google";
-    font-size: 36px;
-    background: inherit;
-    -webkit-background-clip: inherit;
-    background-clip: inherit;
-}
-
-.google-2003-logo-text::after {
-    content: "";
 }
 
 .google-2003-links {
@@ -491,15 +473,19 @@ main {
 .google-2003-logo-small {
     font-size: 24px;
     font-weight: bold;
-    background: linear-gradient(to right, #0000cc 0%, #0000cc 16.66%, #cc0000 16.66%, #cc0000 33.33%, #ffcc00 33.33%, #ffcc00 50%, #0000cc 50%, #0000cc 66.66%, #00cc00 66.66%, #00cc00 83.33%, #cc0000 83.33%, #cc0000 100%);
+    font-family: Arial, sans-serif;
+    background: linear-gradient(to right, 
+        #FF0000 0%, #FF0000 20%,     /* Red for W */
+        #0000FF 20%, #0000FF 35%,    /* Blue for i */
+        #00CC00 35%, #00CC00 50%,    /* Green for g */
+        #0000CC 50%, #0000CC 70%,    /* Dark Blue for T */
+        #CC0000 70%, #CC0000 82%,    /* Dark Red for u */
+        #FFAA00 82%, #FFAA00 93%,    /* Orange for b */
+        #00AA00 93%, #00AA00 100%    /* Dark Green for e */
+    );
     -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 0;
-}
-
-.google-2003-logo-small::before {
-    content: "Google";
-    font-size: 24px;
 }
 
 .google-2003-pages {
