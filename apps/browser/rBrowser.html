@@ -26,11 +26,6 @@
             <span class="close" aria-hidden="true">✕</span>
           </button>
           <button class="tab" role="tab" aria-selected="false">
-            <img class="favicon" src="assets/images/icons/48x/WigleTube.png" alt="" aria-hidden="true"/>
-            <span class="title">WigTube</span>
-            <span class="close" aria-hidden="true">✕</span>
-          </button>
-          <button class="tab" role="tab" aria-selected="false">
             <img class="favicon" src="assets/images/icons/32x/rBrowser.png" alt="" aria-hidden="true"/>
             <span class="title">New Tab</span>
             <span class="close" aria-hidden="true">✕</span>
@@ -40,11 +35,13 @@
           <button class="tab-action add" aria-label="New tab"></button>
         </div>
       </div>
-    <div class="search-container">
-
-    <input type="text" class="search-input" placeholder="Search...">
-    <button class="search-button">Go</button>
-     </div>
+      
+      <!-- Address bar below tabs -->
+      <div class="address-bar">
+        <label for="addressInput">Address:</label>
+        <input type="text" id="addressInput" class="address-input" placeholder="Type URL or search term...">
+        <button class="address-go-btn">Go</button>
+      </div>
     </div>
 
     <div id="appMain">
@@ -71,22 +68,89 @@
             </div>
         </div>
 
-        <div id="wigtube" class="page-content">
-            <iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: calc(100vh - 72px); border: none;"></iframe>
-        </div>
-
         <div id="new-tab" class="page-content">
-            <div class="new-tab-page">
-                <h1>New Tab</h1>
-                <p>New Tab</p>
-                <div class="quick-links">
-                    <div class="quick-link" onclick="switchToPage('wiggle-search')">
-                        <img src="../.././assets/images/icons/32x/rBrowser.png" alt="Search">
-                        <span>Wiggle Search</span>
+            <div class="google-2003-page">
+                <div class="google-2003-header">
+                    <div class="google-2003-topbar">
+                        <div class="google-2003-logo-text">Google</div>
+                        <div class="google-2003-links">
+                            <a href="#" onclick="alert('Coming Soon!'); return false;">Advanced Search</a>
+                            <a href="#" onclick="alert('Coming Soon!'); return false;">Preferences</a>
+                            <a href="#" onclick="alert('Coming Soon!'); return false;">Language Tools</a>
+                            <a href="#" onclick="alert('Coming Soon!'); return false;">Search Tips</a>
+                        </div>
                     </div>
-                    <div class="quick-link" onclick="switchToPage('wigtube')">
-                        <img src="../.././assets/images/icons/48x/WigleTube.png" alt="WigTube">
-                        <span>WigTube</span>
+                    <div class="google-2003-search-area">
+                        <input type="text" class="google-2003-search-input" placeholder="">
+                        <button class="google-2003-search-btn">Google Search</button>
+                    </div>
+                    <div class="google-2003-nav">
+                        <a href="#" class="google-2003-nav-link active">Web</a>
+                        <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Images</a>
+                        <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Groups</a>
+                        <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Directory</a>
+                        <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">News</a>
+                    </div>
+                </div>
+                <div class="google-2003-results">
+                    <div class="google-2003-results-info">
+                        Searched the web for <b>keyboard bracelet</b>
+                    </div>
+                    <div class="google-2003-result">
+                        <div class="google-2003-result-header">
+                            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">Gypsy Born Designs</a>
+                            <span class="google-2003-sponsored">Sponsored Link</span>
+                        </div>
+                        <div class="google-2003-result-url">www.gypsyborn.com</div>
+                        <div class="google-2003-result-desc">Handcrafted, eclectic jewelry. Original designs by Andrea Brown</div>
+                    </div>
+                    <div class="google-2003-result">
+                        <div class="google-2003-result-header">
+                            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">BRACELET - Beautiful and Unique Jewelry at RedEnvelope</a>
+                            <span class="google-2003-sponsored">Sponsored Link</span>
+                        </div>
+                        <div class="google-2003-result-url">www.RedEnvelope.com</div>
+                        <div class="google-2003-result-desc">Don't miss RedEnvelope's Jewelry & Accessories Collection!</div>
+                    </div>
+                    <div class="google-2003-result">
+                        <div class="google-2003-result-header">
+                            <a href="#" class="google-2003-result-title" onclick="navigateToWigTube('new-tab'); return false;">Sterling Tech Charm Bracelet - 9 LEFT!</a>
+                        </div>
+                        <div class="google-2003-result-snippet">
+                            "Charmed" by technology? This fashionable, one-of-a-kind, sterling charm <b>bracelet</b> is always in perfect taste. ... Sterling Tech Charm <b>Bracelet</b> - 9 LEFT! ...
+                        </div>
+                        <div class="google-2003-result-meta">
+                            <span class="google-2003-result-url">www.computergear.com/stertechchabr.html</span>
+                            <span class="google-2003-result-size">24k</span>
+                            <span class="google-2003-result-date">Oct 10, 2003</span>
+                            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
+                            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+                        </div>
+                    </div>
+                    <div class="google-2003-result">
+                        <div class="google-2003-result-header">
+                            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">CyberGadgets - Online Catalog Of The Coolest Gadgets In ...</a>
+                        </div>
+                        <div class="google-2003-result-snippet">
+                            ... The B-Smart <b>Bracelet</b> has an added feature of analog/digital time display. For ages five and up. ... Fold-away carrying handle. QWERTY <b>keyboard</b>. ...
+                        </div>
+                        <div class="google-2003-result-meta">
+                            <span class="google-2003-result-url">www.cybergadgets.com/wccatalog/Home_Learning_Toys_5.html</span>
+                            <span class="google-2003-result-size">47k</span>
+                            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
+                            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="google-2003-footer">
+                    <div class="google-2003-pagination">
+                        <span class="google-2003-logo-small">Google</span>
+                        <div class="google-2003-pages">
+                            <span>Result Page:</span>
+                            <a href="#" onclick="alert('Coming Soon!'); return false;">Previous</a>
+                            <span class="google-2003-page-current">1</span>
+                            <a href="#" class="google-2003-page-link" onclick="alert('Coming Soon!'); return false;">2</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -95,13 +159,7 @@
     
     <div id="bottomBar"></div>
   
-  <video id="bgVideo" muted autoplay loop></video>
-
-  
-
-  <img id="gif" src="assets/secrets/gif/tenna.gif" draggable="false" >
-  <audio id="music" src="assets/music/27. Its TV Time! (DELTARUNE Chapter 34 Soundtrack) - Toby Fox.mp3"></audio>
-  
+  <video id="bgVideo" muted autoplay loop></video> 
   
   <script src="scripts/apps/browser/fuzzy.js"></script>
 </body>

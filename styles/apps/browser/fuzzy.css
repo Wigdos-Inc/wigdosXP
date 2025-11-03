@@ -15,9 +15,9 @@ body {
     font-family: 'MS Sans Serif', sans-serif;
     font-size: 11px;
     height: 100%;
-
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 main, footer {
@@ -36,8 +36,12 @@ main {
     cursor: url("../../assets/cursor/cursor.cur");
 }
 #topBar { 
+    display: flex;
     flex-direction: column;
     height: auto;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
 }
 
 .filled:hover, 
@@ -82,7 +86,7 @@ main {
 
 #appMain {
     background-color: #c0c0c0;
-    height: 100%;
+    flex: 1;
     position: relative;
     overflow: hidden;
 }
@@ -94,10 +98,18 @@ main {
     width: 100%;
     height: 100%;
     display: none;
+    overflow: hidden;
 }
 
 .page-content.active {
     display: block;
+}
+
+.page-content iframe {
+    display: block;
+    border: none;
+    width: 100%;
+    height: 100%;
 }
 
 #wiggle-search {
@@ -168,6 +180,353 @@ main {
     width: 32px;
     height: 32px;
     margin-bottom: 4px;
+}
+
+.hyperlinks-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    max-width: 400px;
+}
+
+.fake-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0000EE;
+    text-decoration: underline;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px;
+    background: transparent;
+    border: none;
+}
+
+.fake-link:hover {
+    color: #551A8B;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.fake-link:active {
+    color: #FF0000;
+}
+
+.fake-link .link-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Address Bar Styles */
+.address-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border-bottom: 1px solid #7a7a7a;
+}
+
+.address-bar label {
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    color: black;
+}
+
+.address-input {
+    flex: 1;
+    border: 2px inset #d4d0c8;
+    padding: 2px 4px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    background: white;
+    color: black;
+    height: 20px;
+}
+
+.address-go-btn {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 2px outset #d4d0c8;
+    padding: 2px 12px;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    height: 20px;
+}
+
+.address-go-btn:active {
+    border: 2px inset #d4d0c8;
+}
+
+/* Google 2003 Style */
+.google-2003-page {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: white;
+    font-family: Arial, sans-serif;
+}
+
+.google-2003-header {
+    background: white;
+    padding: 10px;
+}
+
+.google-2003-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.google-2003-logo-text {
+    font-size: 36px;
+    font-weight: bold;
+    font-family: Arial, sans-serif;
+    color: #0000cc;
+}
+
+.google-2003-logo-text::before {
+    content: "G";
+    color: #0000cc;
+}
+
+.google-2003-logo-text::after {
+    content: "oogle";
+    color: #cc0000;
+}
+
+.google-2003-logo-text {
+    background: linear-gradient(to right, #0000cc 0%, #0000cc 16.66%, #cc0000 16.66%, #cc0000 33.33%, #ffcc00 33.33%, #ffcc00 50%, #0000cc 50%, #0000cc 66.66%, #00cc00 66.66%, #00cc00 83.33%, #cc0000 83.33%, #cc0000 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-size: 0;
+}
+
+.google-2003-logo-text::before {
+    content: "Google";
+    font-size: 36px;
+    background: inherit;
+    -webkit-background-clip: inherit;
+    background-clip: inherit;
+}
+
+.google-2003-logo-text::after {
+    content: "";
+}
+
+.google-2003-links {
+    display: flex;
+    gap: 15px;
+    font-size: 11px;
+}
+
+.google-2003-links a {
+    color: #0000cc;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.google-2003-links a:hover {
+    color: #cc0000;
+}
+
+.google-2003-search-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    justify-content: center;
+}
+
+.google-2003-search-input {
+    width: 400px;
+    height: 24px;
+    border: 1px solid #7591bd;
+    padding: 2px 4px;
+    font-size: 13px;
+}
+
+.google-2003-search-btn {
+    background: #d4d0c8;
+    border: 1px outset #d4d0c8;
+    padding: 2px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    height: 24px;
+}
+
+.google-2003-nav {
+    display: flex;
+    gap: 2px;
+    background: #3366cc;
+    padding: 4px 10px;
+}
+
+.google-2003-nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.google-2003-nav-link.active {
+    background: #6699cc;
+}
+
+.google-2003-nav-link:hover:not(.active) {
+    background: #5588cc;
+}
+
+.google-2003-results {
+    padding: 10px 20px;
+    background: white;
+}
+
+.google-2003-results-info {
+    font-size: 11px;
+    color: #000;
+    margin-bottom: 10px;
+    padding: 4px 0;
+    border-bottom: 1px solid #c9d7f1;
+}
+
+.google-2003-result {
+    margin-bottom: 16px;
+    background: #e5ecf9;
+    padding: 8px;
+}
+
+.google-2003-result:nth-child(odd) {
+    background: #e5ecf9;
+}
+
+.google-2003-result:nth-child(even) {
+    background: white;
+}
+
+.google-2003-result-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.google-2003-result-title {
+    color: #0000cc;
+    font-size: 13px;
+    text-decoration: underline;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.google-2003-result-title:hover {
+    color: #cc0000;
+}
+
+.google-2003-sponsored {
+    background: #ccffcc;
+    color: #008000;
+    font-size: 10px;
+    padding: 1px 4px;
+    border: 1px solid #00cc00;
+}
+
+.google-2003-result-url {
+    color: #008000;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+
+.google-2003-result-desc {
+    color: #000;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.google-2003-result-snippet {
+    color: #000;
+    font-size: 13px;
+    margin-bottom: 4px;
+    font-style: italic;
+}
+
+.google-2003-result-meta {
+    font-size: 11px;
+    color: #008000;
+}
+
+.google-2003-result-meta a {
+    color: #0000cc;
+    text-decoration: underline;
+    margin-left: 6px;
+    cursor: pointer;
+}
+
+.google-2003-result-meta a:hover {
+    color: #cc0000;
+}
+
+.google-2003-result-size,
+.google-2003-result-date {
+    margin: 0 4px;
+}
+
+.google-2003-footer {
+    padding: 20px;
+    background: white;
+    border-top: 1px solid #c9d7f1;
+}
+
+.google-2003-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.google-2003-logo-small {
+    font-size: 24px;
+    font-weight: bold;
+    background: linear-gradient(to right, #0000cc 0%, #0000cc 16.66%, #cc0000 16.66%, #cc0000 33.33%, #ffcc00 33.33%, #ffcc00 50%, #0000cc 50%, #0000cc 66.66%, #00cc00 66.66%, #00cc00 83.33%, #cc0000 83.33%, #cc0000 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-size: 0;
+}
+
+.google-2003-logo-small::before {
+    content: "Google";
+    font-size: 24px;
+}
+
+.google-2003-pages {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.google-2003-pages a {
+    color: #0000cc;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.google-2003-pages a:hover {
+    color: #cc0000;
+}
+
+.google-2003-page-current {
+    font-weight: bold;
+    color: #000;
+}
+
+.google-2003-page-link {
+    color: #0000cc;
+    text-decoration: underline;
 }
 
 .google-layout {
@@ -309,7 +668,7 @@ body.default-bg {
 /* --- Windows XP Style Tab Strip --- */
 .tabstrip {
     width: 100%;
-    height: 100%;
+    height: 24px;
     display: flex;
     align-items: center;
     gap: 0;
@@ -317,7 +676,8 @@ body.default-bg {
     border-bottom: 1px solid #7a7a7a;
     padding: 2px 4px 0 4px;
     position: relative;
-    z-index: 5;
+    z-index: 10;
+    flex-shrink: 0;
 }
 
 .tabs-scroll {

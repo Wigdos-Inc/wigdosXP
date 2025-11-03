@@ -50,15 +50,13 @@ const applications = {
         "",
         true, 
         ["internal", "apps/browser/"],
-        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
     ),
 
     fBrowser: new Application(
         ["fBrowser", "WigleFari"], 
         "",
         true, 
-        ["internal", "apps/browser/"],
-        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
+        ["internal", "apps/browser/"]
     ),
 
 

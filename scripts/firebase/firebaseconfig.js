@@ -1,4 +1,11 @@
     async function initializeFirebase() {
+        // Check if Firebase is already initialized
+        if (window.firebaseAPI && window.firebaseAPI.db !== undefined) {
+            console.log("Firebase already initialized, skipping re-initialization");
+            window.dispatchEvent(new Event("dbReady"));
+            return;
+        }
+
         if (window.location.protocol === 'file:') {
             console.warn("Firebase connection not available when running from file:// protocol - initializing offline mode");
             window.firebaseAPI = createMockFirebaseAPI();
@@ -13,8 +20,8 @@
         }
 
         try {
-            const { initializeApp } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
-            const { getFirestore, doc, setDoc, getDoc, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
+            const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
+            const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, serverTimestamp, limit: firestoreLimit } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
             const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js");
 
             const firebaseConfig = {
@@ -28,11 +35,41 @@
                 measurementId: "G-1KTKSSCJ33"
             };
 
-            const app = initializeApp(firebaseConfig);
+            // Check if Firebase app is already initialized
+            let app;
+            const existingApps = getApps();
+            if (existingApps.length > 0) {
+                app = existingApps[0];
+                console.log("Using existing Firebase app instance");
+            } else {
+                app = initializeApp(firebaseConfig);
+                console.log("Firebase app initialized for the first time");
+            }
+            
             const db = getFirestore(app);
             const auth = getAuth(app);
 
-            window.firebaseAPI = { db, auth, setDoc, getDoc, doc, createUserWithEmailAndPassword, signInWithEmailAndPassword, collection, getDocs };
+            window.firebaseAPI = { 
+                db, 
+                auth, 
+                setDoc, 
+                getDoc, 
+                doc, 
+                createUserWithEmailAndPassword, 
+                signInWithEmailAndPassword, 
+                collection, 
+                getDocs,
+                query,
+                where,
+                orderBy,
+                addDoc,
+                updateDoc,
+                deleteDoc,
+                increment,
+                arrayUnion,
+                serverTimestamp,
+                limit: firestoreLimit
+            };
             window.firebaseOnline = true;
             console.log("Firebase initialized successfully");
         } catch (error) {
@@ -68,8 +105,27 @@
             collection: () => null,
             getDocs: async () => {
                 console.log("Mock getDocs called - no remote data available");
-                return { docs: [] };
-            }
+                return { docs: [], forEach: () => {} };
+            },
+            query: (...args) => null,
+            where: (...args) => null,
+            orderBy: (...args) => null,
+            addDoc: async () => {
+                console.log("Mock addDoc called - data will be stored locally only");
+                return { id: 'mock_' + Date.now() };
+            },
+            updateDoc: async () => {
+                console.log("Mock updateDoc called - data will be stored locally only");
+                return Promise.resolve();
+            },
+            deleteDoc: async () => {
+                console.log("Mock deleteDoc called - data will be stored locally only");
+                return Promise.resolve();
+            },
+            increment: (n) => n,
+            arrayUnion: (...args) => args,
+            serverTimestamp: () => new Date().toISOString(),
+            limit: (n) => null
         };
     }
 

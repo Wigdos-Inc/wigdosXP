@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigTube Database Initialization</title>
+    <style>
+        body {
+            font-family: 'Tahoma', 'MS Sans Serif', sans-serif;
+            background: linear-gradient(to bottom, #0054a6 0%, #0072c6 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            color: black;
+            padding: 20px;
+            border: 2px solid #0054a6;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+        }
+        h1 {
+            background: linear-gradient(to bottom, #0054a6, #0072c6);
+            color: white;
+            padding: 10px;
+            margin: -20px -20px 20px -20px;
+            font-size: 18px;
+        }
+        .status {
+            background: #f0f0f0;
+            border: 2px inset #ccc;
+            padding: 15px;
+            margin: 20px 0;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        .button {
+            background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+            border: 2px outset #ddd;
+            padding: 8px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: linear-gradient(to bottom, #fff, #e0e0e0);
+        }
+        .button:active {
+            border-style: inset;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .info {
+            background: #ffffcc;
+            border: 1px solid #cc9;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .warning {
+            background: #ffcccc;
+            border: 1px solid #c99;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .success {
+            background: #ccffcc;
+            border: 1px solid #9c9;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 WigTube Database Initialization Tool</h1>
+        
+        <div class="info">
+            <strong>📋 Purpose:</strong> This tool initializes your WigTube Firestore database with all video entries starting at:
+            <ul>
+                <li>0 views</li>
+                <li>0 ratings (☆☆☆☆☆)</li>
+                <li>0 comments</li>
+            </ul>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This should only be run once when setting up WigTube for the first time. It will NOT overwrite existing videos that already have stats.
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="button" id="initBtn" onclick="runInitialization()">
+                🚀 Initialize WigTube Database
+            </button>
+            <button class="button" onclick="checkStatus()">
+                🔍 Check Current Status
+            </button>
+            <button class="button" onclick="clearLog()">
+                🗑️ Clear Log
+            </button>
+        </div>
+        
+        <div class="status" id="statusLog">
+            <div style="color: #666;">Ready to initialize. Click the button above to start.</div>
+        </div>
+        
+        <div id="resultBox" style="display: none;"></div>
+        
+        <div class="info" style="margin-top: 20px;">
+            <strong>💡 What happens during initialization:</strong>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+                <li>Checks if Firestore is connected</li>
+                <li>Creates video entries for all 17 WigTube videos</li>
+                <li>Sets initial stats: 0 views, no ratings, no comments</li>
+                <li>Skips videos that already exist</li>
+                <li>Shows progress for each video</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="../../scripts/firebase/firebaseconfig.js"></script>
+    
+    <!-- WigTube Database API -->
+    <script src="../../scripts/apps/browser/wigtube-db.js"></script>
+    
+    <!-- Initialization Script -->
+    <script src="../../scripts/apps/browser/wigtube-init.js"></script>
+    
+    <script>
+        const statusLog = document.getElementById('statusLog');
+        const resultBox = document.getElementById('resultBox');
+        const initBtn = document.getElementById('initBtn');
+        
+        // Override console.log to show in UI
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToUI(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToUI(args.join(' '), 'error');
+        };
+        
+        function logToUI(message, type = 'log') {
+            const entry = document.createElement('div');
+            entry.style.marginBottom = '5px';
+            
+            if (type === 'error') {
+                entry.style.color = 'red';
+            } else if (message.includes('✅')) {
+                entry.style.color = 'green';
+            } else if (message.includes('⏭️')) {
+                entry.style.color = 'orange';
+            } else if (message.includes('===')) {
+                entry.style.fontWeight = 'bold';
+                entry.style.marginTop = '10px';
+            }
+            
+            entry.textContent = message;
+            statusLog.appendChild(entry);
+            statusLog.scrollTop = statusLog.scrollHeight;
+        }
+        
+        function clearLog() {
+            statusLog.innerHTML = '<div style="color: #666;">Log cleared.</div>';
+            resultBox.style.display = 'none';
+        }
+        
+        async function runInitialization() {
+            initBtn.disabled = true;
+            resultBox.style.display = 'none';
+            clearLog();
+            
+            logToUI('=== Starting WigTube Database Initialization ===');
+            logToUI('');
+            
+            try {
+                await initializeWigTubeDatabase();
+                
+                resultBox.className = 'success';
+                resultBox.innerHTML = '<strong>✅ Initialization Complete!</strong><br>You can now close this page and use WigTube. All videos will start tracking views and ratings from 0.';
+                resultBox.style.display = 'block';
+            } catch (error) {
+                console.error('Initialization failed:', error);
+                
+                resultBox.className = 'warning';
+                resultBox.innerHTML = '<strong>❌ Initialization Failed</strong><br>Check the log above for details. Make sure Firebase is properly configured.';
+                resultBox.style.display = 'block';
+            } finally {
+                initBtn.disabled = false;
+            }
+        }
+        
+        async function checkStatus() {
+            clearLog();
+            logToUI('Checking WigTube database status...');
+            logToUI('');
+            
+            if (typeof WigTubeDB === 'undefined') {
+                logToUI('❌ WigTubeDB not loaded', 'error');
+                return;
+            }
+            
+            logToUI(`Database Status: ${WigTubeDB.isOnline() ? '✅ Online (Firestore)' : '⚠️ Offline (localStorage only)'}`);
+            logToUI('');
+            
+            try {
+                const videos = await WigTubeDB.getAllVideos();
+                logToUI(`Found ${videos.length} videos in database:`);
+                logToUI('');
+                
+                for (const video of videos) {
+                    const views = video.viewCount || 0;
+                    const ratings = (video.ratings || []).length;
+                    const avgRating = ratings > 0 
+                        ? (video.ratings.reduce((a, b) => a + b, 0) / ratings).toFixed(1)
+                        : '0.0';
+                    
+                    logToUI(`  📹 ${video.title}`);
+                    logToUI(`     👁️ ${views} views | ⭐ ${avgRating}/5.0 (${ratings} ratings)`);
+                }
+                
+                if (videos.length === 0) {
+                    logToUI('⚠️ No videos found. Run initialization to add videos.');
+                }
+            } catch (error) {
+                logToUI(`❌ Error checking status: ${error.message}`, 'error');
+            }
+        }
+        
+        // Check connection status on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (typeof WigTubeDB !== 'undefined') {
+                    logToUI(`✅ WigTube Database API loaded (${WigTubeDB.isOnline() ? 'Online' : 'Offline mode'})`);
+                } else {
+                    logToUI('❌ Failed to load WigTube Database API', 'error');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

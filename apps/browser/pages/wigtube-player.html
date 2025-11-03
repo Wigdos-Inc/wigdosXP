@@ -17,12 +17,12 @@
         </div>
         
         <div class="breadcrumb">
-            <a href="/apps/browser/pages/wigtube.html" class="back-link">← Back to Videos</a>
+            <button onclick="goBackToWigtube()" class="back-link">← Back to Videos</button>
             <button onclick="openPlaylistManager()" style="background: white; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 11px; margin-left: 10px;">📋 My Playlists</button>
         </div>
         
         <div class="header-right">
-            <span style="font-size: 10px;">Welcome </span>
+            <span style="font-size: 10px;">Welcome <span id="username-display">Guest</span></span>
         </div>
     </div>
 
@@ -133,6 +133,15 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="scripts/firebase/firebaseconfig.js"></script>
+    
+    <!-- WigTube Database API -->
+    <script src="scripts/apps/browser/wigtube-db.js"></script>
+    
+    <!-- Main Player Script -->
     <script src="scripts/apps/browser/wigtube-player.js"></script>
 </body>
 </html>

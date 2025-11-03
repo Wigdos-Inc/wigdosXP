@@ -8,5 +8,29 @@ service cloud.firestore {
     match /game_saves/{userId} {
       allow read, write: if true;
     }
+
+    // WigTube video data collection
+    match /wigtube_data/{videoId} {
+      allow read: if true; // Anyone can read video data
+      allow create: if true; // Anyone can create videos (for now)
+      allow update: if true; // Anyone can update views/ratings (for now)
+      allow delete: if true; // Anyone can delete (for now - should be restricted to admin/owner)
+    }
+
+    // WigTube comments collection
+    match /wigtube_comments/{commentId} {
+      allow read: if true; // Anyone can read comments
+      allow create: if true; // Anyone can create comments (for now)
+      allow update: if true; // Anyone can update their own comments
+      allow delete: if true; // Anyone can delete (for now - should be restricted to admin/owner)
+    }
+
+    // WigTube user ratings collection
+    match /wigtube_user_ratings/{ratingId} {
+      allow read: if true; // Anyone can read ratings
+      allow create: if true; // Anyone can create ratings
+      allow update: if true; // Anyone can update their own ratings
+      allow delete: if true; // Anyone can delete their own ratings
+    }
   }
 }

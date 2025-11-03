@@ -134,7 +134,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 // Page switching functionality
-let tabCounter = 3; // Start counter after the initial 3 tabs
+let tabCounter = 2; // Start counter after the initial 2 tabs
 
 function switchToPage(pageId) {
   // Hide all pages
@@ -154,22 +154,137 @@ function createNewTabContent(tabId) {
   newTabDiv.id = tabId;
   newTabDiv.className = 'page-content';
   newTabDiv.innerHTML = `
-    <div class="new-tab-page">
-      <h1>New Tab ${tabId.replace('tab-', '')}</h1>
-      <p>This is a fresh new tab! Choose what you'd like to do:</p>
-      <div class="quick-links">
-        <div class="quick-link" onclick="loadPageInTab('${tabId}', 'wiggle-search')">
-          <img src="../.././assets/images/icons/32x/rBrowser.png" alt="Search">
-          <span>Wiggle Search</span>
+    <div class="google-2003-page">
+      <div class="google-2003-header">
+        <div class="google-2003-topbar">
+          <div class="google-2003-logo-text">Google</div>
+          <div class="google-2003-links">
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Advanced Search</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Preferences</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Language Tools</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Search Tips</a>
+          </div>
         </div>
-        <div class="quick-link" onclick="loadPageInTab('${tabId}', 'wigtube')">
-          <img src="../.././assets/images/icons/48x/WigleTube.png" alt="WigTube">
-          <span>WigTube</span>
+        <div class="google-2003-search-area">
+          <input type="text" class="google-2003-search-input" placeholder="">
+          <button class="google-2003-search-btn">Google Search</button>
         </div>
+        <div class="google-2003-nav">
+          <a href="#" class="google-2003-nav-link active">Web</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Images</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Groups</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Directory</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">News</a>
+        </div>
+      </div>
+      <div class="google-2003-results">
+        <div class="google-2003-results-info">
+          Searched the web for <b>keyboard bracelet</b>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">Gypsy Born Designs</a>
+            <span class="google-2003-sponsored">Sponsored Link</span>
+          </div>
+          <div class="google-2003-result-url">www.gypsyborn.com</div>
+          <div class="google-2003-result-desc">Handcrafted, eclectic jewelry. Original designs by Andrea Brown</div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">BRACELET - Beautiful and Unique Jewelry at RedEnvelope</a>
+            <span class="google-2003-sponsored">Sponsored Link</span>
+          </div>
+          <div class="google-2003-result-url">www.RedEnvelope.com</div>
+          <div class="google-2003-result-desc">Don't miss RedEnvelope's Jewelry & Accessories Collection!</div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="navigateToWigTube('${tabId}'); return false;">Sterling Tech Charm Bracelet - 9 LEFT!</a>
+          </div>
+          <div class="google-2003-result-snippet">
+            "Charmed" by technology? This fashionable, one-of-a-kind, sterling charm <b>bracelet</b> is always in perfect taste. ... Sterling Tech Charm <b>Bracelet</b> - 9 LEFT! ...
+          </div>
+          <div class="google-2003-result-meta">
+            <span class="google-2003-result-url">www.computergear.com/stertechchabr.html</span>
+            <span class="google-2003-result-size">24k</span>
+            <span class="google-2003-result-date">Oct 10, 2003</span>
+            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
+            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+          </div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">CyberGadgets - Online Catalog Of The Coolest Gadgets In ...</a>
+          </div>
+          <div class="google-2003-result-snippet">
+            ... The B-Smart <b>Bracelet</b> has an added feature of analog/digital time display. For ages five and up. ... Fold-away carrying handle. QWERTY <b>keyboard</b>. ...
+          </div>
+          <div class="google-2003-result-meta">
+            <span class="google-2003-result-url">www.cybergadgets.com/wccatalog/Home_Learning_Toys_5.html</span>
+            <span class="google-2003-result-size">47k</span>
+            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
+            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+          </div>
+        </div>
+      </div>
+      <div class="google-2003-footer">
+        <div class="google-2003-pagination">
+          <span class="google-2003-logo-small">Google</span>
+          <div class="google-2003-pages">
+            <span>Result Page:</span>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Previous</a>
+            <span class="google-2003-page-current">1</span>
+            <a href="#" class="google-2003-page-link" onclick="alert('Coming Soon!'); return false;">2</a>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
   
   document.getElementById('appMain').appendChild(newTabDiv);
   return newTabDiv;
+}
+
+function loadPageInTab(tabId, pageType) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Update tab title
+  const tabs = document.querySelectorAll('.tab');
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    // fuckass shitass iframes or sum shi
+    switch(pageType) {
+      case 'wiggle-search':
+        titleSpan.textContent = 'Wiggle Search';
+        faviconImg.src = 'assets/images/icons/32x/rBrowser.png';
+        tabContent.innerHTML = `
+          <div class="google-layout">
+            <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
+            <div class="search-section">
+              <div class="search-box-container">
+                <input type="text" class="main-search-input" placeholder="Search...">
+              </div>
+              <div class="search-buttons">
+                <button class="search-btn">Wiggle Search</button>
+                <button class="search-btn">GAMBLING</button>
+              </div>
+            </div>
+          </div>
+        `;
+        break;
+      case 'wigtube':
+        titleSpan.textContent = 'WigTube';
+        faviconImg.src = 'assets/images/icons/48x/WigleTube.png';
+        tabContent.innerHTML = `<iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+        break;
+    }
+  }
+  
+  // Show this tab's content
+  switchToPage(tabId);
 }
 
 function loadPageInTab(tabId, pageType) {
@@ -234,7 +349,7 @@ function loadPageInTab(tabId, pageType) {
     tab.setAttribute('aria-selected', 'true');
     
     // Switch to corresponding page
-    const predefinedPages = ['wiggle-search', 'wigtube', 'new-tab'];
+    const predefinedPages = ['wiggle-search', 'new-tab'];
     let pageId;
     
     if (tabIndex < predefinedPages.length) {
@@ -256,7 +371,7 @@ function loadPageInTab(tabId, pageType) {
       const tabIndex = Array.from(scroll.children).indexOf(tabEl);
       
       // Remove corresponding page content for dynamic tabs
-      if (tabIndex >= 3) { // Only for dynamically created tabs
+      if (tabIndex >= 2) { // Only for dynamically created tabs
         const pageId = `tab-${tabIndex + 1}`;
         const pageContent = document.getElementById(pageId);
         if (pageContent) {
@@ -300,3 +415,216 @@ function loadPageInTab(tabId, pageType) {
     btn.scrollIntoView({ inline: 'end', behavior: 'smooth' });
   });
 })();
+
+// Handle Wiggle Search searches
+document.addEventListener('click', (e) => {
+  // Handle "Wiggle Search" button clicks
+  if (e.target.classList.contains('search-btn') && e.target.textContent === 'Wiggle Search') {
+    const pageContent = e.target.closest('.page-content');
+    if (!pageContent) return;
+    
+    const input = pageContent.querySelector('.main-search-input');
+    if (input && input.value.trim()) {
+      handleWiggleSearch(input.value.trim(), pageContent.id);
+    }
+  }
+});
+
+// Handle Enter key in Wiggle Search inputs
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('main-search-input')) {
+    const searchTerm = e.target.value.trim();
+    const pageContent = e.target.closest('.page-content');
+    
+    if (searchTerm && pageContent) {
+      handleWiggleSearch(searchTerm, pageContent.id);
+    }
+  }
+});
+
+function handleWiggleSearch(searchTerm, tabId) {
+  const searchLower = searchTerm.toLowerCase();
+  
+  // Check if user is searching for WigTube
+  if (searchLower.includes('wigtube') || searchLower === 'wt') {
+    navigateToWigTube(tabId);
+  } else {
+    // Perform regular search
+    performSearch(searchTerm, tabId);
+  }
+}
+
+function navigateToWigTube(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'WigTube';
+    faviconImg.src = 'assets/images/icons/48x/WigleTube.png';
+  }
+  
+  // Load WigTube content
+  tabContent.innerHTML = `<iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
+function loadWiggleSearchInTab(tabId) {
+  // If it's the new-tab (second tab), just switch to the first tab (wiggle-search)
+  if (tabId === 'new-tab') {
+    const firstTab = document.querySelector('.tab');
+    if (firstTab) {
+      firstTab.click();
+    }
+    return;
+  }
+  
+  // For dynamic tabs, load Wiggle Search content
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Wiggle Search';
+    faviconImg.src = 'assets/images/icons/32x/rBrowser.png';
+  }
+  
+  // Load Wiggle Search content
+  tabContent.innerHTML = `
+    <div class="google-layout">
+      <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
+      <div class="search-section">
+        <div class="search-box-container">
+          <input type="text" class="main-search-input" placeholder="Search...">
+        </div>
+        <div class="search-buttons">
+          <button class="search-btn">Wiggle Search</button>
+          <button class="search-btn">GAMBLING</button>
+        </div>
+      </div>
+    </div>
+    <div id="content">
+      <h2>Enter the Secret Code</h2>
+      <input type="text" id="codeInput" placeholder="Enter code here" />
+      <button onclick="checkCode()">Submit</button>
+    </div>
+  `;
+}
+
+function performSearch(searchTerm, tabId) {
+  // This function can be expanded to handle actual search functionality
+  console.log('Searching for:', searchTerm, 'in tab:', tabId);
+  // For now, just show an alert or could navigate to a search results page
+  alert(`Searching for: ${searchTerm}`);
+}
+
+// Address bar functionality
+document.addEventListener('DOMContentLoaded', () => {
+  const addressInput = document.getElementById('addressInput');
+  const addressGoBtn = document.querySelector('.address-go-btn');
+  
+  function handleAddressBarNavigation() {
+    const input = addressInput.value.trim().toLowerCase();
+    
+    if (!input) return;
+    
+    // Get current active tab
+    const activeTab = document.querySelector('.tab.active');
+    const tabs = document.querySelectorAll('.tab');
+    const tabIndex = Array.from(tabs).indexOf(activeTab);
+    
+    // Determine the page ID
+    const predefinedPages = ['wiggle-search', 'new-tab'];
+    let pageId;
+    
+    if (tabIndex < predefinedPages.length) {
+      pageId = predefinedPages[tabIndex];
+    } else {
+      pageId = `tab-${tabIndex + 1}`;
+    }
+    
+    // Check if user wants to go to WigTube
+    if (input.includes('wigtube') || input === 'wt') {
+      navigateToWigTube(pageId);
+      addressInput.value = 'wigtube.com';
+    } else {
+      // For other searches or URLs, you can add more functionality here
+      alert(`Navigating to: ${input}`);
+    }
+  }
+  
+  // Handle Go button click
+  if (addressGoBtn) {
+    addressGoBtn.addEventListener('click', handleAddressBarNavigation);
+  }
+  
+  // Handle Enter key in address bar
+  if (addressInput) {
+    addressInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleAddressBarNavigation();
+      }
+    });
+  }
+});
+
+// Handle Google 2003 search button and input
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('google-2003-search-btn')) {
+    const pageContent = e.target.closest('.page-content');
+    if (!pageContent) return;
+    
+    const input = pageContent.querySelector('.google-2003-search-input');
+    if (input && input.value.trim()) {
+      handleGoogle2003Search(input.value.trim(), pageContent.id);
+    }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('google-2003-search-input')) {
+    const searchTerm = e.target.value.trim();
+    const pageContent = e.target.closest('.page-content');
+    
+    if (searchTerm && pageContent) {
+      handleGoogle2003Search(searchTerm, pageContent.id);
+    }
+  }
+});
+
+function handleGoogle2003Search(searchTerm, tabId) {
+  const searchLower = searchTerm.toLowerCase();
+  
+  // Check if user is searching for WigTube
+  if (searchLower.includes('wigtube') || searchLower === 'wt') {
+    navigateToWigTube(tabId);
+  } else {
+    // Perform regular search
+    alert(`Searching for: ${searchTerm}`);
+  }
+}

@@ -58,6 +58,7 @@ body {
     padding: 2px 8px;
     border: 1px solid #ffffff;
     background: rgba(255,255,255,0.2);
+    cursor: pointer;
 }
 
 .back-link:hover {
@@ -492,16 +493,49 @@ body {
 .comment {
     border-bottom: 1px solid #e0e0e0;
     padding: 6px 0;
+    position: relative;
 }
 
 .comment:last-child {
     border-bottom: none;
 }
 
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .comment-author {
     font-weight: bold;
     color: #000080;
     font-size: 10px;
+}
+
+.comment-delete-btn {
+    background: #d4d0c8;
+    border: 1px solid #808080;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    padding: 1px 4px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'MS Sans Serif', Arial, sans-serif;
+    line-height: 1;
+}
+
+.comment-delete-btn:hover {
+    background: #e8e4dc;
+}
+
+.comment-delete-btn:active {
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    padding: 2px 3px 0px 5px;
 }
 
 .comment-time {
