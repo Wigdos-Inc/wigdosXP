@@ -24,7 +24,8 @@ const SAVE_CONFIG = {
 
 const ALLOWED_ORIGINS = [
     window.location.origin,
-    '*' // Configure with specific domains in production
+    'https://wigdos-inc.github.io',
+    '*'
 ];
 
 // ============================================================================

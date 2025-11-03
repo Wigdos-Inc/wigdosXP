@@ -149,6 +149,14 @@ const applications = {
         true
     ),
 
+    dt: new Application(
+        ["dt", "Deltarune"],
+        "other",
+        true, 
+        ["external", "https://wigdos-inc.github.io/Deltarune-HTML/"],
+        true
+    ),
+
     sm64: new Application(
         ["sm64", "Mario 64", "Super Mario 64"],
         "other",
