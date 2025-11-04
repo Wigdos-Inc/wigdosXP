@@ -193,7 +193,7 @@ const fallbackVideoData = {
         title: 'hagstorm',
         uploader: 'c418',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '03:24',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -211,7 +211,7 @@ const fallbackVideoData = {
         title: 'wethands',
         uploader: 'c418',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '01:30',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -229,7 +229,7 @@ const fallbackVideoData = {
         title: 'dryhands',
         uploader: 'c418',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '01:08',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -247,7 +247,7 @@ const fallbackVideoData = {
         title: 'moogcity',
         uploader: 'c418',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '02:40',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -265,7 +265,7 @@ const fallbackVideoData = {
         title: 'sweden',
         uploader: 'c418',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '03:35',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -283,7 +283,7 @@ const fallbackVideoData = {
         title: 'jschlatt — Santa Claus Is Coming To Town',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '02:17',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -301,7 +301,7 @@ const fallbackVideoData = {
         title: 'jschlatt — The Christmas Song',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:20',
+        duration: '03:15',
         views: '380 views',
         rating: '★★★★★',
         ratingCount: 54,
@@ -319,7 +319,7 @@ const fallbackVideoData = {
         title: 'jschlatt — Let It Snow! Let It Snow! Let It Snow!',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:18',
+        duration: '01:56',
         views: '512 views',
         rating: '★★★★★',
         ratingCount: 71,
@@ -337,7 +337,7 @@ const fallbackVideoData = {
         title: 'jschlatt — Baby It\'s Cold Outside',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:25',
+        duration: '02:25',
         views: '445 views',
         rating: '★★★★★',
         ratingCount: 63,
@@ -727,6 +727,13 @@ function setupEventListeners() {
     document.querySelector('.comment-submit').addEventListener('click', function() {
         const commentInput = document.querySelector('.comment-input');
         const comment = commentInput.value.trim();
+        
+        // Check if user is logged in (not a guest)
+        const username = localStorage.getItem('username');
+        if (!username || username.toLowerCase() === 'guest') {
+            alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+            return;
+        }
         
         if (comment || selectedImage) {
             addComment(comment, selectedImage);
@@ -1142,12 +1149,50 @@ function flagVideo(videoId) {
 async function deleteComment(commentId) {
     debugLog('deleteComment: Deleting comment', commentId);
     
-    if (!confirm('Are you sure you want to delete this comment?')) {
-        debugLog('deleteComment: User cancelled');
+    // Get current username
+    const currentUsername = localStorage.getItem('username');
+    if (!currentUsername || currentUsername.toLowerCase() === 'guest') {
+        alert('⚠️ Delete Error\\n\\nYou must be logged in to delete comments.');
         return;
     }
     
     const videoId = currentVideoId || getVideoIdFromURL();
+    
+    // Check if user is the author of this comment
+    let commentAuthor = null;
+    try {
+        if (typeof WigTubeDB !== 'undefined') {
+            const comments = await WigTubeDB.getComments(videoId);
+            const comment = comments.find(c => c.id === commentId);
+            commentAuthor = comment ? comment.author : null;
+        } else {
+            const allComments = getWigTubeProperty('comments') || {};
+            const comments = allComments[videoId] || [];
+            const comment = comments.find(c => c.id === commentId);
+            commentAuthor = comment ? comment.author : null;
+        }
+        
+        if (!commentAuthor) {
+            alert('⚠️ Delete Error\\n\\nComment not found.');
+            return;
+        }
+        
+        // Check if current user is the author
+        if (commentAuthor !== currentUsername) {
+            alert('⚠️ Delete Error\\n\\nYou can only delete your own comments.\\n\\nThis comment belongs to: ' + commentAuthor);
+            return;
+        }
+        
+    } catch (error) {
+        console.error('Error checking comment ownership:', error);
+        alert('⚠️ Delete Error\\n\\nFailed to verify comment ownership.');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this comment?')) {
+        debugLog('deleteComment: User cancelled');
+        return;
+    }
     
     try {
         if (typeof WigTubeDB !== 'undefined') {
@@ -1184,6 +1229,12 @@ async function addComment(commentText, imageData = null) {
     
     // Get username from localStorage, default to 'Guest' if not found
     const username = localStorage.getItem('username') || 'Guest';
+    
+    // Prevent guest accounts from commenting
+    if (!username || username.toLowerCase() === 'guest') {
+        alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+        return;
+    }
     
     // Save comment to WigTubeDB (Firestore) first
     if (typeof WigTubeDB !== 'undefined') {
@@ -1277,6 +1328,10 @@ async function loadComments() {
     }
     
     debugLog('loadComments: Displaying', comments.length, 'comments');
+    
+    // Get current username for comparison
+    const currentUsername = localStorage.getItem('username');
+    
     // Display comments
     comments.forEach(comment => {
         const commentElement = document.createElement('div');
@@ -1319,10 +1374,16 @@ async function loadComments() {
             }
         }
         
+        // Only show delete button if current user is the author
+        const isAuthor = currentUsername && (comment.author === currentUsername);
+        const deleteButtonHTML = isAuthor 
+            ? `<button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">🗑️</button>`
+            : '';
+        
         commentElement.innerHTML = `
             <div class="comment-header">
                 <div class="comment-author">${comment.author || 'Guest'}</div>
-                <button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">🗑️</button>
+                ${deleteButtonHTML}
             </div>
             <div class="comment-time">${timeString}</div>
             <div class="comment-text">${comment.text}</div>

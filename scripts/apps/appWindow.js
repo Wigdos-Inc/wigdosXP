@@ -1125,7 +1125,32 @@ window.addEventListener('message', function(event) {
         return;
     }
     
-    if (!event.data || !event.data.type) return;
+    if (!event.data) return;
+    
+    // Handle closeWindow action from iframe
+    if (event.data.action === 'closeWindow') {
+        Logger.info('WindowManager', 'Close window request from iframe');
+        // Find the iframe that sent the message
+        const iframe = Array.from(document.querySelectorAll('iframe.appContent')).find(
+            frame => frame.contentWindow === event.source
+        );
+        if (iframe) {
+            const appIndex = iframe.dataset.appIndex;
+            Logger.debug('WindowManager', `Found iframe with appIndex: ${appIndex}`);
+            const windowObj = windows.object.find(w => w && w.index != null && w.index == appIndex);
+            if (windowObj && typeof windowObj.close === 'function') {
+                Logger.info('WindowManager', `Closing window ${appIndex}`);
+                windowObj.close();
+            } else {
+                Logger.warn('WindowManager', `Window object not found or invalid for appIndex ${appIndex}`);
+            }
+        } else {
+            Logger.warn('WindowManager', 'Could not find iframe that sent close request');
+        }
+        return;
+    }
+    
+    if (!event.data.type) return;
     
     if (event.data.type === 'getInitialSaveData') {
         Logger.info('SaveSystem', 'Game requesting initial save data', event.data);

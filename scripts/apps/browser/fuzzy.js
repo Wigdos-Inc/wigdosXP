@@ -157,7 +157,7 @@ function createNewTabContent(tabId) {
     <div class="google-2003-page">
       <div class="google-2003-header">
         <div class="google-2003-topbar">
-          <div class="google-2003-logo-text">WigTube</div>
+          <div class="google-2003-logo-text">WiggleSearch</div>
           <div class="google-2003-links">
             <a href="#" onclick="alert('Coming Soon!'); return false;">Advanced Search</a>
             <a href="#" onclick="alert('Coming Soon!'); return false;">Preferences</a>
@@ -167,7 +167,7 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-search-area">
           <input type="text" class="google-2003-search-input" placeholder="">
-          <button class="google-2003-search-btn">WigTube Search</button>
+          <button class="google-2003-search-btn">WiggleSearch</button>
         </div>
         <div class="google-2003-nav">
           <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Images</a>
@@ -178,7 +178,7 @@ function createNewTabContent(tabId) {
       </div>
       <div class="google-2003-results">
         <div class="google-2003-results-info">
-          Searched the web for <b>keyboard bracelet</b>
+          Searched the web for <b>COOL SITES</b>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
@@ -193,8 +193,8 @@ function createNewTabContent(tabId) {
             <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">blah - blah blah blah im a placeholder</a>
             <span class="google-2003-sponsored">Sponsored Link</span>
           </div>
-          <div class="google-2003-result-url">www.placeholder.com</div>
-          <div class="google-2003-result-desc">i love knocking out teeth</div>
+          <div class="google-2003-result-url">www.wiano.com</div>
+          <div class="google-2003-result-desc">piano go weeeeeeee</div>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
@@ -204,7 +204,7 @@ function createNewTabContent(tabId) {
              ...
           </div>
           <div class="google-2003-result-meta">
-            <span class="google-2003-result-url">www.computergear.com/Placeholder.html</span>
+            <span class="google-2003-result-url">www.placeholder.com/Placeholder.html</span>
             <span class="google-2003-result-size">24k</span>
             <span class="google-2003-result-date">Oct 10, 2003</span>
             <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
@@ -219,7 +219,7 @@ function createNewTabContent(tabId) {
            ...
           </div>
           <div class="google-2003-result-meta">
-            <span class="google-2003-result-url">www.cybergadgets.com/wccatalog/placeholder.html</span>
+            <span class="google-2003-result-url">www.placeholder.com/placeholder/placeholder.html</span>
             <span class="google-2003-result-size">47k</span>
             <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
             <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
@@ -228,7 +228,7 @@ function createNewTabContent(tabId) {
       </div>
       <div class="google-2003-footer">
         <div class="google-2003-pagination">
-          <span class="google-2003-logo-small">WigTube</span>
+          <span class="google-2003-logo-small">WiggleSearch</span>
           <div class="google-2003-pages">
             <span>Result Page:</span>
             <a href="#" onclick="alert('Coming Soon!'); return false;">Previous</a>
@@ -380,10 +380,24 @@ function loadPageInTab(tabId, pageType) {
       
       tabEl.remove();
       
-      if (isActive) {
-        const next = scroll.querySelector('.tab');
-        if (next) activate(next);
-      }
+      // Check if all tabs are closed - use a slight delay to ensure DOM has updated
+      setTimeout(() => {
+        const remainingTabs = scroll.querySelectorAll('.tab');
+        console.log('Remaining tabs after close:', remainingTabs.length);
+        
+        if (remainingTabs.length === 0) {
+          console.log('No tabs remaining, closing window...');
+          // Close the WiggleSearch window by sending message to parent
+          if (window.parent && window.parent !== window) {
+            // We're in an iframe, send message to parent to close the window
+            window.parent.postMessage({ action: 'closeWindow' }, '*');
+          }
+        } else if (isActive) {
+          const next = scroll.querySelector('.tab');
+          if (next) activate(next);
+        }
+      }, 0);
+      
       return;
     }
     
@@ -415,6 +429,201 @@ function loadPageInTab(tabId, pageType) {
   });
 })();
 
+// Searchable items for autocomplete
+const searchableItems = [
+  { name: "WigTube", url: "wigtube", keywords: ["wigtube", "video", "tube", "wig", "wt"] },
+  { name: "Wiano", url: "wiano", keywords: ["wiano", "piano", "music"] },
+  { name: "Winesweeper", url: "winesweeper", keywords: ["winesweeper", "minesweeper", "wine", "game"] },
+];
+
+// Create and manage autocomplete dropdown
+function setupAutocomplete(input) {
+  // Create a wrapper if the input doesn't have one
+  let wrapper = input.parentElement;
+  
+  // For google-2003-search-input, we need to wrap it properly
+  if (input.classList.contains('google-2003-search-input')) {
+    // Check if already wrapped
+    if (!wrapper.classList.contains('search-input-wrapper')) {
+      const newWrapper = document.createElement('div');
+      newWrapper.className = 'search-input-wrapper';
+      newWrapper.style.cssText = 'position: relative; display: inline-block;';
+      
+      input.parentElement.insertBefore(newWrapper, input);
+      newWrapper.appendChild(input);
+      wrapper = newWrapper;
+    }
+  }
+  
+  let dropdown = wrapper.querySelector('.autocomplete-dropdown');
+  
+  // Create dropdown if it doesn't exist
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'autocomplete-dropdown';
+    dropdown.style.cssText = `
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: white;
+      border: 2px inset #ddd;
+      border-top: 2px solid #0055aa;
+      max-height: 180px;
+      overflow-y: auto;
+      display: none;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      margin-top: -2px;
+      box-sizing: border-box;
+    `;
+    
+    // Ensure parent has relative positioning
+    if (window.getComputedStyle(wrapper).position === 'static') {
+      wrapper.style.position = 'relative';
+    }
+    
+    wrapper.appendChild(dropdown);
+  }
+  
+  input.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    
+    if (query.length === 0) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    
+    const matches = searchableItems.filter(item => {
+      return item.name.toLowerCase().includes(query) ||
+             item.keywords.some(keyword => keyword.includes(query));
+    });
+    
+    if (matches.length === 0) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    
+    dropdown.innerHTML = '';
+    dropdown.style.display = 'block';
+    
+    matches.forEach(match => {
+      const item = document.createElement('div');
+      item.style.cssText = `
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #e0e0e0;
+        font-family: 'Tahoma', sans-serif;
+        font-size: 12px;
+      `;
+      item.textContent = match.name;
+      
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#0055aa';
+        this.style.color = 'white';
+      });
+      
+      item.addEventListener('mouseleave', function() {
+        this.style.background = 'white';
+        this.style.color = 'black';
+      });
+      
+      item.addEventListener('click', function() {
+        input.value = match.name;
+        dropdown.style.display = 'none';
+        
+        // Trigger search
+        const pageContent = input.closest('.page-content');
+        if (pageContent) {
+          handleWiggleSearch(match.name, pageContent.id);
+        }
+      });
+      
+      dropdown.appendChild(item);
+    });
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+  
+  // Handle arrow keys for navigation
+  let selectedIndex = -1;
+  
+  input.addEventListener('keydown', function(e) {
+    const items = dropdown.querySelectorAll('div');
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+      updateSelection(items, selectedIndex);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, -1);
+      updateSelection(items, selectedIndex);
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      items[selectedIndex].click();
+      selectedIndex = -1;
+    }
+  });
+  
+  function updateSelection(items, index) {
+    items.forEach((item, i) => {
+      if (i === index) {
+        item.style.background = '#0055aa';
+        item.style.color = 'white';
+      } else {
+        item.style.background = 'white';
+        item.style.color = 'black';
+      }
+    });
+  }
+}
+
+// Initialize autocomplete for all search inputs
+document.addEventListener('DOMContentLoaded', function() {
+  // Setup for main search input
+  const mainSearchInputs = document.querySelectorAll('.main-search-input');
+  mainSearchInputs.forEach(input => setupAutocomplete(input));
+  
+  // Setup for Google 2003 search inputs
+  const google2003Inputs = document.querySelectorAll('.google-2003-search-input');
+  google2003Inputs.forEach(input => setupAutocomplete(input));
+});
+
+// Observe for dynamically added search inputs
+const observer = new MutationObserver(function(mutations) {
+  mutations.forEach(function(mutation) {
+    mutation.addedNodes.forEach(function(node) {
+      if (node.nodeType === 1) { // Element node
+        // Check for main search inputs
+        const mainInputs = node.querySelectorAll ? node.querySelectorAll('.main-search-input') : [];
+        mainInputs.forEach(input => setupAutocomplete(input));
+        
+        // Check for Google 2003 search inputs
+        const googleInputs = node.querySelectorAll ? node.querySelectorAll('.google-2003-search-input') : [];
+        googleInputs.forEach(input => setupAutocomplete(input));
+        
+        // Check if the node itself is a search input
+        if (node.classList && (node.classList.contains('main-search-input') || node.classList.contains('google-2003-search-input'))) {
+          setupAutocomplete(node);
+        }
+      }
+    });
+  });
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
 // Handle Wiggle Search searches
 document.addEventListener('click', (e) => {
   // Handle "Wiggle Search" button clicks
@@ -444,9 +653,21 @@ document.addEventListener('keydown', (e) => {
 function handleWiggleSearch(searchTerm, tabId) {
   const searchLower = searchTerm.toLowerCase();
   
-  // Check if user is searching for WigTube
-  if (searchLower.includes('wigtube') || searchLower === 'wt') {
-    navigateToWigTube(tabId);
+  // Check searchable items
+  const match = searchableItems.find(item => 
+    item.name.toLowerCase() === searchLower ||
+    item.keywords.includes(searchLower) ||
+    item.url.toLowerCase() === searchLower
+  );
+  
+  if (match) {
+    if (match.url === 'wigtube') {
+      navigateToWigTube(tabId);
+    } else if (match.url === 'wiano' || match.url === 'winesweeper') {
+      alert(`${match.name} is coming soon!`);
+    } else {
+      alert(`Navigating to ${match.name}...`);
+    }
   } else {
     // Perform regular search
     performSearch(searchTerm, tabId);
@@ -567,12 +788,24 @@ document.addEventListener('DOMContentLoaded', () => {
       pageId = `tab-${tabIndex + 1}`;
     }
     
-    // Check if user wants to go to WigTube
-    if (input.includes('wigtube') || input === 'wt') {
-      navigateToWigTube(pageId);
-      addressInput.value = 'wigtube.com';
+    // Check searchable items
+    const match = searchableItems.find(item => 
+      item.name.toLowerCase() === input ||
+      item.keywords.includes(input) ||
+      item.url.toLowerCase() === input
+    );
+    
+    if (match) {
+      if (match.url === 'wigtube') {
+        navigateToWigTube(pageId);
+        addressInput.value = 'wigtube.com';
+      } else if (match.url === 'wiano' || match.url === 'winesweeper') {
+        alert(`${match.name} is coming soon!`);
+      } else {
+        alert(`Navigating to ${match.name}...`);
+      }
     } else {
-      // For other searches or URLs, you can add more functionality here
+      // For other searches or URLs
       alert(`Navigating to: ${input}`);
     }
   }
@@ -619,9 +852,21 @@ document.addEventListener('keydown', (e) => {
 function handleGoogle2003Search(searchTerm, tabId) {
   const searchLower = searchTerm.toLowerCase();
   
-  // Check if user is searching for WigTube
-  if (searchLower.includes('wigtube') || searchLower === 'wt') {
-    navigateToWigTube(tabId);
+  // Check searchable items
+  const match = searchableItems.find(item => 
+    item.name.toLowerCase() === searchLower ||
+    item.keywords.includes(searchLower) ||
+    item.url.toLowerCase() === searchLower
+  );
+  
+  if (match) {
+    if (match.url === 'wigtube') {
+      navigateToWigTube(tabId);
+    } else if (match.url === 'wiano' || match.url === 'winesweeper') {
+      alert(`${match.name} is coming soon!`);
+    } else {
+      alert(`Navigating to ${match.name}...`);
+    }
   } else {
     // Perform regular search
     alert(`Searching for: ${searchTerm}`);
