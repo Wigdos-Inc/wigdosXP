@@ -1,12 +1,15 @@
 // ============================================================================
 // Save System Utility Functions
+// ES6 Module
 // ============================================================================
 
-function validateOrigin(origin) {
-    return window.ALLOWED_ORIGINS.includes(origin) || window.ALLOWED_ORIGINS.includes('*');
+import { SAVE_CONFIG, ALLOWED_ORIGINS } from './saveConfig.js';
+
+export function validateOrigin(origin) {
+    return ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*');
 }
 
-function generateChecksum(data) {
+export function generateChecksum(data) {
     try {
         const str = JSON.stringify(data);
         let hash = 0;
@@ -21,13 +24,13 @@ function generateChecksum(data) {
     }
 }
 
-function validateChecksum(data, checksum) {
+export function validateChecksum(data, checksum) {
     return generateChecksum(data) === checksum;
 }
 
-function wrapSaveData(gameId, data) {
+export function wrapSaveData(gameId, data) {
     return {
-        version: window.SAVE_CONFIG.version,
+        version: SAVE_CONFIG.version,
         gameId: gameId,
         timestamp: Date.now(),
         data: data,
@@ -35,7 +38,7 @@ function wrapSaveData(gameId, data) {
     };
 }
 
-function unwrapSaveData(wrapped) {
+export function unwrapSaveData(wrapped) {
     // If it's not wrapped (old data or plain object), return as-is
     if (!wrapped || !wrapped.version || !wrapped.data) {
         window.Logger.info('SaveSystem', 'Save data is not wrapped format, returning as-is');
@@ -50,16 +53,6 @@ function unwrapSaveData(wrapped) {
     return wrapped.data;
 }
 
-function sleep(ms) {
+export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-// Expose globally
-window.SaveHelpers = {
-    validateOrigin,
-    generateChecksum,
-    validateChecksum,
-    wrapSaveData,
-    unwrapSaveData,
-    sleep
-};

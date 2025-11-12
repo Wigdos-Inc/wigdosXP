@@ -40,37 +40,23 @@
         <div id="ts_btn"></div>
     </footer>
     
-    <!-- Prep Scripts: Load in dependency order -->
+    <!-- Core Scripts -->
     <script src="scripts/firebase/firebaseconfig.js"></script>
     <script src="scripts/global/global.js"></script>
     
-    <!-- Global utilities (no dependencies) -->
+    <!-- Global Utilities -->
     <script src="scripts/global/logger.js"></script>
     <script src="scripts/global/uiBuilder.js"></script>
     
-    <!-- Save system (depends on logger) -->
-    <script src="scripts/apps/saving/saveConfig.js"></script>
-    <script src="scripts/apps/saving/helpers.js"></script>
-    <script src="scripts/apps/saving/cloudSync.js"></script>
-    <script src="scripts/apps/saving/saveSystem.js"></script>
-    <script src="scripts/apps/saving/messageHandler.js"></script>
-    
-    <!-- Desktop and lifecycle -->
+    <!-- System lifecycle -->
     <script src="scripts/desktop/lifecycle.js"></script>
     
-    <!-- Window management -->
-    <script src="scripts/apps/appWindows/windowSessions.js"></script>
-    <script src="scripts/apps/appWindows/appWindow.js"></script>
+    <!-- Application & Window management (appWindow imports applications, windowSessions, and save system as modules) -->
+    <script type="module" src="scripts/apps/appWindows/appWindow.js"></script>
     <script src="scripts/apps/appWindows/windowManager.js"></script>
-    <script src="scripts/apps/appWindows/minimizedBar.js"></script>
-    <script src="scripts/apps/appWindows/windowManagerUI.js"></script>
-    
-    <!-- Applications -->
-    <script src="scripts/apps/applications/applications.js"></script>
-    <script src="scripts/global/anticheat.js"></script>
 
-    <!-- Content Scripts -->
+    <!-- Desktop UI -->
     <script src="scripts/desktop/desktop.js"></script>
-    <script src="scripts/desktop/taskbar.js"></script>
+    <script type="module" src="scripts/desktop/taskbar.js"></script>
 </body>
 </html>

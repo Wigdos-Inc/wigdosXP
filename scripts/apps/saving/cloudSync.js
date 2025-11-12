@@ -1,8 +1,12 @@
 // ============================================================================
 // Firebase Cloud Sync Operations
+// ES6 Module
 // ============================================================================
 
-async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
+import { SAVE_CONFIG } from './saveConfig.js';
+import { wrapSaveData } from './helpers.js';
+
+export async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
     const user = localStorage.getItem('username') || 'guest';
     if (user === 'guest') {
         window.Logger.info('SaveSystem', 'Guest user, skipping Firebase upload');
@@ -16,7 +20,7 @@ async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
     }
 
     try {
-        const wrappedData = window.SaveHelpers.wrapSaveData(gameId, allLocalStorageData);
+        const wrappedData = wrapSaveData(gameId, allLocalStorageData);
 
         // Save only the wrapped format (no legacy system)
         const docPatch = {
@@ -67,10 +71,10 @@ async function manageBackups(gameId, wrappedData) {
         });
 
         // Keep only the last N backups
-        if (backups[gameId].length > window.SAVE_CONFIG.maxBackups) {
+        if (backups[gameId].length > SAVE_CONFIG.maxBackups) {
             backups[gameId] = backups[gameId]
                 .sort((a, b) => b.timestamp - a.timestamp)
-                .slice(0, window.SAVE_CONFIG.maxBackups);
+                .slice(0, SAVE_CONFIG.maxBackups);
         }
 
         await api.setDoc(backupsRef, backups);
@@ -80,7 +84,7 @@ async function manageBackups(gameId, wrappedData) {
     }
 }
 
-async function exportSaveData(gameId) {
+export async function exportSaveData(gameId) {
     try {
         const user = localStorage.getItem('username') || 'guest';
         if (user === 'guest') {
@@ -130,7 +134,7 @@ async function exportSaveData(gameId) {
     }
 }
 
-async function importSaveData(gameId, file) {
+export async function importSaveData(gameId, file) {
     try {
         const text = await file.text();
         const saveData = JSON.parse(text);
@@ -165,7 +169,7 @@ async function importSaveData(gameId, file) {
     }
 }
 
-async function deleteSaveData(gameId) {
+export async function deleteSaveData(gameId) {
     try {
         const user = localStorage.getItem('username') || 'guest';
         if (user === 'guest') {
@@ -195,7 +199,7 @@ async function deleteSaveData(gameId) {
     }
 }
 
-async function listBackups(gameId) {
+export async function listBackups(gameId) {
     try {
         const user = localStorage.getItem('username') || 'guest';
         if (user === 'guest') return [];
@@ -220,7 +224,7 @@ async function listBackups(gameId) {
     }
 }
 
-async function restoreBackup(gameId, timestamp) {
+export async function restoreBackup(gameId, timestamp) {
     try {
         const user = localStorage.getItem('username') || 'guest';
         if (user === 'guest') {
@@ -259,14 +263,3 @@ async function restoreBackup(gameId, timestamp) {
         return false;
     }
 }
-
-// Expose globally
-window.CloudSync = {
-    uploadSaveDataToFirebase,
-    manageBackups,
-    exportSaveData,
-    importSaveData,
-    deleteSaveData,
-    listBackups,
-    restoreBackup
-};

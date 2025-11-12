@@ -1,3 +1,6 @@
+// Import Applications
+import { applications } from '../apps/applications/applications.js';
+
 /* Global Variables */
 
 const taskbar = document.getElementsByTagName("footer")[0];

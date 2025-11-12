@@ -1,6 +1,9 @@
 // ============================================================================
 // Message Handler - PostMessage Communication
+// ES6 Module
 // ============================================================================
+
+import { validateOrigin, unwrapSaveData } from './helpers.js';
 
 async function handleInitialSaveDataRequest(event) {
     const gameId = event.data.gameId;
@@ -42,7 +45,7 @@ async function handleInitialSaveDataRequest(event) {
             if (docData[gameId]) {
                 try {
                     const raw = JSON.parse(docData[gameId]);
-                    allLocalStorageData = window.SaveHelpers.unwrapSaveData(raw);
+                    allLocalStorageData = unwrapSaveData(raw);
                     window.Logger.info('SaveSystem', `Found save data for ${gameId}`, { 
                         keys: Object.keys(allLocalStorageData).length 
                     });
@@ -95,9 +98,9 @@ function handleCloseWindowRequest(event) {
     }
 }
 
-function initializeMessageListener() {
+export function initializeMessageListener() {
     window.addEventListener('message', function(event) {
-        if (!window.SaveHelpers.validateOrigin(event.origin)) {
+        if (!validateOrigin(event.origin)) {
             window.Logger.warn('SaveSystem', 'Rejected message from untrusted origin', event.origin);
             return;
         }
@@ -123,12 +126,4 @@ function initializeMessageListener() {
     });
 }
 
-// Initialize message listener
-initializeMessageListener();
-
-// Expose globally
-window.MessageHandler = {
-    handleInitialSaveDataRequest,
-    handleCloseWindowRequest,
-    initializeMessageListener
-};
+export { handleInitialSaveDataRequest, handleCloseWindowRequest };

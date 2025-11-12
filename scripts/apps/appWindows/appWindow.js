@@ -3,6 +3,13 @@
 // Core AppWindow class - Refactored to use UIBuilder
 // ============================================================================
 
+// Import Save System
+import { pushIframeSaveToFirestore, loadFirestoreToIframe } from '../saving/saveSystem.js';
+// Import Window Sessions
+import * as windowSessions from './windowSessions.js';
+// Import Applications
+import { applications } from '../applications/applications.js';
+
 // Global window registry
 let windows = {
     index: 0,
@@ -317,18 +324,16 @@ class AppWindow {
 
     saveSessionData() {
         try {
-            if (window.windowSessions) {
-                window.windowSessions.saveWindow({
-                    index: this.index,
-                    appId: this.app.name.s,
-                    x: this.move.storage.x,
-                    y: this.move.storage.y,
-                    w: this.move.storage.w,
-                    h: this.move.storage.h,
-                    full: this.full,
-                    minimized: this.minimized
-                });
-            }
+            windowSessions.saveWindow({
+                index: this.index,
+                appId: this.app.name.s,
+                x: this.move.storage.x,
+                y: this.move.storage.y,
+                w: this.move.storage.w,
+                h: this.move.storage.h,
+                full: this.full,
+                minimized: this.minimized
+            });
         } catch (e) {
             window.Logger.error('AppWindow', 'Failed to save session data', e);
         }
@@ -371,7 +376,7 @@ class AppWindow {
     }
 
     closeSameOrigin() {
-        window.SaveSystem.pushIframeSaveToFirestore(this.app.name.s, this.iframe)
+        pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
                 if (saved) window.Logger.info('SaveSystem', `Game data saved for ${this.app.name.s}`);
             })
@@ -390,7 +395,7 @@ class AppWindow {
             window.Logger.error('AppWindow', 'Failed to unregister window', e);
         }
         try {
-            if (window.windowSessions) window.windowSessions.removeWindow(this.index);
+            windowSessions.removeWindow(this.index);
         } catch (e) {
             window.Logger.error('AppWindow', 'Failed to remove window session', e);
         }
@@ -401,7 +406,7 @@ class AppWindow {
             window.Logger.error('AppWindow', 'Failed to hide element', e);
         }
 
-        window.SaveSystem.pushIframeSaveToFirestore(this.app.name.s, this.iframe)
+        pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
                 if (saved) window.Logger.info('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
             })
@@ -440,7 +445,7 @@ class AppWindow {
             window.Logger.error('AppWindow', 'Failed to unregister window', e);
         }
         try {
-            if (window.windowSessions) window.windowSessions.removeWindow(this.index);
+            windowSessions.removeWindow(this.index);
         } catch (e) {
             window.Logger.error('AppWindow', 'Failed to remove window session', e);
         }
@@ -643,7 +648,7 @@ function startApp(app, session) {
         appWindow.iframe.onload = async () => {
             if (!appWindow.loaded) {
                 try {
-                    const loaded = await window.SaveSystem.loadFirestoreToIframe(app.name.s, appWindow.iframe);
+                    const loaded = await loadFirestoreToIframe(app.name.s, appWindow.iframe);
                     if (loaded) {
                         window.Logger.info('SaveSystem', `Save data loaded for ${app.name.s}`);
                     } else {

@@ -237,3 +237,10 @@ function handleSuMessage(event) {
 }
 
 window.addEventListener('message', handleSuMessage);
+
+// Export for ES6 modules
+export { Application, applications };
+
+// Expose globally for backward compatibility
+window.Application = Application;
+window.applications = applications;

@@ -1,8 +1,17 @@
 // ============================================================================
 // Save System - Core Save/Load Operations
+// ES6 Module - Main entry point for save system
 // ============================================================================
 
-async function pushIframeSaveToFirestore(gameId, iframe) {
+import { SAVE_CONFIG } from './saveConfig.js';
+import { sleep, unwrapSaveData } from './helpers.js';
+import { uploadSaveDataToFirebase, exportSaveData, importSaveData, deleteSaveData, listBackups, restoreBackup } from './cloudSync.js';
+import { initializeMessageListener } from './messageHandler.js';
+
+// Initialize the message listener on module load
+initializeMessageListener();
+
+export async function pushIframeSaveToFirestore(gameId, iframe) {
     iframe = iframe || document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
     if (!iframe) {
         window.Logger.error('SaveSystem', 'Game iframe not found');
@@ -31,10 +40,10 @@ async function pushIframeSaveToFirestore(gameId, iframe) {
         return false;
     }
 
-    return await window.CloudSync.uploadSaveDataToFirebase(gameId, allLocalStorageData);
+    return await uploadSaveDataToFirebase(gameId, allLocalStorageData);
 }
 
-async function pushSaveViaPostMessageWithRetry(iframe, gameId, attempts = window.SAVE_CONFIG.retryAttempts) {
+async function pushSaveViaPostMessageWithRetry(iframe, gameId, attempts = SAVE_CONFIG.retryAttempts) {
     for (let i = 0; i < attempts; i++) {
         try {
             window.Logger.info('SaveSystem', `Save attempt ${i + 1}/${attempts} for ${gameId}`);
@@ -43,7 +52,7 @@ async function pushSaveViaPostMessageWithRetry(iframe, gameId, attempts = window
         } catch (e) {
             window.Logger.warn('SaveSystem', `Save attempt ${i + 1} failed for ${gameId}`, e);
             if (i < attempts - 1) {
-                await window.SaveHelpers.sleep(window.SAVE_CONFIG.retryDelay);
+                await sleep(SAVE_CONFIG.retryDelay);
             }
         }
     }
@@ -76,7 +85,7 @@ async function pushSaveViaPostMessage(iframe, gameId) {
 
                 if (event.data.allLocalStorageData && Object.keys(event.data.allLocalStorageData).length > 0) {
                     window.Logger.info('SaveSystem', `Save data received for ${gameId}, uploading to Firebase`);
-                    window.CloudSync.uploadSaveDataToFirebase(gameId, event.data.allLocalStorageData)
+                    uploadSaveDataToFirebase(gameId, event.data.allLocalStorageData)
                         .then(success => {
                             window.Logger.info('SaveSystem', `Firebase upload ${success ? 'successful' : 'failed'} for ${gameId}`);
                             resolve(success);
@@ -118,11 +127,11 @@ async function pushSaveViaPostMessage(iframe, gameId) {
             window.Logger.warn('SaveSystem', `Cross-origin save timeout for ${gameId}`);
             window.removeEventListener('message', handleResponse);
             resolve(false);
-        }, window.SAVE_CONFIG.timeout);
+        }, SAVE_CONFIG.timeout);
     });
 }
 
-async function loadFirestoreToIframe(gameId, iframe) {
+export async function loadFirestoreToIframe(gameId, iframe) {
     iframe = iframe || document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
     if (!iframe) {
         window.Logger.error('SaveSystem', 'Game iframe not found');
@@ -163,7 +172,7 @@ async function loadFirestoreToIframe(gameId, iframe) {
         
         try {
             const raw = JSON.parse(docData[gameId]);
-            allLocalStorageData = window.SaveHelpers.unwrapSaveData(raw);
+            allLocalStorageData = unwrapSaveData(raw);
             window.Logger.info('SaveSystem', `Save data found for ${gameId}`, {
                 keys: Object.keys(allLocalStorageData).length
             });
@@ -246,15 +255,20 @@ async function loadSaveViaPostMessage(iframe, gameId, allLocalStorageData) {
             window.Logger.warn('SaveSystem', `Cross-origin load timeout for ${gameId}`);
             window.removeEventListener('message', handleResponse);
             resolve(false);
-        }, window.SAVE_CONFIG.timeout);
+        }, SAVE_CONFIG.timeout);
     });
 }
 
-// Expose globally
+// Also export the cloud sync functions for easy access
+export { exportSaveData, importSaveData, deleteSaveData, listBackups, restoreBackup };
+
+// Expose API globally for backward compatibility
 window.SaveSystem = {
     pushIframeSaveToFirestore,
-    pushSaveViaPostMessageWithRetry,
-    pushSaveViaPostMessage,
     loadFirestoreToIframe,
-    loadSaveViaPostMessage
+    exportSaveData,
+    importSaveData,
+    deleteSaveData,
+    listBackups,
+    restoreBackup
 };
