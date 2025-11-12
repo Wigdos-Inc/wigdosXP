@@ -74,7 +74,7 @@ const elements = {
             let success = true;
             try {
                 // Store Color Data
-                const res = await fetch("scripts/apps/su/json/colors.json");
+                const res = await fetch("scripts/apps/applications/su/json/colors.json");
                 var colors = await res.json();
             } 
             catch {

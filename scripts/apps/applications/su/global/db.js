@@ -208,7 +208,7 @@ let task = {
     list : async function() {
 
         try {
-            const res = await fetch("scripts/apps/su/json/tasks.json");
+            const res = await fetch("scripts/apps/applications/su/json/tasks.json");
             return await res.json();
         } catch (error) {
             return err("JSON Tasks Load Failed: " + error);

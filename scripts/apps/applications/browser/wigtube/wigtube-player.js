@@ -65,7 +65,7 @@ let albumMetadataArray = [];
 // Load video data from JSON file
 async function loadVideoDataFromJSON() {
     try {
-        const response = await fetch('../../scripts/apps/browser/wigtube-data.json');
+        const response = await fetch('../../scripts/apps/applications/browser/wigtube/wigtube-data.json');
         const data = await response.json();
         videoDataArray = data.videos;
         
