@@ -1,6 +1,6 @@
 // ============================================================================
-// WigdosXP Window Management & Save System
-// Enhanced version with improved error handling, logging, and flexibility
+// WigdosXP Window Management
+// Core AppWindow class - Refactored to use UIBuilder
 // ============================================================================
 
 // Global window registry
@@ -9,106 +9,6 @@ let windows = {
     object: []
 };
 window.windows = windows;
-
-// ============================================================================
-// Configuration & Constants
-// ============================================================================
-
-const SAVE_CONFIG = {
-    timeout: 5000,
-    retryAttempts: 3,
-    retryDelay: 1000,
-    version: '1.0',
-    maxBackups: 5
-};
-
-const ALLOWED_ORIGINS = [
-    window.location.origin,
-    'https://wigdos-inc.github.io',
-    '*'
-];
-
-// ============================================================================
-// Logging System
-// ============================================================================
-
-const Logger = {
-    levels: { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 },
-    currentLevel: 2,
-    
-    log(level, context, message, data) {
-        if (this.levels[level] <= this.currentLevel) {
-            const timestamp = new Date().toISOString();
-            const logFn = console[level.toLowerCase()] || console.log;
-            if (data !== undefined) {
-                logFn(`[${timestamp}] [${context}]`, message, data);
-            } else {
-                logFn(`[${timestamp}] [${context}]`, message);
-            }
-        }
-    },
-    
-    error(context, message, data) { this.log('ERROR', context, message, data); },
-    warn(context, message, data) { this.log('WARN', context, message, data); },
-    info(context, message, data) { this.log('INFO', context, message, data); },
-    debug(context, message, data) { this.log('DEBUG', context, message, data); }
-};
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-function validateOrigin(origin) {
-    return ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*');
-}
-
-function generateChecksum(data) {
-    try {
-        const str = JSON.stringify(data);
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return hash.toString(36);
-    } catch (e) {
-        return null;
-    }
-}
-
-function validateChecksum(data, checksum) {
-    return generateChecksum(data) === checksum;
-}
-
-function wrapSaveData(gameId, data) {
-    return {
-        version: SAVE_CONFIG.version,
-        gameId: gameId,
-        timestamp: Date.now(),
-        data: data,
-        checksum: generateChecksum(data)
-    };
-}
-
-function unwrapSaveData(wrapped) {
-    // If it's not wrapped (old data or plain object), return as-is
-    if (!wrapped || !wrapped.version || !wrapped.data) {
-        Logger.info('SaveSystem', 'Save data is not wrapped format, returning as-is');
-        return wrapped;
-    }
-    
-    // Validate checksum
-    if (!validateChecksum(wrapped.data, wrapped.checksum)) {
-        Logger.warn('SaveSystem', 'Save data checksum validation failed, returning inner data anyway');
-    }
-    
-    return wrapped.data;
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 // ============================================================================
 // AppWindow Class
@@ -124,7 +24,6 @@ class AppWindow {
         this.loaded = false;
 
         // Inner Elements
-        this.header = undefined;
         this.nameBox = undefined;
         this.iframe = undefined;
 
@@ -163,83 +62,91 @@ class AppWindow {
         this._onIframeMouseDown = null;
     }
 
+    // Helper: Create drag overlay
+    createDragOverlay() {
+        if (this.dragOverlay) return;
+        this.dragOverlay = UIBuilder.div({ classes: 'drag-overlay' });
+        this.element.appendChild(this.dragOverlay);
+    }
+
+    // Helper: Remove drag overlay
+    removeDragOverlay() {
+        if (this.dragOverlay) {
+            this.dragOverlay.remove();
+            this.dragOverlay = null;
+        }
+    }
+
     create() {
         if (this.app.name.s === "su") localStorage.setItem("suActive", true);
 
         this.element.classList.add("appWindow");
-        this.focus = true;
 
         // App Window Header
-        const appHeader = this.element.appendChild(document.createElement("div"));
-        appHeader.classList.add("appHeader");
+        const appHeader = UIBuilder.div({ classes: 'appHeader' });
+        this.element.appendChild(appHeader);
 
         // Name Box
-        this.nameBox = appHeader.appendChild(document.createElement("div"));
-        this.nameBox.classList.add("appName");
+        this.nameBox = UIBuilder.div({ classes: 'appName' });
+        appHeader.appendChild(this.nameBox);
 
         // Header Buttons
-        const selectBox = appHeader.appendChild(document.createElement("div"));
-        selectBox.classList.add("selectBox");
+        const selectBox = UIBuilder.div({ classes: 'selectBox' });
+        appHeader.appendChild(selectBox);
 
         // Minimize Button
-        const minBtn = selectBox.appendChild(document.createElement("div"));
-        minBtn.classList.add("appMin", "selectBtns");
-        minBtn.innerHTML = "<strong>_</strong>";
-        minBtn.onclick = () => this.minimize();
-        minBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
+        const minBtn = UIBuilder.windowButton('minimize', () => this.minimize());
+        selectBox.appendChild(minBtn);
 
         // Screen Change Button
-        const screenBtn = selectBox.appendChild(document.createElement("div"));
-        screenBtn.classList.add("appScreen", "selectBtns");
-        const screenImg = screenBtn.appendChild(document.createElement("img"));
-        screenImg.classList.add("screenImg");
-        screenImg.src = "assets/images/icons/16x/screen.png";
-        screenBtn.onclick = () => {
+        const screenBtn = UIBuilder.windowButton('maximize', () => {
             this.full = !this.full;
             this.screenChange();
-        };
-        screenBtn.style.backgroundImage = "linear-gradient(to bottom right, #96B4F9, #6794fa, #4176F5, #2857c6, #225DE5)";
+        });
+        selectBox.appendChild(screenBtn);
 
         // Close Button
-        const closeBtn = selectBox.appendChild(document.createElement("div"));
-        closeBtn.classList.add("appClose", "selectBtns");
-        closeBtn.innerHTML = "<strong>X</strong>";
-        closeBtn.onclick = () => this.close();
+        const closeBtn = UIBuilder.windowButton('close', () => this.close());
+        selectBox.appendChild(closeBtn);
 
         // App Window Main
-        const appMain = this.element.appendChild(document.createElement("div"));
-        appMain.classList.add("appMain");
+        const appMain = UIBuilder.div({ classes: 'appMain' });
+        this.element.appendChild(appMain);
 
-        this.iframe = appMain.appendChild(document.createElement("iframe"));
-        this.iframe.classList.add("appContent");
-        this.iframe.dataset.appIndex = this.index;
+        // Create iframe
+        this.iframe = UIBuilder.iframe({
+            classes: 'appContent',
+            attributes: { 'data-app-index': this.index }
+        });
 
         // Optional sandboxing
         if (this.app && this.app.sandbox) {
             this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms');
             this.iframe.dataset.sandboxed = 'true';
-            Logger.info('AppWindow', `Iframe for ${this.app.name.s} created with sandboxing`);
+            window.Logger.info('AppWindow', `Iframe for ${this.app.name.s} created with sandboxing`);
         }
 
+        appMain.appendChild(this.iframe);
+
         // Focus Functionality
-        const overlay = appMain.appendChild(document.createElement("div"));
-        overlay.classList.add("appOverlay");
-        overlay.style.display = "none";
+        const overlay = UIBuilder.div({ classes: 'appOverlay' });
+        UIBuilder.hide(overlay);
+        appMain.appendChild(overlay);
 
         this._onDocumentMouseDown = (event) => {
             if (this.element.contains(event.target)) {
                 appHeader.classList.remove("headerUnfocus");
                 appMain.classList.remove("mainUnfocus");
-                overlay.style.display = "none";
+                UIBuilder.hide(overlay);
                 try {
                     if (window.windowManager) window.windowManager.bringToFront(this);
                 } catch (e) {
-                    Logger.error('AppWindow', 'Failed to bring window to front', e);
+                    window.Logger.error('AppWindow', 'Failed to bring window to front', e);
                 }
             } else {
                 appHeader.classList.add("headerUnfocus");
                 appMain.classList.add("mainUnfocus");
-                overlay.style.display = "block";
+                UIBuilder.show(overlay);
             }
         };
         document.addEventListener("mousedown", this._onDocumentMouseDown);
@@ -256,13 +163,10 @@ class AppWindow {
             }
 
             this.move.current = true;
-            this.element.style.transition = "unset";
+            UIBuilder.setTransition(this.element, 'unset');
 
-            this.dragOverlay = document.createElement("div");
-            this.dragOverlay.classList.add("drag-overlay");
-            this.element.appendChild(this.dragOverlay);
-
-            this.iframe.style.pointerEvents = "none";
+            this.createDragOverlay();
+            UIBuilder.setPointerEvents(this.iframe, false);
 
             if (this.full) {
                 const headerRect = event.currentTarget.getBoundingClientRect();
@@ -348,24 +252,18 @@ class AppWindow {
         this._onDocumentMouseUp = () => {
             if (this.move.current) {
                 this.move.current = false;
-                this.element.style.transition = "all 0.1s";
+                UIBuilder.setTransition(this.element, 'all 0.1s');
                 const pos = this.element.getBoundingClientRect();
                 this.move.storage.x = pos.x;
                 this.move.storage.y = pos.y;
-                this.iframe.style.pointerEvents = "unset";
-                if (this.dragOverlay) {
-                    this.dragOverlay.remove();
-                    this.dragOverlay = null;
-                }
+                UIBuilder.setPointerEvents(this.iframe, true);
+                this.removeDragOverlay();
             }
             if (this.resize.current) {
                 this.resize.current = false;
-                this.element.style.transition = "all 0.1s";
-                this.iframe.style.pointerEvents = "unset";
-                if (this.dragOverlay) {
-                    this.dragOverlay.remove();
-                    this.dragOverlay = null;
-                }
+                UIBuilder.setTransition(this.element, 'all 0.1s');
+                UIBuilder.setPointerEvents(this.iframe, true);
+                this.removeDragOverlay();
             }
             
             this.saveSessionData();
@@ -378,7 +276,7 @@ class AppWindow {
             try {
                 if (window.windowManager) window.windowManager.bringToFront(this);
             } catch (e) {
-                Logger.error('AppWindow', 'Failed to bring window to front from iframe', e);
+                window.Logger.error('AppWindow', 'Failed to bring window to front from iframe', e);
             }
         };
         this.iframe.addEventListener("mousedown", this._onIframeMouseDown);
@@ -386,9 +284,10 @@ class AppWindow {
         // Resize Handles
         const directions = ["n", "e", "s", "w", "ne", "nw", "se", "sw"];
         directions.forEach(dir => {
-            const handle = document.createElement("div");
-            handle.classList.add("resize-handle", dir);
-            handle.dataset.direction = dir;
+            const handle = UIBuilder.div({
+                classes: ['resize-handle', dir],
+                attributes: { 'data-direction': dir }
+            });
             this.element.appendChild(handle);
             handle.addEventListener("mousedown", event => {
                 if (!this.full) {
@@ -407,11 +306,9 @@ class AppWindow {
                     this.resize.startHeight = rect.height;
                     this.resize.startLeft = rect.left;
                     this.resize.startTop = rect.top;
-                    this.element.style.transition = "unset";
-                    this.iframe.style.pointerEvents = "none";
-                    this.dragOverlay = document.createElement("div");
-                    this.dragOverlay.classList.add("drag-overlay");
-                    this.element.appendChild(this.dragOverlay);
+                    UIBuilder.setTransition(this.element, 'unset');
+                    UIBuilder.setPointerEvents(this.iframe, false);
+                    this.createDragOverlay();
                     this.element.style.transform = "unset";
                 }
             });
@@ -433,7 +330,7 @@ class AppWindow {
                 });
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to save session data', e);
+            window.Logger.error('AppWindow', 'Failed to save session data', e);
         }
     }
 
@@ -446,7 +343,7 @@ class AppWindow {
                 window.taskbarFunctions.removeButton(this);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to remove taskbar button', e);
+            window.Logger.error('AppWindow', 'Failed to remove taskbar button', e);
         }
 
         if (this.app.name.s === "su") localStorage.removeItem("suActive");
@@ -474,11 +371,11 @@ class AppWindow {
     }
 
     closeSameOrigin() {
-        pushIframeSaveToFirestore(this.app.name.s, this.iframe)
+        window.SaveSystem.pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
-                if (saved) Logger.info('SaveSystem', `Game data saved for ${this.app.name.s}`);
+                if (saved) window.Logger.info('SaveSystem', `Game data saved for ${this.app.name.s}`);
             })
-            .catch(err => Logger.error('SaveSystem', 'Save failed', err))
+            .catch(err => window.Logger.error('SaveSystem', 'Save failed', err))
             .finally(() => {
                 this.finalizeClose();
             });
@@ -490,25 +387,25 @@ class AppWindow {
         try {
             if (window.windowManager) window.windowManager.unregister(this);
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to unregister window', e);
+            window.Logger.error('AppWindow', 'Failed to unregister window', e);
         }
         try {
             if (window.windowSessions) window.windowSessions.removeWindow(this.index);
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to remove window session', e);
+            window.Logger.error('AppWindow', 'Failed to remove window session', e);
         }
 
         try {
             this.element.style.display = 'none';
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to hide element', e);
+            window.Logger.error('AppWindow', 'Failed to hide element', e);
         }
 
-        pushIframeSaveToFirestore(this.app.name.s, this.iframe)
+        window.SaveSystem.pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
-                if (saved) Logger.info('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
+                if (saved) window.Logger.info('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
             })
-            .catch(err => Logger.error('SaveSystem', 'Background save failed', err))
+            .catch(err => window.Logger.error('SaveSystem', 'Background save failed', err))
             .finally(() => {
                 if (this._pendingRemoval && this._pendingRemoval.cancelled) {
                     this._pendingRemoval = null;
@@ -516,7 +413,7 @@ class AppWindow {
                     try {
                         if (window.windowManager) window.windowManager.register(this);
                     } catch (e) {
-                        Logger.error('AppWindow', 'Failed to re-register window', e);
+                        window.Logger.error('AppWindow', 'Failed to re-register window', e);
                     }
                     this.saveSessionData();
                     return;
@@ -525,7 +422,7 @@ class AppWindow {
                 try {
                     this.element.remove();
                 } catch (e) {
-                    Logger.error('AppWindow', 'Failed to remove element', e);
+                    window.Logger.error('AppWindow', 'Failed to remove element', e);
                 }
                 windows.object[this.index] = null;
                 this._pendingRemoval = null;
@@ -540,17 +437,17 @@ class AppWindow {
         try {
             if (window.windowManager) window.windowManager.unregister(this);
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to unregister window', e);
+            window.Logger.error('AppWindow', 'Failed to unregister window', e);
         }
         try {
             if (window.windowSessions) window.windowSessions.removeWindow(this.index);
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to remove window session', e);
+            window.Logger.error('AppWindow', 'Failed to remove window session', e);
         }
         try {
             this.element.remove();
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to remove element', e);
+            window.Logger.error('AppWindow', 'Failed to remove element', e);
         }
         windows.object[this.index] = null;
     }
@@ -570,10 +467,7 @@ class AppWindow {
             this.iframe.removeEventListener('mousedown', this._onIframeMouseDown);
         }
         
-        if (this.dragOverlay) {
-            this.dragOverlay.remove();
-            this.dragOverlay = null;
-        }
+        this.removeDragOverlay();
 
         this._timeouts.forEach(id => clearTimeout(id));
         this._timeouts = [];
@@ -616,7 +510,7 @@ class AppWindow {
                 window.windowManager.register(this);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to register window on minimize', e);
+            window.Logger.error('AppWindow', 'Failed to register window on minimize', e);
         }
 
         this.minimized = true;
@@ -624,7 +518,7 @@ class AppWindow {
         try {
             this.element.style.display = 'none';
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to hide element on minimize', e);
+            window.Logger.error('AppWindow', 'Failed to hide element on minimize', e);
         }
 
         try {
@@ -632,7 +526,7 @@ class AppWindow {
                 window.windowManager.addMinimized(this);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to add minimized window', e);
+            window.Logger.error('AppWindow', 'Failed to add minimized window', e);
         }
 
         this.saveSessionData();
@@ -643,7 +537,7 @@ class AppWindow {
             try {
                 this._pendingRemoval.cancelled = true;
             } catch (e) {
-                Logger.error('AppWindow', 'Failed to cancel pending removal', e);
+                window.Logger.error('AppWindow', 'Failed to cancel pending removal', e);
             }
             this._pendingRemoval = null;
             this._closing = false;
@@ -657,7 +551,7 @@ class AppWindow {
                 if (main) main.appendChild(this.element);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to reattach element', e);
+            window.Logger.error('AppWindow', 'Failed to reattach element', e);
         }
 
         this.minimized = false;
@@ -665,7 +559,7 @@ class AppWindow {
         try {
             this.element.style.display = '';
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to show element on restore', e);
+            window.Logger.error('AppWindow', 'Failed to show element on restore', e);
         }
 
         try {
@@ -673,13 +567,13 @@ class AppWindow {
                 window.windowManager.register(this);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to register window on restore', e);
+            window.Logger.error('AppWindow', 'Failed to register window on restore', e);
         }
 
         try {
             if (window.windowManager) window.windowManager.bringToFront(this);
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to bring window to front', e);
+            window.Logger.error('AppWindow', 'Failed to bring window to front', e);
         }
 
         try {
@@ -687,7 +581,7 @@ class AppWindow {
                 window.windowManager.removeMinimized(this);
             }
         } catch (e) {
-            Logger.error('AppWindow', 'Failed to remove from minimized list', e);
+            window.Logger.error('AppWindow', 'Failed to remove from minimized list', e);
         }
 
         this.saveSessionData();
@@ -714,7 +608,7 @@ function startApp(app, session) {
             if (typeof session.y === 'number') appWindow.move.storage.y = session.y;
             if (typeof session.full === 'boolean') appWindow.full = session.full;
         } catch (e) {
-            Logger.error('StartApp', 'Failed to restore session data', e);
+            window.Logger.error('StartApp', 'Failed to restore session data', e);
         }
     }
 
@@ -739,7 +633,7 @@ function startApp(app, session) {
             try {
                 appWindow.minimize();
             } catch (e) {
-                Logger.error('StartApp', 'Failed to minimize window', e);
+                window.Logger.error('StartApp', 'Failed to minimize window', e);
             }
         }, 120);
         appWindow.addTimeout(minimizeTimeoutId);
@@ -749,14 +643,14 @@ function startApp(app, session) {
         appWindow.iframe.onload = async () => {
             if (!appWindow.loaded) {
                 try {
-                    const loaded = await loadFirestoreToIframe(app.name.s, appWindow.iframe);
+                    const loaded = await window.SaveSystem.loadFirestoreToIframe(app.name.s, appWindow.iframe);
                     if (loaded) {
-                        Logger.info('SaveSystem', `Save data loaded for ${app.name.s}`);
+                        window.Logger.info('SaveSystem', `Save data loaded for ${app.name.s}`);
                     } else {
-                        Logger.info('SaveSystem', `No remote save data found for ${app.name.s}`);
+                        window.Logger.info('SaveSystem', `No remote save data found for ${app.name.s}`);
                     }
                 } catch (error) {
-                    Logger.error('SaveSystem', `Could not load save data for ${app.name.s}`, error);
+                    window.Logger.error('SaveSystem', `Could not load save data for ${app.name.s}`, error);
                 }
 
                 appWindow.loaded = true;
@@ -770,7 +664,7 @@ function startApp(app, session) {
     try {
         if (window.windowManager) window.windowManager.register(appWindow);
     } catch (e) {
-        Logger.error('StartApp', 'Failed to register window', e);
+        window.Logger.error('StartApp', 'Failed to register window', e);
     }
 
     const taskbarTimeoutId = setTimeout(() => {
@@ -779,457 +673,8 @@ function startApp(app, session) {
                 window.taskbarFunctions.createButton(appWindow);
             }
         } catch (e) {
-            Logger.error('StartApp', 'Could not create taskbar button', e);
+            window.Logger.error('StartApp', 'Could not create taskbar button', e);
         }
     }, 50);
     appWindow.addTimeout(taskbarTimeoutId);
-}
-
-// ============================================================================
-// Save System - Core Functions
-// ============================================================================
-
-async function pushIframeSaveToFirestore(gameId, iframe) {
-    iframe = iframe || document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
-    if (!iframe) {
-        Logger.error('SaveSystem', 'Game iframe not found');
-        throw new Error('Game iframe not found');
-    }
-
-    let allLocalStorageData;
-    
-    try {
-        const iframeStorage = iframe.contentWindow.localStorage;
-        allLocalStorageData = {};
-        
-        for (let i = 0; i < iframeStorage.length; i++) {
-            const key = iframeStorage.key(i);
-            allLocalStorageData[key] = iframeStorage.getItem(key);
-        }
-        
-        Logger.debug('SaveSystem', `Retrieved ${Object.keys(allLocalStorageData).length} localStorage items`);
-    } catch (err) {
-        Logger.info('SaveSystem', 'Cross-origin iframe detected, using postMessage');
-        return await pushSaveViaPostMessageWithRetry(iframe, gameId);
-    }
-
-    if (Object.keys(allLocalStorageData).length === 0) {
-        Logger.info('SaveSystem', 'No data to save');
-        return false;
-    }
-
-    return await uploadSaveDataToFirebase(gameId, allLocalStorageData);
-}
-
-async function pushSaveViaPostMessageWithRetry(iframe, gameId, attempts = SAVE_CONFIG.retryAttempts) {
-    for (let i = 0; i < attempts; i++) {
-        try {
-            Logger.info('SaveSystem', `Save attempt ${i + 1}/${attempts} for ${gameId}`);
-            const result = await pushSaveViaPostMessage(iframe, gameId);
-            if (result) return true;
-        } catch (e) {
-            Logger.warn('SaveSystem', `Save attempt ${i + 1} failed for ${gameId}`, e);
-            if (i < attempts - 1) {
-                await sleep(SAVE_CONFIG.retryDelay);
-            }
-        }
-    }
-    Logger.error('SaveSystem', `All save attempts failed for ${gameId}`);
-    return false;
-}
-
-async function pushSaveViaPostMessage(iframe, gameId) {
-    return new Promise((resolve) => {
-        const messageId = `save_${gameId}_${Date.now()}`;
-        let iframeOrigin = '*';
-        
-        try {
-            iframeOrigin = new URL(iframe.src).origin;
-        } catch (e) {
-            iframeOrigin = '*';
-        }
-
-        Logger.debug('SaveSystem', `Attempting cross-origin save for ${gameId}`, {
-            messageId,
-            iframeSrc: iframe.src,
-            iframeOrigin
-        });
-        
-        const handleResponse = (event) => {
-            if (iframeOrigin !== '*' && event.origin !== iframeOrigin) return;
-            
-            if (event.data && event.data.type === 'saveDataResponse' && event.data.messageId === messageId) {
-                window.removeEventListener('message', handleResponse);
-
-                if (event.data.allLocalStorageData && Object.keys(event.data.allLocalStorageData).length > 0) {
-                    Logger.info('SaveSystem', `Save data received for ${gameId}, uploading to Firebase`);
-                    uploadSaveDataToFirebase(gameId, event.data.allLocalStorageData)
-                        .then(success => {
-                            Logger.info('SaveSystem', `Firebase upload ${success ? 'successful' : 'failed'} for ${gameId}`);
-                            resolve(success);
-                        })
-                        .catch((err) => {
-                            Logger.error('SaveSystem', `Firebase upload error for ${gameId}`, err);
-                            resolve(false);
-                        });
-                } else {
-                    Logger.info('SaveSystem', `No save data received for ${gameId}`);
-                    resolve(false);
-                }
-            }
-        };
-        
-        window.addEventListener('message', handleResponse);
-        
-        Logger.debug('SaveSystem', `Sending getAllLocalStorageData to ${gameId} iframe`);
-        try {
-            iframe.contentWindow.postMessage({
-                type: 'getAllLocalStorageData',
-                gameId: gameId,
-                messageId: messageId
-            }, iframeOrigin);
-        } catch (err) {
-            Logger.warn('SaveSystem', 'postMessage to iframe failed, falling back to "*" targetOrigin', err);
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'getAllLocalStorageData',
-                    gameId: gameId,
-                    messageId: messageId
-                }, '*');
-            } catch (e) {
-                Logger.error('SaveSystem', 'All postMessage attempts failed', e);
-            }
-        }
-        
-        setTimeout(() => {
-            Logger.warn('SaveSystem', `Cross-origin save timeout for ${gameId}`);
-            window.removeEventListener('message', handleResponse);
-            resolve(false);
-        }, SAVE_CONFIG.timeout);
-    });
-}
-
-async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
-    const user = localStorage.getItem('username') || 'guest';
-    if (user === 'guest') {
-        Logger.info('SaveSystem', 'Guest user, skipping Firebase upload');
-        return false;
-    }
-
-    const api = window.firebaseAPI;
-    if (!api || !api.db) {
-        Logger.warn('SaveSystem', 'Firebase not available');
-        return false;
-    }
-
-    try {
-        const wrappedData = wrapSaveData(gameId, allLocalStorageData);
-
-        // Save only the wrapped format (no legacy system)
-        const docPatch = {
-            [gameId]: JSON.stringify(wrappedData)
-        };
-
-        await api.setDoc(
-            api.doc(api.db, 'game_saves', user),
-            docPatch,
-            { merge: true }
-        );
-        
-        Logger.info('SaveSystem', `Successfully uploaded save data for ${gameId}`);
-        
-        // Backup management
-        await manageBackups(gameId, wrappedData);
-        
-        return true;
-    } catch (err) {
-        Logger.error('SaveSystem', 'Firebase save error', err);
-        return false;
-    }
-}
-
-async function manageBackups(gameId, wrappedData) {
-    try {
-        const user = localStorage.getItem('username') || 'guest';
-        if (user === 'guest') return;
-
-        const api = window.firebaseAPI;
-        if (!api || !api.db) return;
-
-        const backupsRef = api.doc(api.db, 'game_saves_backups', user);
-        const backupsDoc = await api.getDoc(backupsRef);
-        
-        let backups = {};
-        if (backupsDoc.exists()) {
-            backups = backupsDoc.data();
-        }
-
-        if (!backups[gameId]) {
-            backups[gameId] = [];
-        }
-
-        backups[gameId].push({
-            timestamp: wrappedData.timestamp,
-            data: wrappedData
-        });
-
-        // Keep only the last N backups
-        if (backups[gameId].length > SAVE_CONFIG.maxBackups) {
-            backups[gameId] = backups[gameId]
-                .sort((a, b) => b.timestamp - a.timestamp)
-                .slice(0, SAVE_CONFIG.maxBackups);
-        }
-
-        await api.setDoc(backupsRef, backups);
-        Logger.debug('SaveSystem', `Backup saved for ${gameId}`);
-    } catch (err) {
-        Logger.warn('SaveSystem', 'Backup management failed', err);
-    }
-}
-
-async function loadFirestoreToIframe(gameId, iframe) {
-    iframe = iframe || document.getElementById('gameIframe') || document.querySelector('iframe.appContent');
-    if (!iframe) {
-        Logger.error('SaveSystem', 'Game iframe not found');
-        throw new Error('Game iframe not found');
-    }
-
-    Logger.info('SaveSystem', `Loading save data for ${gameId}`);
-
-    const user = localStorage.getItem('username') || 'guest';
-    if (user === 'guest') {
-        Logger.info('SaveSystem', 'Guest user, skipping save load');
-        return false;
-    }
-
-    const api = window.firebaseAPI;
-    if (!api || !api.db) {
-        Logger.warn('SaveSystem', 'Firebase not available');
-        return false;
-    }
-
-    try {
-        Logger.debug('SaveSystem', `Fetching save data from Firebase for ${gameId}`);
-        const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
-        
-        if (!userDoc.exists()) {
-            Logger.info('SaveSystem', `No save document found for ${gameId}`);
-            return false;
-        }
-
-        const docData = userDoc.data();
-        
-        if (!docData[gameId]) {
-            Logger.info('SaveSystem', `No save data found for ${gameId}`);
-            return false;
-        }
-
-        let allLocalStorageData = null;
-        
-        try {
-            const raw = JSON.parse(docData[gameId]);
-            allLocalStorageData = unwrapSaveData(raw);
-            Logger.info('SaveSystem', `Save data found for ${gameId}`, {
-                keys: Object.keys(allLocalStorageData).length
-            });
-        } catch (e) {
-            Logger.error('SaveSystem', 'Failed to parse save data', e);
-            return false;
-        }
-
-        if (allLocalStorageData && Object.keys(allLocalStorageData).length > 0) {
-            // Always use postMessage to restore save data
-            try {
-                return await loadSaveViaPostMessage(iframe, gameId, allLocalStorageData);
-            } catch (err) {
-                Logger.error('SaveSystem', `Failed to load save via postMessage for ${gameId}`, err);
-                return false;
-            }
-        } else {
-            Logger.info('SaveSystem', `No save data to load for ${gameId}`);
-        }
-    } catch (err) {
-        Logger.error('SaveSystem', `Load error for ${gameId}`, err);
-        return false;
-    }
-    
-    return false;
-}
-
-async function loadSaveViaPostMessage(iframe, gameId, allLocalStorageData) {
-    return new Promise((resolve) => {
-        const messageId = `load_${gameId}_${Date.now()}`;
-        let iframeOrigin = '*';
-        
-        try {
-            iframeOrigin = new URL(iframe.src).origin;
-        } catch (e) {
-            iframeOrigin = '*';
-        }
-
-        Logger.debug('SaveSystem', `Attempting cross-origin load for ${gameId}`, {
-            messageId,
-            dataKeys: Object.keys(allLocalStorageData).length,
-            iframeOrigin
-        });
-        
-        const handleResponse = (event) => {
-            if (iframeOrigin !== '*' && event.origin !== iframeOrigin) return;
-            
-            if (event.data && event.data.type === 'loadDataResponse' && event.data.messageId === messageId) {
-                window.removeEventListener('message', handleResponse);
-                Logger.info('SaveSystem', `Load ${event.data.success ? 'successful' : 'failed'} for ${gameId}`);
-                resolve(event.data.success === true);
-            }
-        };
-        
-        window.addEventListener('message', handleResponse);
-        
-        Logger.debug('SaveSystem', `Sending setAllLocalStorageData to ${gameId} iframe`);
-        try {
-            iframe.contentWindow.postMessage({
-                type: 'setAllLocalStorageData',
-                gameId: gameId,
-                allLocalStorageData: allLocalStorageData,
-                messageId: messageId
-            }, iframeOrigin);
-        } catch (err) {
-            Logger.warn('SaveSystem', 'postMessage to iframe failed, falling back to "*" targetOrigin', err);
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'setAllLocalStorageData',
-                    gameId: gameId,
-                    allLocalStorageData: allLocalStorageData,
-                    messageId: messageId
-                }, '*');
-            } catch (e) {
-                Logger.error('SaveSystem', 'All postMessage attempts failed', e);
-            }
-        }
-        
-        setTimeout(() => {
-            Logger.warn('SaveSystem', `Cross-origin load timeout for ${gameId}`);
-            window.removeEventListener('message', handleResponse);
-            resolve(false);
-        }, SAVE_CONFIG.timeout);
-    });
-}
-
-// ============================================================================
-// Message Handler - Initial Save Data Requests
-// ============================================================================
-
-window.addEventListener('message', function(event) {
-    if (!validateOrigin(event.origin)) {
-        Logger.warn('SaveSystem', 'Rejected message from untrusted origin', event.origin);
-        return;
-    }
-    
-    if (!event.data) return;
-    
-    // Handle closeWindow action from iframe
-    if (event.data.action === 'closeWindow') {
-        Logger.info('WindowManager', 'Close window request from iframe');
-        // Find the iframe that sent the message
-        const iframe = Array.from(document.querySelectorAll('iframe.appContent')).find(
-            frame => frame.contentWindow === event.source
-        );
-        if (iframe) {
-            const appIndex = iframe.dataset.appIndex;
-            Logger.debug('WindowManager', `Found iframe with appIndex: ${appIndex}`);
-            const windowObj = windows.object.find(w => w && w.index != null && w.index == appIndex);
-            if (windowObj && typeof windowObj.close === 'function') {
-                Logger.info('WindowManager', `Closing window ${appIndex}`);
-                windowObj.close();
-            } else {
-                Logger.warn('WindowManager', `Window object not found or invalid for appIndex ${appIndex}`);
-            }
-        } else {
-            Logger.warn('WindowManager', 'Could not find iframe that sent close request');
-        }
-        return;
-    }
-    
-    if (!event.data.type) return;
-    
-    if (event.data.type === 'getInitialSaveData') {
-        Logger.info('SaveSystem', 'Game requesting initial save data', event.data);
-        handleInitialSaveDataRequest(event);
-    }
-    
-    if (event.data.type === 'wigdosxp-integration-ready') {
-        Logger.info('SaveSystem', 'Game integration ready', event.data.gameId);
-    }
-});
-
-async function handleInitialSaveDataRequest(event) {
-    const gameId = event.data.gameId;
-    const messageId = event.data.messageId;
-    
-    Logger.info('SaveSystem', `Processing initial save data request for ${gameId}`);
-    
-    try {
-        const user = localStorage.getItem('username') || 'guest';
-        if (user === 'guest') {
-            Logger.info('SaveSystem', `Guest user - no save data for ${gameId}`);
-            event.source.postMessage({
-                type: 'initialSaveDataResponse',
-                messageId: messageId,
-                allLocalStorageData: {}
-            }, event.origin);
-            return;
-        }
-
-        const api = window.firebaseAPI;
-        if (!api || !api.db) {
-            Logger.warn('SaveSystem', `Firebase not available for ${gameId}`);
-            event.source.postMessage({
-                type: 'initialSaveDataResponse',
-                messageId: messageId,
-                allLocalStorageData: {}
-            }, event.origin);
-            return;
-        }
-
-        Logger.debug('SaveSystem', `Fetching save data from Firebase for ${gameId}`);
-        const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
-
-        let allLocalStorageData = {};
-        
-        if (userDoc.exists()) {
-            const docData = userDoc.data();
-            
-            if (docData[gameId]) {
-                try {
-                    const raw = JSON.parse(docData[gameId]);
-                    allLocalStorageData = unwrapSaveData(raw);
-                    Logger.info('SaveSystem', `Found save data for ${gameId}`, { 
-                        keys: Object.keys(allLocalStorageData).length 
-                    });
-                } catch (e) {
-                    Logger.warn('SaveSystem', 'Failed to parse save data', e);
-                    allLocalStorageData = {};
-                }
-            } else {
-                Logger.info('SaveSystem', `No save data found for ${gameId}`);
-            }
-        }
-
-        event.source.postMessage({
-            type: 'initialSaveDataResponse',
-            messageId: messageId,
-            allLocalStorageData: allLocalStorageData
-        }, event.origin);
-        
-        Logger.debug('SaveSystem', `Initial save data response sent for ${gameId}`);
-        
-    } catch (error) {
-        Logger.error('SaveSystem', `Error handling initial save data request for ${gameId}`, error);
-        event.source.postMessage({
-            type: 'initialSaveDataResponse',
-            messageId: messageId,
-            allLocalStorageData: {},
-            error: error.message
-        }, event.origin);
-    }
 }
