@@ -129,4 +129,9 @@
         };
     }
 
+    // Export Helpers
+    export const getAPI = () => firebaseAPI;
+    export const isOnline = () => firebaseOnline;
+
+    // Auto-Initialize
     initializeFirebase();
