@@ -148,7 +148,8 @@ function createAppTaskbarButton(appWindow) {
         }
     };
 
-    if (appWindow.focus) {
+    // Check if the window element has the 'focused' class from windowManager
+    if (appWindow.element && appWindow.element.classList.contains('focused')) {
         btn.classList.add('focused');
     }
 
@@ -175,7 +176,9 @@ function updateAppTaskbarButtons() {
     if (!window.windows || !window.windows.object) return;
     window.windows.object.forEach(appWin => {
         if (appWin && appWin._taskbarBtn) {
-            if (appWin.focus) {
+            // Check if the window element has the 'focused' class from windowManager
+            const isFocused = appWin.element && appWin.element.classList.contains('focused');
+            if (isFocused) {
                 appWin._taskbarBtn.classList.add('focused');
             } else {
                 appWin._taskbarBtn.classList.remove('focused');

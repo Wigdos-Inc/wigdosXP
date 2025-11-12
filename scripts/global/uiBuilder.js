@@ -122,7 +122,8 @@ const UIBuilder = (function() {
         
         // Add icon if provided
         if (options.icon) {
-            const icon = img(options.icon, { classes: ['btn-icon'] });
+            const iconClass = options.iconClass || 'btn-icon';
+            const icon = img(options.icon, { classes: [iconClass] });
             btn.appendChild(icon);
         }
         
@@ -155,6 +156,7 @@ const UIBuilder = (function() {
             },
             maximize: {
                 icon: 'assets/images/icons/16x/screen.png',
+                iconClass: 'screenImg',
                 classes: ['appScreen', 'selectBtns'],
                 gradient: 'blue'
             },

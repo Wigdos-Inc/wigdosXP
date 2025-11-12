@@ -5,33 +5,10 @@
 let minimizedBar = null;
 
 function ensureMinimizedBar() {
+    // DISABLED: The taskbar.js system handles all window buttons now
+    // This function is kept for compatibility but does nothing
     if (minimizedBar) return;
-    try {
-        let footer = document.getElementsByTagName('footer')[0];
-        minimizedBar = UIBuilder.div({
-            id: 'minimized_bar',
-            styles: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px',
-                marginRight: '8px'
-            }
-        });
-        
-        if (footer) {
-            footer.insertBefore(minimizedBar, footer.firstChild);
-        } else {
-            // Fallback: append to body, positioned above the bottom so it doesn't overlap other UI
-            UIBuilder.applyStyles(minimizedBar, {
-                position: 'fixed',
-                right: '8px',
-                bottom: '8px',
-                zIndex: '9999'
-            });
-            document.body.appendChild(minimizedBar);
-        }
-    } catch (e) { minimizedBar = null; }
+    minimizedBar = document.createElement('div'); // Dummy element, never appended
 }
 
 function createMinimizedButton(w) {
@@ -131,28 +108,18 @@ function setupMinimizedPreview(btn, w) {
 }
 
 function renderMinimized(windows) {
-    if (!minimizedBar) {
-        try { ensureMinimizedBar(); } catch (e) { return; }
-        if (!minimizedBar) return;
-    }
-    // Dedupe by index to avoid duplicates after fast restore/close cycles
-    const minsMap = {};
-    const mins = [];
-    windows.forEach(w => { if (w && w.minimized && !minsMap[w.index]) { minsMap[w.index] = true; mins.push(w); } });
-    minimizedBar.innerHTML = '';
-    mins.forEach(w => {
-        const btn = createMinimizedButton(w);
-        minimizedBar.appendChild(btn);
-    });
+    // DISABLED: The taskbar.js system handles all window buttons now
+    // This function is kept for compatibility but does nothing
 }
 
 function addMinimized(appWindow) {
-    ensureMinimizedBar();
-    renderMinimized(window.windowManager.getWindows());
+    // DISABLED: The taskbar.js system handles all window buttons now
+    // This function is kept for compatibility but does nothing
 }
 
 function removeMinimized(appWindow) {
-    renderMinimized(window.windowManager.getWindows());
+    // DISABLED: The taskbar.js system handles all window buttons now
+    // This function is kept for compatibility but does nothing
 }
 
 function ensurePreview() {

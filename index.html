@@ -11,6 +11,7 @@
     
     <!-- Page Stylesheets -->
     <link rel="stylesheet" href="styles/desktop/taskbar.css">
+    <link rel="stylesheet" href="styles/desktop/taskbar-apps.css">
     <link rel="stylesheet" href="styles/desktop/window.css">
     <link rel="stylesheet" href="styles/desktop/lifecycle.css">
     <link rel="stylesheet" href="styles/desktop/desktop.css">
@@ -45,26 +46,27 @@
     
     <!-- Global utilities (no dependencies) -->
     <script src="scripts/global/logger.js"></script>
+    <script src="scripts/global/uiBuilder.js"></script>
     
     <!-- Save system (depends on logger) -->
-    <script src="scripts/saving/saveConfig.js"></script>
-    <script src="scripts/saving/helpers.js"></script>
-    <script src="scripts/saving/cloudSync.js"></script>
-    <script src="scripts/saving/saveSystem.js"></script>
-    <script src="scripts/saving/messageHandler.js"></script>
+    <script src="scripts/apps/saving/saveConfig.js"></script>
+    <script src="scripts/apps/saving/helpers.js"></script>
+    <script src="scripts/apps/saving/cloudSync.js"></script>
+    <script src="scripts/apps/saving/saveSystem.js"></script>
+    <script src="scripts/apps/saving/messageHandler.js"></script>
     
     <!-- Desktop and lifecycle -->
     <script src="scripts/desktop/lifecycle.js"></script>
     
     <!-- Window management -->
-    <script src="scripts/apps/windowSessions.js"></script>
-    <script src="scripts/apps/appWindow.js"></script>
-    <script src="scripts/apps/windowManager.js"></script>
-    <script src="scripts/appWindows/minimizedBar.js"></script>
-    <script src="scripts/appWindows/windowManagerUI.js"></script>
+    <script src="scripts/apps/appWindows/windowSessions.js"></script>
+    <script src="scripts/apps/appWindows/appWindow.js"></script>
+    <script src="scripts/apps/appWindows/windowManager.js"></script>
+    <script src="scripts/apps/appWindows/minimizedBar.js"></script>
+    <script src="scripts/apps/appWindows/windowManagerUI.js"></script>
     
     <!-- Applications -->
-    <script src="scripts/apps/applications.js"></script>
+    <script src="scripts/apps/applications/applications.js"></script>
     <script src="scripts/global/anticheat.js"></script>
 
     <!-- Content Scripts -->
