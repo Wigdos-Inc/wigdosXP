@@ -198,22 +198,22 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">67 </a>
+            <a href="#" class="google-2003-result-title" onclick="navigateToWinesweeper('${tabId}'); return false;">Winesweeper </a>
           </div>
           <div class="google-2003-result-snippet">
-             ...
+             Minesweeper but wigdos touched it up a little, good luck whoever wishes to play this shitty game T_T
           </div>
           <div class="google-2003-result-meta">
-            <span class="google-2003-result-url">www.placeholder.com/Placeholder.html</span>
-            <span class="google-2003-result-size">24k</span>
-            <span class="google-2003-result-date">Oct 10, 2003</span>
-            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
-            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+            <span class="google-2003-result-url">www.Winesweeper.com/Winesweeper.html</span>
+            <span class="google-2003-result-size">Vara is so going to kill me after this</span>
+            <span class="google-2003-result-date">24/11/2003</span>
+            <a href="#" onclick="alert('function soon'); return false;">Cached</a>
+            <a href="#" onclick="alert('function goon'); return false;">Similar pages</a>
           </div>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">placeholder</a>
+            <a href="#" class="google-2003-result-title" onclick="alert('ffs go goon'); return false;">placeholder</a>
           </div>
           <div class="google-2003-result-snippet">
            ...
@@ -221,8 +221,8 @@ function createNewTabContent(tabId) {
           <div class="google-2003-result-meta">
             <span class="google-2003-result-url">www.placeholder.com/placeholder/placeholder.html</span>
             <span class="google-2003-result-size">47k</span>
-            <a href="#" onclick="alert('Cached view coming soon!'); return false;">Cached</a>
-            <a href="#" onclick="alert('Similar pages coming soon!'); return false;">Similar pages</a>
+            <a href="#" onclick="alert('OI STOP IT'); return false;">Cached</a>
+            <a href="#" onclick="alert('yeah yeah do it 30 times ig'); return false;">Similar pages</a>
           </div>
         </div>
       </div>
@@ -231,9 +231,9 @@ function createNewTabContent(tabId) {
           <span class="google-2003-logo-small">WiggleSearch</span>
           <div class="google-2003-pages">
             <span>Result Page:</span>
-            <a href="#" onclick="alert('Coming Soon!'); return false;">Previous</a>
+            <a href="#" onclick="alert('goon'); return false;">Previous</a>
             <span class="google-2003-page-current">1</span>
-            <a href="#" class="google-2003-page-link" onclick="alert('Coming Soon!'); return false;">2</a>
+            <a href="#" class="google-2003-page-link" onclick="alert('I WILL TOUCH YOU'); return false;">2</a>
           </div>
         </div>
       </div>
@@ -663,8 +663,10 @@ function handleWiggleSearch(searchTerm, tabId) {
   if (match) {
     if (match.url === 'wigtube') {
       navigateToWigTube(tabId);
-    } else if (match.url === 'wiano' || match.url === 'winesweeper') {
-      alert(`${match.name} is coming soon!`);
+    } else if (match.url === 'wiano') {
+      navigateToWiano(tabId);
+    } else if (match.url === 'winesweeper') {
+      navigateToWinesweeper(tabId);
     } else {
       alert(`Navigating to ${match.name}...`);
     }
@@ -721,11 +723,38 @@ function navigateToWiano(tabId) {
     const titleSpan = activeTab.querySelector('.title');
     const faviconImg = activeTab.querySelector('.favicon');
     titleSpan.textContent = 'Wiano Piano';
-    faviconImg.src = 'assets/images/icons/32x/notes.png'; // Using notes icon as placeholder
+    faviconImg.src = 'assets/images/icons/32x/wiano.png';
   }
   
   // Load Wiano content
   tabContent.innerHTML = `<iframe src="apps/wiano/wiano.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
+function navigateToWinesweeper(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Winesweeper';
+    faviconImg.src = 'assets/images/icons/32x/winesweeper.png';
+  }
+  
+  // Load Winesweeper content
+  tabContent.innerHTML = `<iframe src="apps/games/winesweeper.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
 }
 
 function loadWiggleSearchInTab(tabId) {
@@ -826,8 +855,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (match.url === 'wigtube') {
         navigateToWigTube(pageId);
         addressInput.value = 'wigtube.com';
-      } else if (match.url === 'wiano' || match.url === 'winesweeper') {
-        alert(`${match.name} is coming soon!`);
+      } else if (match.url === 'wiano') {
+        navigateToWiano(pageId);
+        addressInput.value = 'wiano.com';
+      } else if (match.url === 'winesweeper') {
+        navigateToWinesweeper(pageId);
+        addressInput.value = 'winesweeper.com';
       } else {
         alert(`Navigating to ${match.name}...`);
       }
@@ -892,7 +925,7 @@ function handleGoogle2003Search(searchTerm, tabId) {
     } else if (match.url === 'wiano') {
       navigateToWiano(tabId);
     } else if (match.url === 'winesweeper') {
-      alert(`${match.name} is coming soon!`);
+      navigateToWinesweeper(tabId);
     } else {
       alert(`Navigating to ${match.name}...`);
     }

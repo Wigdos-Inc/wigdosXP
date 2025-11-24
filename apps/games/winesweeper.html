@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winesweeper</title>
+    <link rel="stylesheet" href="../../styles/apps/games/winesweeper.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="header-section">
+                <div class="counter-display">
+                    <span id="mineCounter">010</span>
+                </div>
+            </div>
+            <div class="header-section center">
+                <button id="resetButton" class="reset-button">🙂</button>
+            </div>
+            <div class="header-section">
+                <div class="counter-display">
+                    <span id="timerDisplay">000</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="abilities-panel">
+            <div class="points-display">
+                <span class="points-label">Points:</span>
+                <span id="pointsDisplay">0</span>
+            </div>
+            <div class="safe-clicks-display">
+                <span class="safe-clicks-label">Safe Clicks:</span>
+                <span id="safeClicksDisplay">0</span>
+            </div>
+            <div class="abilities-container">
+                <button class="ability-btn" id="revealBombs3" data-cost="100" data-ability="reveal3">
+                    <span class="ability-icon">💣×3</span>
+                    <span class="ability-cost">100 pts</span>
+                </button>
+                <button class="ability-btn" id="safeClick" data-cost="100" data-ability="safe">
+                    <span class="ability-icon">🛡️×3</span>
+                    <span class="ability-cost">100 pts</span>
+                </button>
+                <button class="ability-btn" id="revealBombs10" data-cost="250" data-ability="reveal10">
+                    <span class="ability-icon">💣×10</span>
+                    <span class="ability-cost">250 pts</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="game-settings">
+            <button class="difficulty-btn active" data-difficulty="beginner">Beginner</button>
+            <button class="difficulty-btn" data-difficulty="intermediate">Intermediate</button>
+            <button class="difficulty-btn" data-difficulty="expert">Expert</button>
+            <button class="difficulty-btn" data-difficulty="impossible">IMPOSSIBLE</button>
+        </div>
+        
+        <div class="qte-settings">
+            <span class="qte-label">QTE Keys:</span>
+            <button class="qte-toggle-btn active" id="qteToggle" data-mode="arrows">
+                <span class="toggle-option arrows">⬆⬅⬇➡</span>
+                <span class="toggle-option wasd">WASD</span>
+            </button>
+        </div>
+        
+        <div id="gameBoard" class="game-board"></div>
+        
+        <div id="qteOverlay" class="qte-overlay" style="display: none;">
+            <div class="qte-container">
+                <div class="qte-title">QUICK TIME EVENT!</div>
+                <div class="qte-instruction">Press the key when it reaches the center!</div>
+                <div class="qte-key-display" id="qteKeyDisplay">W</div>
+                <div class="qte-timer-bar">
+                    <div class="qte-timer-fill" id="qteTimerFill"></div>
+                    <div class="qte-target-zone"></div>
+                </div>
+                <div class="qte-result" id="qteResult"></div>
+            </div>
+        </div>
+        
+        <div class="game-footer">
+            <p>Left click to reveal | Right click to flag 🚩</p>
+        </div>
+    </div>
+    
+    <script src="../../scripts/apps/games/simple/winesweeper.js"></script>
+</body>
+</html>
