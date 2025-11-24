@@ -190,11 +190,11 @@ function createNewTabContent(tabId) {
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
-            <a href="#" class="google-2003-result-title" onclick="alert('Coming Soon!'); return false;">blah - blah blah blah im a placeholder</a>
+            <a href="#" class="google-2003-result-title" onclick="navigateToWiano('${tabId}'); return false;">Wiano - Free Online Piano</a>
             <span class="google-2003-sponsored">Sponsored Link</span>
           </div>
           <div class="google-2003-result-url">www.wiano.com</div>
-          <div class="google-2003-result-desc">piano go weeeeeeee</div>
+          <div class="google-2003-result-desc">Play beautiful piano music right in your browser! Full keyboard support with sustain pedal. piano go weeeeeeee</div>
         </div>
         <div class="google-2003-result">
           <div class="google-2003-result-header">
@@ -701,6 +701,33 @@ function navigateToWigTube(tabId) {
   tabContent.innerHTML = `<iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
 }
 
+function navigateToWiano(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Wiano Piano';
+    faviconImg.src = 'assets/images/icons/32x/notes.png'; // Using notes icon as placeholder
+  }
+  
+  // Load Wiano content
+  tabContent.innerHTML = `<iframe src="apps/wiano/wiano.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
 function loadWiggleSearchInTab(tabId) {
   // If it's the new-tab (second tab), just switch to the first tab (wiggle-search)
   if (tabId === 'new-tab') {
@@ -862,7 +889,9 @@ function handleGoogle2003Search(searchTerm, tabId) {
   if (match) {
     if (match.url === 'wigtube') {
       navigateToWigTube(tabId);
-    } else if (match.url === 'wiano' || match.url === 'winesweeper') {
+    } else if (match.url === 'wiano') {
+      navigateToWiano(tabId);
+    } else if (match.url === 'winesweeper') {
       alert(`${match.name} is coming soon!`);
     } else {
       alert(`Navigating to ${match.name}...`);

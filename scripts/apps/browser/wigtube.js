@@ -353,7 +353,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Special handling for Albums link
             if (this.id === 'albumsLink' || itemText.includes('Albums')) {
                 showAlbumsView();
-            } else {
+            } 
+            // Handle Home Page
+            else if (itemText.includes('Home Page')) {
+                showHomePage();
+            }
+            // Handle What's Hot
+            else if (itemText.includes('What\'s Hot')) {
+                showWhatsHot();
+            }
+            else {
                 updateStatus(`Navigation: ${itemText} - Feature coming soon`);
                 
                 // Add visual feedback
@@ -823,6 +832,169 @@ function createAlbumCard(album) {
     });
     
     return card;
+}
+
+/**
+ * Show homepage - reload default view with all videos
+ */
+async function showHomePage() {
+    const categoryButtons = document.querySelector('.video-categories');
+    const contentHeader = document.querySelector('.content-header');
+    
+    // Show category buttons
+    if (categoryButtons) {
+        categoryButtons.style.display = 'flex';
+    }
+    
+    // Reset to "All Videos" category
+    currentCategory = 'all';
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        if (btn.textContent.trim() === 'All Videos') {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Update header
+    if (contentHeader) {
+        contentHeader.innerHTML = '📺 Featured Videos - Updated Daily!';
+    }
+    
+    // Reload all videos
+    await loadVideosWithStats();
+    
+    updateStatus('Showing home page');
+    showLoadingProgress();
+}
+
+/**
+ * Show What's Hot - top 3 videos by view count with fire border
+ */
+async function showWhatsHot() {
+    const categoryButtons = document.querySelector('.video-categories');
+    const contentHeader = document.querySelector('.content-header');
+    const videoGrid = document.querySelector('.video-grid');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Hide category buttons
+    if (categoryButtons) {
+        categoryButtons.style.display = 'none';
+    }
+    
+    // Update header
+    contentHeader.innerHTML = '🔥 What\'s Hot - Top Videos by Views!';
+    
+    updateStatus('Loading hottest videos...');
+    showLoadingProgress();
+    
+    try {
+        // Load videos with stats from database
+        let videosWithStats;
+        
+        if (typeof WigTubeDB !== 'undefined') {
+            debugLog('showWhatsHot: Loading stats from database');
+            videosWithStats = await Promise.all(videoData.map(async (video) => {
+                try {
+                    const dbVideo = await WigTubeDB.getVideoById(video.id);
+                    if (dbVideo) {
+                        return {
+                            ...video,
+                            viewCount: dbVideo.viewCount || 0,
+                            views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                            rating: WigTubeDB.calculateStarRating(dbVideo.ratings || [])
+                        };
+                    }
+                } catch (err) {
+                    console.error(`Error loading stats for ${video.id}:`, err);
+                }
+                return {
+                    ...video,
+                    viewCount: 0,
+                    views: '0 views',
+                    rating: '☆☆☆☆☆'
+                };
+            }));
+        } else {
+            // Fallback: use zeros
+            videosWithStats = videoData.map(video => ({
+                ...video,
+                viewCount: 0,
+                views: '0 views',
+                rating: '☆☆☆☆☆'
+            }));
+        }
+        
+        // Sort by view count (descending) and get top 3
+        videosWithStats.sort((a, b) => b.viewCount - a.viewCount);
+        const topVideos = videosWithStats.slice(0, 3);
+        
+        // Clear grid
+        videoGrid.innerHTML = '';
+        
+        // Add back button
+        const backButton = document.createElement('div');
+        backButton.style.cssText = `
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: white;
+            border: 2px outset #ddd;
+            display: inline-block;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        `;
+        backButton.innerHTML = '⬅ Back to Home';
+        backButton.onclick = showHomePage;
+        videoGrid.appendChild(backButton);
+        
+        // Render top 3 videos with fire border
+        topVideos.forEach((video, index) => {
+            const videoCard = createVideoCard(video);
+            
+            // Add fire border styling
+            videoCard.style.cssText = `
+                border: 4px solid transparent;
+                border-image: linear-gradient(45deg, #ff4500, #ff8c00, #ffa500, #ff4500) 1;
+                background: linear-gradient(white, white) padding-box,
+                           linear-gradient(45deg, #ff4500, #ff8c00, #ffa500, #ff4500) border-box;
+                box-shadow: 0 0 15px rgba(255, 69, 0, 0.5), inset 0 0 10px rgba(255, 140, 0, 0.1);
+                position: relative;
+            `;
+            
+            // Add "HOT" badge
+            const hotBadge = document.createElement('div');
+            hotBadge.style.cssText = `
+                position: absolute;
+                top: -10px;
+                right: -10px;
+                background: linear-gradient(135deg, #ff4500, #ff8c00);
+                color: white;
+                padding: 5px 12px;
+                font-size: 11px;
+                font-weight: bold;
+                border: 2px solid white;
+                border-radius: 12px;
+                box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                z-index: 10;
+            `;
+            hotBadge.innerHTML = `🔥 #${index + 1} HOT`;
+            videoCard.style.position = 'relative';
+            videoCard.appendChild(hotBadge);
+            
+            videoGrid.appendChild(videoCard);
+        });
+        
+        // Re-attach click events
+        attachVideoCardEvents();
+        
+        updateStatus(`Showing top ${topVideos.length} hottest video(s)`);
+        
+    } catch (error) {
+        console.error('Error loading What\'s Hot:', error);
+        updateStatus('Error loading hot videos');
+    }
 }
 
 // Reload videos when page is shown (handles back button navigation)
