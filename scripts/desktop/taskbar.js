@@ -233,7 +233,412 @@ update("tbClock");
 
 tsBtn.addEventListener("click", () => {
 
-    // Expanded Time Stuff
+    // Expanded Time Stuff - Clock and Badges Panel
+    if (document.getElementById("clockBadgePanel")) {
+        // If panel already exists, remove it
+        document.getElementById("clockBadgePanel").remove();
+        return;
+    }
+
+    const panel = desktop.appendChild(document.createElement("div"));
+    panel.id = "clockBadgePanel";
+    panel.style.opacity = 1;
+
+    // Header with live clock
+    const header = panel.appendChild(document.createElement("div"));
+    header.id = "cbHeader";
+
+    const clockDisplay = header.appendChild(document.createElement("div"));
+    clockDisplay.id = "cbClockDisplay";
+    
+    // Update clock display function
+    function updateClockDisplay() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const date = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        clockDisplay.innerHTML = `
+            <div class="cb-time">${hours}:${minutes}:${seconds}</div>
+            <div class="cb-date">${date}</div>
+        `;
+    }
+    
+    // Update immediately and set interval
+    updateClockDisplay();
+    const clockInterval = setInterval(updateClockDisplay, 1000);
+
+    // Main content area with two columns
+    const mainContent = panel.appendChild(document.createElement("div"));
+    mainContent.id = "cbMainContent";
+
+    // Left column - Calendar
+    const leftColumn = mainContent.appendChild(document.createElement("div"));
+    leftColumn.id = "cbLeftColumn";
+
+    const calendarTitle = leftColumn.appendChild(document.createElement("div"));
+    calendarTitle.className = "cb-section-title";
+    calendarTitle.textContent = "DATE";
+
+    const calendarContainer = leftColumn.appendChild(document.createElement("div"));
+    calendarContainer.id = "cbCalendar";
+
+    // State for calendar navigation
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    const today = new Date();
+
+    // Generate calendar
+    function generateCalendar() {
+        calendarContainer.innerHTML = ""; // Clear previous calendar
+
+        // Month/Year header
+        const calHeader = calendarContainer.appendChild(document.createElement("div"));
+        calHeader.className = "cb-cal-header";
+        
+        const monthYear = calHeader.appendChild(document.createElement("div"));
+        monthYear.className = "cb-cal-month-year";
+        
+        const monthSelect = document.createElement("select");
+        monthSelect.className = "cb-cal-select cb-cal-month-select";
+        monthSelect.id = "cbMonthSelect";
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        months.forEach((monthName, index) => {
+            const option = document.createElement("option");
+            option.value = index;
+            option.textContent = monthName;
+            if (index === currentMonth) option.selected = true;
+            monthSelect.appendChild(option);
+        });
+        
+        const yearInput = document.createElement("input");
+        yearInput.type = "number";
+        yearInput.className = "cb-cal-select cb-cal-year-input";
+        yearInput.id = "cbYearInput";
+        yearInput.value = currentYear;
+        yearInput.min = "1900";
+        yearInput.max = "2100";
+        
+        monthYear.appendChild(monthSelect);
+        monthYear.appendChild(yearInput);
+
+        // Add change listeners
+        monthSelect.addEventListener("change", function() {
+            currentMonth = parseInt(this.value);
+            generateCalendar();
+        });
+
+        yearInput.addEventListener("change", function() {
+            currentYear = parseInt(this.value);
+            if (currentYear < 1900) currentYear = 1900;
+            if (currentYear > 2100) currentYear = 2100;
+            this.value = currentYear;
+            generateCalendar();
+        });
+
+        // Day headers
+        const dayHeaders = calendarContainer.appendChild(document.createElement("div"));
+        dayHeaders.className = "cb-cal-days-header";
+        ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(day => {
+            const dayHeader = dayHeaders.appendChild(document.createElement("div"));
+            dayHeader.className = "cb-cal-day-name";
+            dayHeader.textContent = day;
+        });
+
+        // Days grid
+        const daysGrid = calendarContainer.appendChild(document.createElement("div"));
+        daysGrid.className = "cb-cal-days-grid";
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        // Empty cells for days before month starts
+        for (let i = 0; i < firstDay; i++) {
+            const emptyCell = daysGrid.appendChild(document.createElement("div"));
+            emptyCell.className = "cb-cal-day cb-cal-day-empty";
+        }
+
+        // Days of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayCell = daysGrid.appendChild(document.createElement("div"));
+            dayCell.className = "cb-cal-day";
+            
+            // Highlight today if viewing current month/year
+            if (day === today.getDate() && 
+                currentMonth === today.getMonth() && 
+                currentYear === today.getFullYear()) {
+                dayCell.classList.add("cb-cal-day-today");
+            }
+            
+            // Check for holidays
+            const holiday = getHoliday(currentMonth, day, currentYear);
+            if (holiday) {
+                dayCell.classList.add("cb-cal-day-holiday");
+                dayCell.title = holiday;
+                
+                // Create holiday label
+                const holidayLabel = document.createElement("div");
+                holidayLabel.className = "cb-cal-holiday-label";
+                holidayLabel.textContent = holiday;
+                dayCell.appendChild(holidayLabel);
+            }
+            
+            // Create day number element
+            const dayNumber = document.createElement("div");
+            dayNumber.className = "cb-cal-day-number";
+            dayNumber.textContent = day;
+            dayCell.insertBefore(dayNumber, dayCell.firstChild);
+        }
+    }
+
+    // Holiday detection function
+    function getHoliday(month, day, year) {
+        // Fixed date holidays
+        const fixedHolidays = {
+            '0-1': "New Year's Day",
+            '1-14': "Valentine's Day",
+            '2-17': "St. Patrick's Day",
+            '3-1': "April Fools' Day",
+            '3-22': "Earth Day",
+            '4-5': "Cinco de Mayo",
+            '5-14': "Flag Day",
+            '6-4': "Independence Day",
+            '9-31': "Halloween",
+            '10-11': "Veterans Day",
+            '11-25': "Christmas Day",
+            '11-31': "New Year's Eve"
+        };
+
+        const key = `${month}-${day}`;
+        if (fixedHolidays[key]) {
+            return fixedHolidays[key];
+        }
+
+        // Floating holidays (based on day of week)
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const nthDayOfWeek = (day, dayOfWeek, n) => {
+            const firstOccurrence = (7 + dayOfWeek - firstDayOfMonth) % 7 + 1;
+            return firstOccurrence + (n - 1) * 7 === day;
+        };
+
+        // Martin Luther King Jr. Day - 3rd Monday in January
+        if (month === 0 && nthDayOfWeek(day, 1, 3)) return "Martin Luther King Jr. Day";
+        
+        // Presidents' Day - 3rd Monday in February
+        if (month === 1 && nthDayOfWeek(day, 1, 3)) return "Presidents' Day";
+        
+        // Memorial Day - Last Monday in May
+        const lastMondayMay = new Date(year, 5, 0);
+        lastMondayMay.setDate(lastMondayMay.getDate() - (lastMondayMay.getDay() + 6) % 7);
+        if (month === 4 && day === lastMondayMay.getDate()) return "Memorial Day";
+        
+        // Labor Day - 1st Monday in September
+        if (month === 8 && nthDayOfWeek(day, 1, 1)) return "Labor Day";
+        
+        // Columbus Day - 2nd Monday in October
+        if (month === 9 && nthDayOfWeek(day, 1, 2)) return "Columbus Day";
+        
+        // Thanksgiving - 4th Thursday in November
+        if (month === 10 && nthDayOfWeek(day, 4, 4)) return "Thanksgiving Day";
+        
+        // Mother's Day - 2nd Sunday in May
+        if (month === 4 && nthDayOfWeek(day, 0, 2)) return "Mother's Day";
+        
+        // Father's Day - 3rd Sunday in June
+        if (month === 5 && nthDayOfWeek(day, 0, 3)) return "Father's Day";
+
+        // Easter calculation (simplified - Meeus/Jones/Butcher algorithm)
+        const easterDate = calculateEaster(year);
+        if (month === easterDate.month && day === easterDate.day) return "Easter Sunday";
+
+        return null;
+    }
+
+    function calculateEaster(year) {
+        const a = year % 19;
+        const b = Math.floor(year / 100);
+        const c = year % 100;
+        const d = Math.floor(b / 4);
+        const e = b % 4;
+        const f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4);
+        const k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
+        return { month, day };
+    }
+
+    generateCalendar();
+
+    // Timezone info
+    const timezoneInfo = leftColumn.appendChild(document.createElement("div"));
+    timezoneInfo.className = "cb-timezone-info";
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    timezoneInfo.textContent = `Current time zone: ${timezone}`;
+
+    // Right column - Badges
+    const rightColumn = mainContent.appendChild(document.createElement("div"));
+    rightColumn.id = "cbRightColumn";
+
+    const badgesTitle = rightColumn.appendChild(document.createElement("div"));
+    badgesTitle.className = "cb-section-title";
+    badgesTitle.textContent = "ACHIEVEMENTS";
+
+    const badgesList = rightColumn.appendChild(document.createElement("div"));
+    badgesList.id = "cbBadgesList";
+
+    // Get user badges from Winesweeper Firebase collection
+    async function loadAndDisplayBadges() {
+        // Load achievements configuration from JSON
+        let badgeCategories = {};
+        try {
+            const response = await fetch('/scripts/global/achievements.json?t=' + Date.now());
+            const achievementsData = await response.json();
+            badgeCategories = achievementsData.categories;
+        } catch (error) {
+            console.error('Error loading achievements config:', error);
+            return;
+        }
+        let userBadges = [];
+        
+        if (window.firebaseAPI && window.getUser) {
+            const username = window.getUser();
+            if (username !== 'guest') {
+                try {
+                    const { db, getDoc, doc } = window.firebaseAPI;
+                    
+                    // Load badges from all possible collections
+                    const collections = ['winesweeper_badges', 'wigtube_badges', 'other_badges'];
+                    
+                    for (const collection of collections) {
+                        try {
+                            const docRef = doc(db, collection, username);
+                            const docSnap = await getDoc(docRef);
+                            
+                            if (docSnap.exists()) {
+                                const badges = docSnap.data().badges || [];
+                                userBadges = [...userBadges, ...badges];
+                            }
+                        } catch (collectionError) {
+                            // Collection might not exist yet, that's okay
+                            console.log(`No badges found in ${collection}`);
+                        }
+                    }
+                    
+                    // Remove duplicates
+                    userBadges = [...new Set(userBadges)];
+                    console.log('Loaded all user badges:', userBadges);
+                    
+                } catch (error) {
+                    console.error('Error loading badges:', error);
+                }
+            }
+        }
+
+        // Display categories
+        Object.keys(badgeCategories).forEach(categoryKey => {
+            const category = badgeCategories[categoryKey];
+            
+            // Create category header
+            const categoryHeader = badgesList.appendChild(document.createElement("div"));
+            categoryHeader.className = "cb-badge-category-header";
+            categoryHeader.innerHTML = `<span class="cb-category-arrow">▼</span> ${category.name}`;
+            
+            // Create category content container
+            const categoryContent = badgesList.appendChild(document.createElement("div"));
+            categoryContent.className = "cb-badge-category-content";
+            
+            // Toggle category visibility on click
+            categoryHeader.addEventListener('click', function() {
+                const arrow = this.querySelector('.cb-category-arrow');
+                if (categoryContent.style.display === 'none') {
+                    categoryContent.style.display = 'flex';
+                    arrow.textContent = '▼';
+                } else {
+                    categoryContent.style.display = 'none';
+                    arrow.textContent = '▶';
+                }
+            });
+            
+            // Display badges in this category
+            Object.keys(category.badges).forEach(badgeId => {
+                const badgeInfo = category.badges[badgeId];
+                const isEarned = userBadges.includes(badgeId);
+                const isImpossible = badgeId === 'winesweeper_impossible';
+
+                const badgeItem = categoryContent.appendChild(document.createElement("div"));
+                badgeItem.className = isEarned ? 'cb-badge-item cb-badge-earned' : 'cb-badge-item cb-badge-locked';
+
+                const badgeIcon = badgeItem.appendChild(document.createElement("div"));
+                badgeIcon.className = "cb-badge-icon";
+                
+                const img = badgeIcon.appendChild(document.createElement("img"));
+                img.src = badgeInfo.icon;
+                img.alt = badgeInfo.name;
+                if (isEarned && isImpossible) {
+                    img.className = "cb-badge-img-sparkle";
+                }
+                if (!isEarned) {
+                    img.style.filter = "grayscale(100%) brightness(0.5)";
+                }
+
+                const badgeInfo_div = badgeItem.appendChild(document.createElement("div"));
+                badgeInfo_div.className = "cb-badge-info";
+
+                const badgeName = badgeInfo_div.appendChild(document.createElement("div"));
+                badgeName.className = "cb-badge-name";
+                badgeName.textContent = isEarned ? badgeInfo.name : `🔒 ${badgeInfo.name}`;
+                badgeName.style.color = isEarned ? badgeInfo.color : '#888';
+
+                const badgeDesc = badgeInfo_div.appendChild(document.createElement("div"));
+                badgeDesc.className = "cb-badge-desc";
+                badgeDesc.textContent = isEarned ? badgeInfo.description : 'Locked - Hover to see requirements';
+
+                // Add tooltip on hover
+                const tooltip = badgeItem.appendChild(document.createElement("div"));
+                tooltip.className = "cb-badge-tooltip";
+                tooltip.textContent = badgeInfo.description;
+
+                badgeItem.addEventListener("mouseenter", function() {
+                    const rect = this.getBoundingClientRect();
+                    tooltip.style.display = "block";
+                    
+                    // Position tooltip above the badge if there's space, otherwise below
+                    if (rect.top > 50) {
+                        tooltip.style.bottom = "100%";
+                        tooltip.style.top = "auto";
+                    } else {
+                        tooltip.style.top = "100%";
+                        tooltip.style.bottom = "auto";
+                    }
+                });
+
+                badgeItem.addEventListener("mouseleave", function() {
+                    tooltip.style.display = "none";
+                });
+            });
+        });
+    }
+
+    // Load and display badges
+    loadAndDisplayBadges();
+
+    // Close panel when clicking outside
+    setTimeout(() => {
+        const closePanel = (e) => {
+            if (!panel.contains(e.target) && e.target !== tsBtn) {
+                panel.remove();
+                clearInterval(clockInterval);
+                document.removeEventListener("click", closePanel);
+            }
+        };
+        document.addEventListener("click", closePanel);
+    }, 100);
 });
 
 

@@ -26,6 +26,7 @@ class Winesweeper {
         this.lastRevealTime = 0;
         this.comboTimeout = null;
         this.qteActive = false;
+        this.usedAbilities = false; // Track if any abilities were used
         this.qteKey = '';
         this.qteStartTime = 0;
         this.qteDuration = 1500; // 1.5 seconds to complete QTE
@@ -34,7 +35,31 @@ class Winesweeper {
         this.qteRound = 0;
         this.qteMaxRounds = 5;
         this.qteTargetPosition = 0.5; // Will be randomized each round
+        this.qteType = 'timing'; // 'timing' or 'centering'
+        this.qteLinePosition = 0.5;
+        this.qteLineVelocity = 0;
+        this.qteDrift = 0.001; // Natural drift away from center
+        this.qteControlSpeed = 0.015;
+        this.qteCenterPosition = 0.5;
+        this.qteLeftPressed = false;
+        this.qteRightPressed = false;
+        this.qteCenteringStartTime = 0;
+        this.qteCenteringDuration = 3000; // 3 seconds to keep centered
+        this.qteGracePeriod = 5000; // Time allowed outside zone
+        this.qteOutsideZoneStart = 0; // When player left the zone
+        this.qteCompletedCount = 0; // Track QTEs completed in impossible mode
         
+        this.badges = []; // Player's earned badges
+        this.achievementsConfig = null; // Will hold loaded achievements config
+        this.badgesLoaded = false; // Track if badges have been loaded
+        
+        // Initialize async resources
+        this.init();
+    }
+    
+    async init() {
+        await this.loadBadges(); // Load badges from Firebase
+        await this.loadAchievementsConfig(); // Load achievements config from JSON
         this.initGame();
         this.setupEventListeners();
     }
@@ -45,6 +70,8 @@ class Winesweeper {
         this.firstClick = true;
         this.timer = 0;
         this.clearTimer();
+        this.usedAbilities = false; // Reset ability usage tracking
+        this.qteCompletedCount = 0; // Reset QTE counter
         
         const config = this.difficulties[this.currentDifficulty];
         this.rows = config.rows;
@@ -105,10 +132,16 @@ class Winesweeper {
             this.useAbility('reveal10', 250, 10);
         });
         
-        // QTE key listener
+        // QTE key listeners
         document.addEventListener('keydown', (e) => {
             if (this.qteActive) {
-                this.handleQTEKeyPress(e.key);
+                this.handleQTEKeyDown(e.key);
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (this.qteActive) {
+                this.handleQTEKeyUp(e.key);
             }
         });
         
@@ -134,6 +167,14 @@ class Winesweeper {
         if (this.points < cost) {
             alert(`Not enough points! You need ${cost} points.`);
             return;
+        }
+        
+        // Mark that abilities have been used this game
+        this.usedAbilities = true;
+        
+        // Check for Overkill achievement (using 10 bombs ability in beginner mode)
+        if (type === 'reveal10' && this.currentDifficulty === 'beginner' && !this.badges.includes('winesweeper_beginner_10bombs')) {
+            this.awardSingleBadge('winesweeper_beginner_10bombs');
         }
         
         if (type === 'reveal3' || type === 'reveal10') {
@@ -442,6 +483,9 @@ class Winesweeper {
             this.updateResetButton('😎');
             this.clearTimer();
             
+            // Award badges based on difficulty and ability usage
+            this.awardBadges();
+            
             // Flag all remaining mines
             for (let row = 0; row < this.rows; row++) {
                 for (let col = 0; col < this.cols; col++) {
@@ -462,6 +506,449 @@ class Winesweeper {
             if (this.timer > 999) this.timer = 999;
             this.updateTimer();
         }, 1000);
+    }
+    
+    async loadAchievementsConfig() {
+        try {
+            const response = await fetch('/scripts/global/achievements.json?t=' + Date.now());
+            const data = await response.json();
+            this.achievementsConfig = data.categories;
+            console.log('Achievements config loaded:', this.achievementsConfig);
+        } catch (error) {
+            console.error('Error loading achievements config:', error);
+        }
+    }
+    
+    async loadBadges() {
+        // Load badges from Firebase for current user
+        if (!window.firebaseAPI) {
+            console.log('Firebase API not available - badges will not be loaded');
+            this.badgesLoaded = true;
+            return;
+        }
+        
+        const username = window.getUser ? window.getUser() : 'guest';
+        if (username === 'guest') {
+            console.log('Guest user - badges will not be loaded from Firebase');
+            this.badges = [];
+            this.badgesLoaded = true;
+            return;
+        }
+        
+        try {
+            const { db, getDoc, doc } = window.firebaseAPI;
+            const docRef = doc(db, 'winesweeper_badges', username);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const loadedBadges = docSnap.data().badges || [];
+                // Remove duplicates when loading from database
+                this.badges = [...new Set(loadedBadges)];
+                console.log('✓ Loaded badges from Firebase:', this.badges);
+            } else {
+                console.log('No badges found in Firebase for user:', username);
+                this.badges = [];
+            }
+        } catch (error) {
+            console.error('Error loading badges from Firebase:', error);
+            this.badges = [];
+        }
+        
+        this.badgesLoaded = true;
+    }
+    
+    async saveBadges() {
+        // Save badges to Firebase
+        if (!window.firebaseAPI) {
+            console.warn('Firebase API not available - badges will not be saved');
+            return;
+        }
+        
+        const username = window.getUser ? window.getUser() : 'guest';
+        if (username === 'guest') {
+            console.warn('Guest user - badges will not be saved to Firebase');
+            return;
+        }
+        
+        // Remove duplicates before saving
+        this.badges = [...new Set(this.badges)];
+        
+        console.log('Attempting to save badges to Firebase:', this.badges);
+        
+        try {
+            const { db, setDoc, doc } = window.firebaseAPI;
+            
+            if (!db) {
+                console.error('Firebase database not initialized - badges not saved');
+                return;
+            }
+            
+            await setDoc(doc(db, 'winesweeper_badges', username), {
+                badges: this.badges,
+                lastUpdated: Date.now()
+            });
+            console.log('✓ Badges successfully saved to Firebase');
+        } catch (error) {
+            console.error('Error saving badges to Firebase:', error);
+        }
+    }
+    
+    async awardSingleBadge(badgeId) {
+        // Get badge info from config
+        if (!this.achievementsConfig) {
+            console.error('Achievements config not loaded yet');
+            return;
+        }
+        
+        let badgeInfo = null;
+        for (const categoryKey in this.achievementsConfig) {
+            const category = this.achievementsConfig[categoryKey];
+            if (category.badges[badgeId]) {
+                badgeInfo = category.badges[badgeId];
+                break;
+            }
+        }
+        
+        if (!badgeInfo) {
+            console.error('Badge not found in config:', badgeId);
+            return;
+        }
+        
+        // Check if badge already exists before adding
+        if (this.badges.includes(badgeId)) {
+            console.log('Badge already earned:', badgeId);
+            return;
+        }
+        
+        console.log('Awarding badge:', badgeId);
+        this.badges.push(badgeId);
+        this.showBadgeNotification(badgeInfo);
+        await this.saveBadges();
+    }
+    
+    async awardBadges() {
+        console.log('Checking badges - Difficulty:', this.currentDifficulty, 'Used abilities:', this.usedAbilities);
+        console.log('Current badges:', this.badges);
+        
+        if (!this.achievementsConfig) {
+            console.error('Achievements config not loaded');
+            return;
+        }
+        
+        const badgesToAward = [];
+        const winesweeperBadges = this.achievementsConfig.winesweeper.badges;
+        
+        // Badge 1: Beat Impossible difficulty
+        if (this.currentDifficulty === 'impossible' && !this.badges.includes('winesweeper_impossible')) {
+            badgesToAward.push({
+                id: 'winesweeper_impossible',
+                ...winesweeperBadges.winesweeper_impossible
+            });
+        }
+        
+        // Badge 2: Beat Expert with abilities
+        if (this.currentDifficulty === 'expert' && this.usedAbilities && !this.badges.includes('winesweeper_expert_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_expert_abilities',
+                ...winesweeperBadges.winesweeper_expert_abilities
+            });
+        }
+        
+        // Badge 3: Beat Expert without abilities
+        if (this.currentDifficulty === 'expert' && !this.usedAbilities && !this.badges.includes('winesweeper_expert_no_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_expert_no_abilities',
+                ...winesweeperBadges.winesweeper_expert_no_abilities
+            });
+        }
+        
+        // Badge 4: Beat Intermediate with abilities
+        if (this.currentDifficulty === 'intermediate' && this.usedAbilities && !this.badges.includes('winesweeper_intermediate_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_intermediate_abilities',
+                ...winesweeperBadges.winesweeper_intermediate_abilities
+            });
+        }
+        
+        // Badge 5: Beat Intermediate without abilities
+        if (this.currentDifficulty === 'intermediate' && !this.usedAbilities && !this.badges.includes('winesweeper_intermediate_no_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_intermediate_no_abilities',
+                ...winesweeperBadges.winesweeper_intermediate_no_abilities
+            });
+        }
+        
+        // Badge 6: Beat Beginner with abilities
+        if (this.currentDifficulty === 'beginner' && this.usedAbilities && !this.badges.includes('winesweeper_beginner_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_beginner_abilities',
+                ...winesweeperBadges.winesweeper_beginner_abilities
+            });
+        }
+        
+        // Badge 7: Beat any difficulty without abilities (beginner or higher)
+        if (!this.usedAbilities && !this.badges.includes('winesweeper_no_abilities')) {
+            badgesToAward.push({
+                id: 'winesweeper_no_abilities',
+                ...winesweeperBadges.winesweeper_no_abilities
+            });
+        }
+        
+        // Badge 8: Overkill (awarded during gameplay, not on win - checked here for reference)
+        // This badge is awarded immediately in useAbility() when player uses 10 bombs ability in beginner mode
+        
+        // Award badges and save to database
+        if (badgesToAward.length > 0) {
+            console.log('Awarding badges:', badgesToAward.map(b => b.id));
+            for (const badge of badgesToAward) {
+                // Double-check to prevent duplicates
+                if (!this.badges.includes(badge.id)) {
+                    this.badges.push(badge.id);
+                    this.showBadgeNotification(badge);
+                }
+            }
+            
+            await this.saveBadges();
+        } else {
+            console.log('No new badges to award');
+        }
+    }
+    
+    showBadgeNotification(badge) {
+        // Play achievement sound
+        const achievementSound = new Audio('/assets/audio/system/achievment.mp3');
+        achievementSound.volume = 0.5;
+        achievementSound.play().catch(err => console.log('Audio play failed:', err));
+        
+        // Create a notification overlay to show the earned badge
+        const notification = document.createElement('div');
+        notification.className = 'badge-notification';
+        
+        // Check if this is the impossible badge for special effects
+        const badgeId = badge.id || 'unknown';
+        const isImpossible = badgeId === 'winesweeper_impossible';
+        const sparkleClass = isImpossible ? 'badge-icon-sparkle' : '';
+        
+        notification.innerHTML = `
+            <div class="badge-notification-content">
+                <div class="badge-notification-header">
+                    <div class="badge-notification-icon"><img src="/assets/images/icons/achievment/info.gif" alt="Achievement"></div>
+                    <div class="badge-notification-title">Achievement Unlocked</div>
+                </div>
+                <div class="badge-notification-body">
+                    <div class="badge-icon ${sparkleClass}"><img src="${badge.icon}" alt="${badge.name}"></div>
+                    <div class="badge-info">
+                        <div class="badge-name">${badge.name}</div>
+                        <div class="badge-desc">${badge.description}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Add styles dynamically if not already present
+        if (!document.getElementById('badge-notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'badge-notification-styles';
+            style.textContent = `
+                .badge-notification {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    animation: slideIn 0.5s ease-out;
+                }
+                
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+                
+                .badge-notification-content {
+                    background: linear-gradient(to bottom, #0054e3, #0041b8);
+                    border: 2px solid #003399;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5),
+                                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                    width: 320px;
+                    font-family: 'Tahoma', 'Segoe UI', sans-serif;
+                    overflow: hidden;
+                }
+                
+                .badge-notification-header {
+                    background: linear-gradient(to bottom, #0078d7, #0054e3);
+                    border-bottom: 1px solid #003d99;
+                    padding: 8px 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .badge-notification-icon {
+                    width: 16px;
+                    height: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .badge-notification-icon img {
+                    width: 16px;
+                    height: 16px;
+                }
+                
+                .badge-notification-title {
+                    color: #ffffff;
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+                }
+                
+                .badge-notification-body {
+                    padding: 15px;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    background: linear-gradient(to bottom, #d6e8ff, #c3ddf9);
+                }
+                
+                .badge-icon {
+                    flex-shrink: 0;
+                    width: 64px;
+                    height: 64px;
+                    border: 2px solid #0054e3;
+                    background: #ffffff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+                                0 2px 4px rgba(0, 0, 0, 0.2);
+                    border-radius: 4px;
+                }
+                
+                .badge-icon img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+                
+                .badge-icon-sparkle {
+                    animation: sparkle 1s ease-in-out infinite;
+                    border-color: gold;
+                    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6),
+                                inset 0 0 0 1px rgba(255, 215, 0, 0.3);
+                }
+                
+                @keyframes sparkle {
+                    0%, 100% { 
+                        box-shadow: 0 0 10px rgba(255, 215, 0, 0.6),
+                                    inset 0 0 0 1px rgba(255, 215, 0, 0.3);
+                    }
+                    50% { 
+                        box-shadow: 0 0 20px rgba(255, 215, 0, 0.9),
+                                    inset 0 0 0 1px rgba(255, 215, 0, 0.6);
+                    }
+                }
+                
+                .badge-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                
+                .badge-name {
+                    color: #003d99;
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 6px;
+                    line-height: 1.3;
+                    word-wrap: break-word;
+                }
+                
+                .badge-desc {
+                    color: #0054e3;
+                    font-size: 11px;
+                    line-height: 1.4;
+                    word-wrap: break-word;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remove notification after 4 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.5s ease-in';
+            setTimeout(() => {
+                notification.remove();
+            }, 500);
+        }, 4000);
+    }
+    
+    async awardQTEMasterBadge() {
+        // Award badge for completing 10 QTEs in impossible mode
+        const badgeId = 'winesweeper_qte_master';
+        if (this.badges.includes(badgeId)) {
+            return; // Already has this badge
+        }
+        
+        if (!this.achievementsConfig) {
+            console.error('Achievements config not loaded');
+            return;
+        }
+        
+        const badgeInfo = this.achievementsConfig.winesweeper.badges[badgeId];
+        if (badgeInfo) {
+            console.log('Awarding QTE Master badge');
+            this.badges.push(badgeId);
+            this.showBadgeNotification({
+                id: badgeId,
+                ...badgeInfo
+            });
+            await this.saveBadges();
+        }
+    }
+    
+    async awardQTESurvivorBadge() {
+        // Award badge for completing a QTE on non-impossible mode
+        const badgeId = 'winesweeper_qte_survivor';
+        if (this.badges.includes(badgeId)) {
+            return; // Already has this badge
+        }
+        
+        if (!this.achievementsConfig) {
+            console.error('Achievements config not loaded');
+            return;
+        }
+        
+        const badgeInfo = this.achievementsConfig.winesweeper.badges[badgeId];
+        if (badgeInfo) {
+            console.log('Awarding QTE Survivor badge');
+            this.badges.push(badgeId);
+            this.showBadgeNotification({
+                id: badgeId,
+                ...badgeInfo
+            });
+            await this.saveBadges();
+        }
     }
     
     clearTimer() {
@@ -487,9 +974,26 @@ class Winesweeper {
     startQTE() {
         this.qteActive = true;
         
-        // Set rounds based on difficulty
+        // Random chance to pick QTE type (1/3 each)
+        const rand = Math.random();
+        if (rand < 0.33) {
+            this.qteType = 'timing';
+        } else if (rand < 0.66) {
+            this.qteType = 'centering';
+        } else {
+            this.qteType = 'sequence';
+        }
+        
+        // Set rounds based on difficulty and QTE type
         if (this.currentDifficulty === 'impossible') {
-            this.qteMaxRounds = 25;
+            // Timing QTE gets 25 rounds, Centering QTE gets 15 rounds, Sequence gets 15 rounds
+            if (this.qteType === 'timing') {
+                this.qteMaxRounds = 25;
+            } else if (this.qteType === 'centering') {
+                this.qteMaxRounds = 15;
+            } else {
+                this.qteMaxRounds = 15;
+            }
         } else {
             this.qteMaxRounds = 5;
         }
@@ -499,6 +1003,16 @@ class Winesweeper {
     }
     
     startQTERound() {
+        if (this.qteType === 'timing') {
+            this.startTimingQTE();
+        } else if (this.qteType === 'centering') {
+            this.startCenteringQTE();
+        } else {
+            this.startSequenceQTE();
+        }
+    }
+    
+    startTimingQTE() {
         const randomIndex = Math.floor(Math.random() * 4);
         
         if (this.qteKeyMode === 'arrows') {
@@ -525,19 +1039,19 @@ class Winesweeper {
         // Progressive speed for impossible mode: starts slow, gets faster each round
         if (this.currentDifficulty === 'impossible') {
             // Use exponential curve for acceleration - slower start, faster end
-            // Rounds 1-5: Very slow progression (2000-1800ms)
-            // Rounds 6-15: Moderate acceleration (1800-1200ms)
-            // Rounds 16-25: Rapid acceleration (1200-1000ms) with 1000ms cap
+            // Rounds 1-5: Very slow progression (2200-2000ms)
+            // Rounds 6-15: Moderate acceleration (2000-1400ms)
+            // Rounds 16-25: Rapid acceleration (1400-1000ms) with 1000ms cap
             const roundProgress = (this.qteRound - 1) / (this.qteMaxRounds - 1);
             const exponentialProgress = Math.pow(roundProgress, 2.5); // Exponential curve
-            const baseSpeed = 2000 - (exponentialProgress * 1300); // Changed from 1400 to 1300 (2000-700)
+            const baseSpeed = 2200 - (exponentialProgress * 1200); // Increased from 2000 to 2200, reduced multiplier from 1300 to 1200
             // Add distance variance (±200ms)
             const calculatedSpeed = baseSpeed + (distanceFromCenter * 2 * 200);
-            // Cap at 1000ms minimum for rounds 16-25
-            this.qteDuration = this.qteRound >= 16 ? Math.max(1000, calculatedSpeed) : calculatedSpeed;
+            // Cap at 600ms minimum for rounds 16-25
+            this.qteDuration = this.qteRound >= 16 ? Math.max(600, calculatedSpeed) : calculatedSpeed;
         } else {
-            // Normal mode: Speed ranges from 1000ms (close) to 1700ms (far)
-            this.qteDuration = 1000 + (distanceFromCenter * 2 * 700);
+            // Normal mode: Speed ranges from 1200ms (close) to 1900ms (far)
+            this.qteDuration = 1200 + (distanceFromCenter * 2 * 700);
         }
         
         const overlay = document.getElementById('qteOverlay');
@@ -547,20 +1061,396 @@ class Winesweeper {
         const targetZone = document.querySelector('.qte-target-zone');
         
         overlay.style.display = 'flex';
+        overlay.dataset.qteType = 'timing';
         keyDisplay.textContent = this.qteKeyDisplay;
-        resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds}`;
+        keyDisplay.style.display = 'block'; // Make sure it's visible for timing mode
+        resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - TIMING`;
         resultDisplay.style.color = '#0054E3';
         timerFill.style.width = '0%';
+        timerFill.style.opacity = '1'; // Make sure it's visible
+        timerFill.style.display = 'block';
+        
+        // Hide sequence keys container
+        const keysContainer = document.getElementById('qteSequenceKeysContainer');
+        if (keysContainer) keysContainer.style.display = 'none';
         
         // Position the target zone (center it on the target position)
         // Target zone is 20% wide, so subtract 10% to center it
         targetZone.style.left = (this.qteTargetPosition * 100 - 10) + '%';
+        targetZone.style.width = '20%'; // Reset to default width
+        targetZone.style.display = 'block';
+        
+        // Hide all boxes if they exist
+        const leftBox = document.getElementById('qteLeftBox');
+        const rightBox = document.getElementById('qteRightBox');
+        const cornerLeftBox = document.getElementById('qteCornerLeftBox');
+        const cornerRightBox = document.getElementById('qteCornerRightBox');
+        const extraBox1 = document.getElementById('qteExtraBox1');
+        const extraBox2 = document.getElementById('qteExtraBox2');
+        if (leftBox) leftBox.style.display = 'none';
+        if (rightBox) rightBox.style.display = 'none';
+        if (cornerLeftBox) cornerLeftBox.style.display = 'none';
+        if (cornerRightBox) cornerRightBox.style.display = 'none';
+        if (extraBox1) extraBox1.style.display = 'none';
+        if (extraBox2) extraBox2.style.display = 'none';
         
         this.animateQTE();
     }
     
+    startCenteringQTE() {
+        // Randomize center position (can be anywhere from 0% to 100%)
+        this.qteCenterPosition = Math.random();
+        
+        // Calculate box size first to determine safe starting position
+        // Increased from 0.02 to 0.04 per round for faster growth
+        this.qteBoxSize = 0.1 + ((this.qteRound - 1) * 0.04);
+        this.qteBoxSize = Math.min(0.75, this.qteBoxSize); // Increased cap from 0.7 to 0.75
+        
+        // Only set initial position on first round, otherwise keep last position
+        if (this.qteRound === 1) {
+            // Start player outside the danger zone (randomly left or right of it)
+            const dangerMin = this.qteCenterPosition - (this.qteBoxSize / 2);
+            const dangerMax = this.qteCenterPosition + (this.qteBoxSize / 2);
+            
+            if (Math.random() < 0.5) {
+                // Start to the left of danger zone
+                this.qteLinePosition = Math.max(0, dangerMin - 0.1);
+            } else {
+                // Start to the right of danger zone
+                this.qteLinePosition = Math.min(1, dangerMax + 0.1);
+            }
+        }
+        // else: keep this.qteLinePosition at its last value from previous round
+        
+        this.qteLineVelocity = 0;
+        this.qteLeftPressed = false;
+        this.qteRightPressed = false;
+        this.qteOutsideZoneStart = 0; // Reset outside zone timer
+        
+        // Constant drift speed (reduced and constant across all rounds)
+        let baseDrift = 0.0003;
+        
+        // Base 5 seconds to keep centered, decrease 0.2 seconds per round
+        this.qteCenteringDuration = 5000 - ((this.qteRound - 1) * 200);
+        // Minimum 1 second
+        this.qteCenteringDuration = Math.max(1000, this.qteCenteringDuration);
+        
+        // Grace period: 5 seconds allowed outside zone, decrease 0.2 seconds per round
+        this.qteGracePeriod = 5000 - ((this.qteRound - 1) * 200);
+        // Minimum 1 second
+        this.qteGracePeriod = Math.max(1000, this.qteGracePeriod);
+        
+        if (this.currentDifficulty === 'impossible') {
+            baseDrift = 0.0005; // Constant drift for impossible mode too
+        }
+        this.qteDrift = baseDrift;
+        
+        // Set keys based on mode
+        if (this.qteKeyMode === 'arrows') {
+            this.qteKeyDisplay = '← / →';
+        } else {
+            this.qteKeyDisplay = 'A / D';
+        }
+        
+        const overlay = document.getElementById('qteOverlay');
+        const keyDisplay = document.getElementById('qteKeyDisplay');
+        const resultDisplay = document.getElementById('qteResult');
+        const targetZone = document.querySelector('.qte-target-zone');
+        const timerFill = document.getElementById('qteTimerFill');
+        
+        overlay.style.display = 'flex';
+        overlay.dataset.qteType = 'centering';
+        keyDisplay.textContent = this.qteKeyDisplay;
+        resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - AVOID BOX`;
+        resultDisplay.style.color = '#0054E3';
+        
+        // Hide key display for centering mode, show timer fill
+        keyDisplay.style.display = 'none';
+        timerFill.style.opacity = '1';
+        timerFill.style.display = 'block';
+        
+        // Hide sequence keys container
+        const keysContainer = document.getElementById('qteSequenceKeysContainer');
+        if (keysContainer) keysContainer.style.display = 'none';
+        
+        // Position and size the main target zone (center it on the target position)
+        targetZone.style.left = (this.qteCenterPosition * 100 - (this.qteBoxSize * 100 / 2)) + '%';
+        targetZone.style.width = (this.qteBoxSize * 100) + '%';
+        targetZone.style.display = 'block'; // Show the target zone for centering QTE
+        
+        // For rounds above 7, create two additional small danger boxes on the sides
+        if (this.qteRound > 7) {
+            // Create left side box if it doesn't exist
+            let leftBox = document.getElementById('qteLeftBox');
+            if (!leftBox) {
+                leftBox = document.createElement('div');
+                leftBox.id = 'qteLeftBox';
+                leftBox.className = 'qte-target-zone';
+                leftBox.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                document.querySelector('.qte-timer-bar').appendChild(leftBox);
+            }
+            
+            // Create right side box if it doesn't exist
+            let rightBox = document.getElementById('qteRightBox');
+            if (!rightBox) {
+                rightBox = document.createElement('div');
+                rightBox.id = 'qteRightBox';
+                rightBox.className = 'qte-target-zone';
+                rightBox.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                document.querySelector('.qte-timer-bar').appendChild(rightBox);
+            }
+            
+            // Small box size (5% of bar)
+            const smallBoxSize = 0.05;
+            
+            // Position left box at 10% from left
+            leftBox.style.left = '10%';
+            leftBox.style.width = (smallBoxSize * 100) + '%';
+            leftBox.style.display = 'block';
+            
+            // Position right box at 85% from left (10% from right edge)
+            rightBox.style.left = '85%';
+            rightBox.style.width = (smallBoxSize * 100) + '%';
+            rightBox.style.display = 'block';
+            
+            // Store small box positions for collision detection
+            this.qteLeftBoxMin = 0.10;
+            this.qteLeftBoxMax = 0.10 + smallBoxSize;
+            this.qteRightBoxMin = 0.85;
+            this.qteRightBoxMax = 0.85 + smallBoxSize;
+            
+            // For round 10+, add corner boxes
+            if (this.qteRound >= 10) {
+                // Create corner boxes if they don't exist
+                let cornerLeftBox = document.getElementById('qteCornerLeftBox');
+                if (!cornerLeftBox) {
+                    cornerLeftBox = document.createElement('div');
+                    cornerLeftBox.id = 'qteCornerLeftBox';
+                    cornerLeftBox.className = 'qte-target-zone';
+                    cornerLeftBox.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                    document.querySelector('.qte-timer-bar').appendChild(cornerLeftBox);
+                }
+                
+                let cornerRightBox = document.getElementById('qteCornerRightBox');
+                if (!cornerRightBox) {
+                    cornerRightBox = document.createElement('div');
+                    cornerRightBox.id = 'qteCornerRightBox';
+                    cornerRightBox.className = 'qte-target-zone';
+                    cornerRightBox.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                    document.querySelector('.qte-timer-bar').appendChild(cornerRightBox);
+                }
+                
+                // Position corner left box at 0% (far left corner)
+                cornerLeftBox.style.left = '0%';
+                cornerLeftBox.style.width = (smallBoxSize * 100) + '%';
+                cornerLeftBox.style.display = 'block';
+                
+                // Position corner right box at 95% from left (far right corner)
+                cornerRightBox.style.left = '95%';
+                cornerRightBox.style.width = (smallBoxSize * 100) + '%';
+                cornerRightBox.style.display = 'block';
+                
+                // Store corner box positions for collision detection
+                this.qteCornerLeftBoxMin = 0;
+                this.qteCornerLeftBoxMax = smallBoxSize;
+                this.qteCornerRightBoxMin = 0.95;
+                this.qteCornerRightBoxMax = 0.95 + smallBoxSize;
+            } else {
+                // Hide corner boxes if they exist
+                const cornerLeftBox = document.getElementById('qteCornerLeftBox');
+                const cornerRightBox = document.getElementById('qteCornerRightBox');
+                if (cornerLeftBox) cornerLeftBox.style.display = 'none';
+                if (cornerRightBox) cornerRightBox.style.display = 'none';
+            }
+            
+            // For round 13-15, add 2 more boxes at 30% and 65%
+            if (this.qteRound >= 13) {
+                // Create extra boxes if they don't exist
+                let extraBox1 = document.getElementById('qteExtraBox1');
+                if (!extraBox1) {
+                    extraBox1 = document.createElement('div');
+                    extraBox1.id = 'qteExtraBox1';
+                    extraBox1.className = 'qte-target-zone';
+                    extraBox1.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                    document.querySelector('.qte-timer-bar').appendChild(extraBox1);
+                }
+                
+                let extraBox2 = document.getElementById('qteExtraBox2');
+                if (!extraBox2) {
+                    extraBox2 = document.createElement('div');
+                    extraBox2.id = 'qteExtraBox2';
+                    extraBox2.className = 'qte-target-zone';
+                    extraBox2.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                    document.querySelector('.qte-timer-bar').appendChild(extraBox2);
+                }
+                
+                // Position extra boxes
+                extraBox1.style.left = '30%';
+                extraBox1.style.width = (smallBoxSize * 100) + '%';
+                extraBox1.style.display = 'block';
+                
+                extraBox2.style.left = '65%';
+                extraBox2.style.width = (smallBoxSize * 100) + '%';
+                extraBox2.style.display = 'block';
+                
+                // Store extra box positions for collision detection
+                this.qteExtraBox1Min = 0.30;
+                this.qteExtraBox1Max = 0.30 + smallBoxSize;
+                this.qteExtraBox2Min = 0.65;
+                this.qteExtraBox2Max = 0.65 + smallBoxSize;
+            } else {
+                // Hide extra boxes if they exist
+                const extraBox1 = document.getElementById('qteExtraBox1');
+                const extraBox2 = document.getElementById('qteExtraBox2');
+                if (extraBox1) extraBox1.style.display = 'none';
+                if (extraBox2) extraBox2.style.display = 'none';
+            }
+        } else {
+            // Hide side boxes if they exist
+            const leftBox = document.getElementById('qteLeftBox');
+            const rightBox = document.getElementById('qteRightBox');
+            const cornerLeftBox = document.getElementById('qteCornerLeftBox');
+            const cornerRightBox = document.getElementById('qteCornerRightBox');
+            const extraBox1 = document.getElementById('qteExtraBox1');
+            const extraBox2 = document.getElementById('qteExtraBox2');
+            if (leftBox) leftBox.style.display = 'none';
+            if (rightBox) rightBox.style.display = 'none';
+            if (cornerLeftBox) cornerLeftBox.style.display = 'none';
+            if (cornerRightBox) cornerRightBox.style.display = 'none';
+            if (extraBox1) extraBox1.style.display = 'none';
+            if (extraBox2) extraBox2.style.display = 'none';
+        }
+        
+        // Calculate grace period - 4 seconds base, decrease 0.2s per round
+        this.qteBoxGracePeriod = 4000 - ((this.qteRound - 1) * 200);
+        this.qteBoxGracePeriod = Math.max(500, this.qteBoxGracePeriod); // Minimum 0.5 seconds
+        this.qteInsideBoxStart = 0; // Track when player enters box
+        
+        this.qteCenteringStartTime = Date.now();
+        this.animateCenteringQTE();
+    }
+    
+    animateCenteringQTE() {
+        if (!this.qteActive || this.qteType !== 'centering') return;
+        
+        // Check if time is up
+        const elapsed = Date.now() - this.qteCenteringStartTime;
+        const timeRemaining = this.qteCenteringDuration - elapsed;
+        
+        // Apply drift TOWARDS the danger zone (opposite of away)
+        const distanceFromCenter = this.qteLinePosition - this.qteCenterPosition;
+        const driftForce = distanceFromCenter > 0 ? -this.qteDrift : this.qteDrift;
+        this.qteLineVelocity += driftForce;
+        
+        // Apply player control - reduced speed for slower movement
+        if (this.qteLeftPressed) {
+            this.qteLineVelocity -= 0.005;
+        }
+        if (this.qteRightPressed) {
+            this.qteLineVelocity += 0.005;
+        }
+        
+        // Apply damping to velocity for smoother control
+        this.qteLineVelocity *= 0.88;
+        
+        // Update position
+        this.qteLinePosition += this.qteLineVelocity;
+        
+        // Clamp to edges with bounce
+        if (this.qteLinePosition <= 0) {
+            this.qteLinePosition = 0;
+            this.qteLineVelocity *= -0.3;
+        } else if (this.qteLinePosition >= 1) {
+            this.qteLinePosition = 1;
+            this.qteLineVelocity *= -0.3;
+        }
+        
+        // Update line position visual (still update width even though invisible, for bar position)
+        const timerFill = document.getElementById('qteTimerFill');
+        timerFill.style.width = (this.qteLinePosition * 100) + '%';
+        
+        // Check if BAR (the end of the timer fill) is inside the danger zone
+        // The bar position is at qteLinePosition
+        // The danger zone is centered at qteCenterPosition with size qteBoxSize
+        const dangerMin = this.qteCenterPosition - (this.qteBoxSize / 2);
+        const dangerMax = this.qteCenterPosition + (this.qteBoxSize / 2);
+        
+        let isInDangerZone = false;
+        
+        // Check main danger zone
+        if (this.qteLinePosition >= dangerMin && this.qteLinePosition <= dangerMax) {
+            isInDangerZone = true;
+        }
+        
+        // Check side boxes if round > 7
+        if (this.qteRound > 7) {
+            if ((this.qteLinePosition >= this.qteLeftBoxMin && this.qteLinePosition <= this.qteLeftBoxMax) ||
+                (this.qteLinePosition >= this.qteRightBoxMin && this.qteLinePosition <= this.qteRightBoxMax)) {
+                isInDangerZone = true;
+            }
+            
+            // Check corner boxes if round >= 10
+            if (this.qteRound >= 10) {
+                if ((this.qteLinePosition >= this.qteCornerLeftBoxMin && this.qteLinePosition <= this.qteCornerLeftBoxMax) ||
+                    (this.qteLinePosition >= this.qteCornerRightBoxMin && this.qteLinePosition <= this.qteCornerRightBoxMax)) {
+                    isInDangerZone = true;
+                }
+            }
+            
+            // Check extra boxes if round >= 13
+            if (this.qteRound >= 13) {
+                if ((this.qteLinePosition >= this.qteExtraBox1Min && this.qteLinePosition <= this.qteExtraBox1Max) ||
+                    (this.qteLinePosition >= this.qteExtraBox2Min && this.qteLinePosition <= this.qteExtraBox2Max)) {
+                    isInDangerZone = true;
+                }
+            }
+        }
+        
+        if (isInDangerZone) {
+            // Bar is inside danger zone - start grace period timer
+            if (this.qteInsideBoxStart === 0) {
+                // Just entered the box
+                this.qteInsideBoxStart = Date.now();
+            } else {
+                // Check how long we've been inside
+                const timeInside = Date.now() - this.qteInsideBoxStart;
+                if (timeInside >= this.qteBoxGracePeriod) {
+                    // Grace period expired - FAIL
+                    this.failQTE();
+                    return;
+                }
+            }
+        } else {
+            // Outside danger zone - reset grace period timer
+            this.qteInsideBoxStart = 0;
+        }
+        
+        // Update the display to show remaining time and controls
+        const resultDisplay = document.getElementById('qteResult');
+        const timeLeft = Math.max(0, (this.qteCenteringDuration - elapsed) / 1000).toFixed(1);
+        
+        // Show grace period info if inside box
+        if (this.qteInsideBoxStart > 0) {
+            const graceTimeInside = Date.now() - this.qteInsideBoxStart;
+            const graceTimeLeft = Math.max(0, (this.qteBoxGracePeriod - graceTimeInside) / 1000).toFixed(1);
+            resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - AVOID BOX | Time: ${timeLeft}s | IN BOX: ${graceTimeLeft}s!`;
+            resultDisplay.style.color = '#FF0000';
+        } else {
+            resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - AVOID BOX | Time: ${timeLeft}s | Controls: ${this.qteKeyDisplay}`;
+            resultDisplay.style.color = '#0054E3';
+        }
+        
+        // Check if time is up while in zone - success
+        if (timeRemaining <= 0) {
+            this.successCenteringRound();
+            return;
+        }
+        
+        this.qteAnimationFrame = requestAnimationFrame(() => this.animateCenteringQTE());
+    }
+    
     animateQTE() {
-        if (!this.qteActive) return;
+        if (!this.qteActive || this.qteType !== 'timing') return;
         
         const elapsed = Date.now() - this.qteStartTime;
         const progress = Math.min(elapsed / this.qteDuration, 1);
@@ -576,10 +1466,56 @@ class Winesweeper {
         }
     }
     
-    handleQTEKeyPress(key) {
-        const normalizedKey = this.qteKeyMode === 'wasd' ? key.toLowerCase() : key;
-        if (!this.qteActive || normalizedKey !== this.qteKey) return;
+    handleQTEKeyDown(key) {
+        if (!this.qteActive) return;
         
+        if (this.qteType === 'timing') {
+            const normalizedKey = this.qteKeyMode === 'wasd' ? key.toLowerCase() : key;
+            if (normalizedKey === this.qteKey) {
+                this.handleTimingQTEPress();
+            }
+        } else if (this.qteType === 'centering') {
+            // Handle left/right controls
+            if (this.qteKeyMode === 'arrows') {
+                if (key === 'ArrowLeft') {
+                    this.qteLeftPressed = true;
+                } else if (key === 'ArrowRight') {
+                    this.qteRightPressed = true;
+                }
+            } else {
+                const normalizedKey = key.toLowerCase();
+                if (normalizedKey === 'a') {
+                    this.qteLeftPressed = true;
+                } else if (normalizedKey === 'd') {
+                    this.qteRightPressed = true;
+                }
+            }
+        } else if (this.qteType === 'sequence') {
+            this.handleSequenceKeyPress(key);
+        }
+    }
+    
+    handleQTEKeyUp(key) {
+        if (!this.qteActive || this.qteType !== 'centering') return;
+        
+        // Handle key release for centering mode
+        if (this.qteKeyMode === 'arrows') {
+            if (key === 'ArrowLeft') {
+                this.qteLeftPressed = false;
+            } else if (key === 'ArrowRight') {
+                this.qteRightPressed = false;
+            }
+        } else {
+            const normalizedKey = key.toLowerCase();
+            if (normalizedKey === 'a') {
+                this.qteLeftPressed = false;
+            } else if (normalizedKey === 'd') {
+                this.qteRightPressed = false;
+            }
+        }
+    }
+    
+    handleTimingQTEPress() {
         const elapsed = Date.now() - this.qteStartTime;
         const progress = elapsed / this.qteDuration;
         
@@ -605,6 +1541,29 @@ class Winesweeper {
         }
     }
     
+    successCenteringRound() {
+        // Success for this round
+        if (this.qteRound < this.qteMaxRounds) {
+            // More rounds to go - continue immediately without pause
+            this.qteRound++;
+            if (this.qteAnimationFrame) {
+                cancelAnimationFrame(this.qteAnimationFrame);
+            }
+            
+            // Reset key states
+            this.qteLeftPressed = false;
+            this.qteRightPressed = false;
+            this.qteOutsideZoneStart = 0; // Reset grace period timer
+            this.qteInsideBoxStart = 0; // Reset box grace period timer
+            
+            // Start next round immediately
+            this.startQTERound();
+        } else {
+            // All rounds completed
+            this.successQTE();
+        }
+    }
+    
     successQTE() {
         this.qteActive = false;
         if (this.qteAnimationFrame) {
@@ -615,6 +1574,18 @@ class Winesweeper {
         resultDisplay.textContent = 'ALL ROUNDS COMPLETE! 💚';
         resultDisplay.style.color = '#00FF00';
         
+        // Increment QTE counter for impossible mode
+        if (this.currentDifficulty === 'impossible') {
+            this.qteCompletedCount++;
+            // Check for 10 QTEs achievement
+            if (this.qteCompletedCount >= 10) {
+                this.awardQTEMasterBadge();
+            }
+        } else {
+            // Award achievement for beating QTE on non-impossible modes
+            this.awardQTESurvivorBadge();
+        }
+        
         // Flag the bomb
         if (this.pendingBombCell) {
             const { row, col } = this.pendingBombCell;
@@ -623,7 +1594,7 @@ class Winesweeper {
             this.updateCell(row, col);
             this.updateMineCounter();
             
-            // In impossible mode, reveal 60 random bombs and give vague safe zone hint
+            // In impossible mode, reveal 98 random bombs and give vague safe zone hint
             if (this.currentDifficulty === 'impossible') {
                 const unrevealedMines = [];
                 for (let r = 0; r < this.rows; r++) {
@@ -634,7 +1605,7 @@ class Winesweeper {
                     }
                 }
                 
-                const toReveal = Math.min(60, unrevealedMines.length);
+                const toReveal = Math.min(98, unrevealedMines.length);
                 for (let i = 0; i < toReveal; i++) {
                     const randomIndex = Math.floor(Math.random() * unrevealedMines.length);
                     const [r, c] = unrevealedMines.splice(randomIndex, 1)[0];
@@ -649,7 +1620,7 @@ class Winesweeper {
                 this.giveSafeZoneHint(row, col);
                 
                 // Update result display to show bonus
-                resultDisplay.textContent = `ALL ROUNDS COMPLETE! 💚\n+60 BOMBS REVEALED!`;
+                resultDisplay.textContent = `ALL ROUNDS COMPLETE! 💚\n+98 BOMBS REVEALED!`;
             }
         }
         
@@ -732,6 +1703,10 @@ class Winesweeper {
             cancelAnimationFrame(this.qteAnimationFrame);
         }
         
+        // Reset key states
+        this.qteLeftPressed = false;
+        this.qteRightPressed = false;
+        
         const resultDisplay = document.getElementById('qteResult');
         resultDisplay.textContent = 'FAILED! 💥';
         resultDisplay.style.color = '#FF0000';
@@ -754,6 +1729,232 @@ class Winesweeper {
             this.resetCombo();
             this.pendingBombCell = null;
         }, 1000);
+    }
+    
+    startSequenceQTE() {
+        // Generate random sequence of keys
+        let sequenceLength;
+        if (this.qteRound >= 10) {
+            sequenceLength = 14;
+        } else if (this.qteRound >= 5) {
+            sequenceLength = 7;
+        } else {
+            sequenceLength = Math.min(3 + this.qteRound, 6); // Start at 4 keys, up to 6 keys
+        }
+        
+        if (this.qteKeyMode === 'arrows') {
+            const keys = ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
+            const keyDisplays = ['↑', '←', '↓', '→'];
+            this.qteSequence = [];
+            this.qteSequenceDisplay = [];
+            for (let i = 0; i < sequenceLength; i++) {
+                const randomIndex = Math.floor(Math.random() * 4);
+                this.qteSequence.push(keys[randomIndex]);
+                this.qteSequenceDisplay.push(keyDisplays[randomIndex]);
+            }
+        } else {
+            const keys = ['w', 'a', 's', 'd'];
+            const keyDisplays = ['W', 'A', 'S', 'D'];
+            this.qteSequence = [];
+            this.qteSequenceDisplay = [];
+            for (let i = 0; i < sequenceLength; i++) {
+                const randomIndex = Math.floor(Math.random() * 4);
+                this.qteSequence.push(keys[randomIndex]);
+                this.qteSequenceDisplay.push(keyDisplays[randomIndex]);
+            }
+        }
+        
+        this.qteSequenceIndex = 0; // Track current position in sequence
+        this.qteSequenceStartTime = Date.now();
+        
+        // Time limit: 1 second per key + 1 second base, plus bonus time for higher rounds
+        // Add 100ms per round completed (so round 5 gets +500ms, round 10 gets +1000ms, etc.)
+        const roundBonus = (this.qteRound - 1) * 100;
+        this.qteSequenceDuration = 1000 + (sequenceLength * 1000) + roundBonus;
+        
+        const overlay = document.getElementById('qteOverlay');
+        const keyDisplay = document.getElementById('qteKeyDisplay');
+        const resultDisplay = document.getElementById('qteResult');
+        const timerFill = document.getElementById('qteTimerFill');
+        const targetZone = document.querySelector('.qte-target-zone');
+        const timerBar = document.querySelector('.qte-timer-bar');
+        
+        overlay.style.display = 'flex';
+        overlay.dataset.qteType = 'sequence';
+        
+        // Hide the old key display box and timer bar components
+        keyDisplay.style.display = 'none';
+        timerFill.style.display = 'none';
+        targetZone.style.display = 'none';
+        
+        // Create keys container inside the timer bar
+        let keysContainer = document.getElementById('qteSequenceKeysContainer');
+        if (!keysContainer) {
+            keysContainer = document.createElement('div');
+            keysContainer.id = 'qteSequenceKeysContainer';
+            keysContainer.className = 'qte-sequence-keys-container';
+            timerBar.appendChild(keysContainer);
+        }
+        
+        keysContainer.innerHTML = this.qteSequenceDisplay.map((key, idx) => 
+            `<span class="qte-sequence-key ${idx === 0 ? 'active' : ''}">${key}</span>`
+        ).join('');
+        keysContainer.style.display = 'flex';
+        
+        resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - SEQUENCE | Time: ${(this.qteSequenceDuration / 1000).toFixed(1)}s | Controls: ${this.qteKeyMode === 'arrows' ? '↑ ← ↓ →' : 'W / A / S / D'}`;
+        resultDisplay.style.color = '#0054E3';
+        
+        // Hide all boxes
+        const leftBox = document.getElementById('qteLeftBox');
+        const rightBox = document.getElementById('qteRightBox');
+        const cornerLeftBox = document.getElementById('qteCornerLeftBox');
+        const cornerRightBox = document.getElementById('qteCornerRightBox');
+        const extraBox1 = document.getElementById('qteExtraBox1');
+        const extraBox2 = document.getElementById('qteExtraBox2');
+        if (leftBox) leftBox.style.display = 'none';
+        if (rightBox) rightBox.style.display = 'none';
+        if (cornerLeftBox) cornerLeftBox.style.display = 'none';
+        if (cornerRightBox) cornerRightBox.style.display = 'none';
+        if (extraBox1) extraBox1.style.display = 'none';
+        if (extraBox2) extraBox2.style.display = 'none';
+        
+        // Add CSS for sequence keys if not already present
+        if (!document.getElementById('qte-sequence-styles')) {
+            const style = document.createElement('style');
+            style.id = 'qte-sequence-styles';
+            style.textContent = `
+                .qte-sequence-keys-container {
+                    display: flex;
+                    flex-direction: row;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 6px;
+                    flex-wrap: wrap;
+                    padding: 4px;
+                    width: 100%;
+                    height: 100%;
+                }
+                .qte-sequence-key {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 50px;
+                    height: 32px;
+                    padding: 4px 8px;
+                    margin: 0;
+                    background: #d4d0c8;
+                    border: 2px solid #ffffff;
+                    border-right-color: #808080;
+                    border-bottom-color: #808080;
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #808080;
+                    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.8),
+                                inset -1px -1px 0 rgba(0, 0, 0, 0.2);
+                }
+                .qte-sequence-key.active {
+                    background: #0078d7;
+                    color: #ffffff;
+                    border-color: #0054e3;
+                    box-shadow: 0 0 10px rgba(0, 120, 215, 0.6),
+                                inset 1px 1px 0 rgba(255, 255, 255, 0.3);
+                    animation: pulse 0.5s ease-in-out infinite;
+                }
+                .qte-sequence-key.completed {
+                    background: #00aa00;
+                    color: #ffffff;
+                    border-color: #008800;
+                    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.3);
+                }
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.1); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        this.animateSequenceQTE();
+    }
+    
+    animateSequenceQTE() {
+        if (!this.qteActive || this.qteType !== 'sequence') return;
+        
+        const elapsed = Date.now() - this.qteSequenceStartTime;
+        const progress = Math.min(elapsed / this.qteSequenceDuration, 1);
+        const timeRemaining = Math.max(0, (this.qteSequenceDuration - elapsed) / 1000).toFixed(1);
+        
+        // Update result display with time remaining
+        const resultDisplay = document.getElementById('qteResult');
+        resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - SEQUENCE | Time: ${timeRemaining}s | Controls: ${this.qteKeyMode === 'arrows' ? '↑ ← ↓ →' : 'W / A / S / D'}`;
+        
+        if (progress >= 1) {
+            // Time ran out
+            this.failQTE();
+            return;
+        }
+        
+        this.qteAnimationFrame = requestAnimationFrame(() => this.animateSequenceQTE());
+    }
+    
+    handleSequenceKeyPress(key) {
+        const normalizedKey = this.qteKeyMode === 'wasd' ? key.toLowerCase() : key;
+        const expectedKey = this.qteSequence[this.qteSequenceIndex];
+        
+        if (normalizedKey === expectedKey) {
+            // Correct key pressed
+            this.qteSequenceIndex++;
+            
+            // Update visual feedback
+            const keysContainer = document.getElementById('qteSequenceKeysContainer');
+            const keyElements = keysContainer.querySelectorAll('.qte-sequence-key');
+            keyElements[this.qteSequenceIndex - 1].classList.remove('active');
+            keyElements[this.qteSequenceIndex - 1].classList.add('completed');
+            
+            if (this.qteSequenceIndex < this.qteSequence.length) {
+                // More keys to press
+                keyElements[this.qteSequenceIndex].classList.add('active');
+            } else {
+                // Sequence complete!
+                if (this.qteRound < this.qteMaxRounds) {
+                    // More rounds to go
+                    this.qteRound++;
+                    if (this.qteAnimationFrame) {
+                        cancelAnimationFrame(this.qteAnimationFrame);
+                    }
+                    this.startQTERound();
+                } else {
+                    // All rounds completed
+                    this.successQTE();
+                }
+            }
+        } else {
+            // Wrong key pressed - restart the sequence from the beginning
+            this.qteSequenceIndex = 0;
+            
+            // Reset visual feedback - mark all keys as not completed
+            const keysContainer = document.getElementById('qteSequenceKeysContainer');
+            const keyElements = keysContainer.querySelectorAll('.qte-sequence-key');
+            keyElements.forEach((element, idx) => {
+                element.classList.remove('active');
+                element.classList.remove('completed');
+                if (idx === 0) {
+                    element.classList.add('active');
+                }
+            });
+            
+            // Flash error message briefly
+            const resultDisplay = document.getElementById('qteResult');
+            const originalText = resultDisplay.textContent;
+            resultDisplay.textContent = 'WRONG KEY! START OVER!';
+            resultDisplay.style.color = '#FF0000';
+            
+            setTimeout(() => {
+                const timeRemaining = Math.max(0, (this.qteSequenceDuration - (Date.now() - this.qteSequenceStartTime)) / 1000).toFixed(1);
+                resultDisplay.textContent = `Round ${this.qteRound}/${this.qteMaxRounds} - SEQUENCE | Time: ${timeRemaining}s | Controls: ${this.qteKeyMode === 'arrows' ? '↑ ← ↓ →' : 'W / A / S / D'}`;
+                resultDisplay.style.color = '#0054E3';
+            }, 500);
+        }
     }
     
     giveDirectionalHint(fromRow, fromCol) {
