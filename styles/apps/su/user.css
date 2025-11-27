@@ -58,6 +58,8 @@ html, body {
     align-items: center;
     gap: 20px;
 }
+
+
 #userStats {
     display: flex;
     justify-content: center;

@@ -56,8 +56,8 @@ footer div {
     font-size: 22px;
 
     text-shadow: 
-        0 0 2px black,
-        0 0 1px black,
+        0 0 2px rgb(0, 0, 0),
+        0 0 1px rgb(0, 0, 0),
         0 2px 5px rgba(0, 0, 0, 0.7);
 }
 
@@ -92,7 +92,7 @@ footer div {
     background-color: rgba(0, 0, 0, 0.1);
 }
 #qa_icon1 {
-    background-image: url(../../assets/images/icons/16x/notes.png);
+    background-image: url(../../assets/images/icons/32x/notes.png);
 }
 #qa_icon2 {
     background-image: url(../../assets/images/icons/16x/files.png);
@@ -200,6 +200,435 @@ footer div {
     z-index: 200;
     overflow: hidden;
     user-select: none;
+}
+
+
+/* Clock & Badges Panel */
+#clockBadgePanel {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+
+    width: 700px;
+    height: 550px;
+
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    box-shadow: -3px 2px 2px rgba(0, 0, 0, 0.400);
+
+    z-index: 200;
+    overflow: hidden;
+    user-select: none;
+    background-color: white;
+}
+
+#cbHeader {
+    width: 100%;
+    height: 20%;
+    background-image: linear-gradient(to top, #488fee, #3181e4, #1b6dd3, #0d5eca, #0d5eca, #1c6dd6, #64a2e7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#cbClockDisplay {
+    text-align: center;
+    color: white;
+}
+
+.cb-time {
+    font-family: 'Courier New', monospace;
+    font-size: 56px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+}
+
+.cb-date {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 15px;
+    opacity: 1;
+}
+
+#cbMainContent {
+    width: 100%;
+    height: 80%;
+    display: flex;
+    background-color: #ece9d8;
+}
+
+#cbLeftColumn {
+    width: 50%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid #0c4cd1;
+}
+
+#cbRightColumn {
+    width: 50%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.cb-section-title {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 14px;
+    font-weight: bold;
+    color: #0d5eca;
+    margin-bottom: 12px;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+/* Calendar Styles */
+#cbCalendar {
+    background: white;
+    border: 2px solid #0054e3;
+    border-radius: 4px;
+    padding: 12px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+}
+
+.cb-cal-header {
+    margin-bottom: 10px;
+}
+
+.cb-cal-month-year {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+.cb-cal-month-select {
+    flex: 1;
+    max-width: 140px;
+}
+
+.cb-cal-year-input {
+    width: 70px;
+}
+
+.cb-cal-select {
+    padding: 4px 8px;
+    border: 2px inset #ddd;
+    background: white;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    color: #000;
+}
+
+.cb-cal-select:focus {
+    outline: 1px dotted #000;
+}
+
+.cb-cal-days-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.cb-cal-day-name {
+    text-align: center;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    font-weight: bold;
+    color: #000080;
+    padding: 4px 0;
+}
+
+.cb-cal-days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.cb-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    color: whitesmoke;
+    text-shadow: 
+        0 0 2px black,
+        0 0 1px black;
+    background: white;
+    padding: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.cb-cal-day-number {
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.cb-cal-holiday-label {
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    margin-top: 2px;
+    color: inherit;
+    text-shadow: inherit;
+    max-width: 100%;
+    word-wrap: break-word;
+    hyphens: auto;
+    z-index: 1;
+}
+
+.cb-cal-day:hover:not(.cb-cal-day-empty) {
+    border: 1px solid #0054e3;
+    background: #e8f4ff;
+}
+
+.cb-cal-day-today {
+    background: #0054e3 !important;
+    color: white !important;
+    font-weight: bold;
+    border: 1px solid #003399 !important;
+}
+
+.cb-cal-day-holiday {
+    background: #fff0f0;
+    font-weight: bold;
+    color: #c00;
+}
+
+.cb-cal-day-holiday:hover {
+    background: #ffe0e0 !important;
+}
+
+.cb-cal-day-today.cb-cal-day-holiday {
+    background: #0054e3 !important;
+    color: white !important;
+}
+
+.cb-cal-day-empty {
+    cursor: default;
+    background: #f0f0f0;
+}
+
+.cb-timezone-info {
+    margin-top: 12px;
+    padding: 8px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    color: #000;
+    text-align: center;
+}
+
+/* Badges List */
+#cbBadgesList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: visible;
+}
+
+/* Category Header */
+.cb-badge-category-header {
+    padding: 10px 12px;
+    background: linear-gradient(to bottom, #0078d7, #0054e3);
+    color: white;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.cb-badge-category-header:hover {
+    background: linear-gradient(to bottom, #1084e0, #0060f0);
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.cb-badge-category-header:active {
+    background: linear-gradient(to bottom, #0054e3, #0040b0);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.cb-category-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 11px;
+}
+
+/* Category Content */
+.cb-badge-category-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 8px;
+    transition: all 0.3s ease;
+    max-height: 520px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Scrollbar styling for category content */
+.cb-badge-category-content::-webkit-scrollbar {
+    width: 12px;
+}
+
+.cb-badge-category-content::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border: 1px solid #ccc;
+}
+
+.cb-badge-category-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #0078d7, #0054e3);
+    border: 1px solid #003399;
+}
+
+.cb-badge-category-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #1084e0, #0060f0);
+}
+
+.cb-badge-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border: 2px solid #0054e3;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    cursor: default;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.cb-badge-item:hover {
+    background: #e8f4ff;
+    transform: translateY(-2px);
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.cb-badge-tooltip {
+    display: none;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fffef0;
+    border: 2px solid #0054e3;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    color: #000;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    margin-bottom: 5px;
+}
+
+.cb-badge-earned {
+    border-color: #0054e3;
+}
+
+.cb-badge-locked {
+    opacity: 0.7;
+    border-color: #999;
+    background: #f5f5f5;
+}
+
+.cb-badge-locked:hover {
+    opacity: 1;
+}
+
+.cb-badge-icon {
+    min-width: 50px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cb-badge-icon img {
+    max-width: 50px;
+    max-height: 50px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.cb-badge-img-sparkle {
+    filter: drop-shadow(0 0 6px gold);
+    animation: cbBadgeGlow 3s ease-in-out infinite;
+}
+
+@keyframes cbBadgeGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 6px gold) brightness(1);
+        transform: scale(1);
+    }
+    50% {
+        filter: drop-shadow(0 0 12px gold) brightness(1.2);
+        transform: scale(1.05);
+    }
+}
+
+.cb-badge-earned:hover .cb-badge-img-sparkle {
+    animation: cbBadgeGlow 1s ease-in-out infinite;
+}
+
+.cb-badge-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cb-badge-name {
+    font-size: 13px;
+    font-weight: bold;
+    color: whitesmoke;
+    text-shadow: 
+        0 0 2px black,
+        0 0 1px black;
+}
+
+.cb-badge-desc {
+    font-size: 11px;
+    color: whitesmoke;
+    text-shadow: 
+        0 0 2px black,
+        0 0 1px black;
+}
+
+.cb-badge-locked .cb-badge-name {
+    color: #888;
+}
+
+.cb-badge-locked .cb-badge-desc {
+    color: #999;
+    font-style: italic;
 }
 
 

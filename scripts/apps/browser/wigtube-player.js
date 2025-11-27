@@ -1,5 +1,16 @@
 // WigTube Video Player JavaScript - 2003 YouTube Style
 
+// Debug mode - check URL parameter
+if (typeof window.WIGTUBE_DEBUG === 'undefined') {
+    window.WIGTUBE_DEBUG = new URLSearchParams(window.location.search).has('debug');
+}
+
+function debugLog(...args) {
+    if (window.WIGTUBE_DEBUG) {
+        console.log('[WigTube Player]', ...args);
+    }
+}
+
 // ============================================
 // Centralized WigTube Data Management
 // ============================================
@@ -45,13 +56,42 @@ function updateWigTubeProperty(property, value) {
     saveWigTubeData(data);
 }
 
-// Video data structure
-const videoData = {
+// Video data will be loaded from JSON file
+let videoDataArray = [];
+let videoData = {};
+let albumTracksData = {};
+let albumMetadataArray = [];
+
+// Load video data from JSON file
+async function loadVideoDataFromJSON() {
+    try {
+        const response = await fetch('../../scripts/apps/browser/wigtube-data.json');
+        const data = await response.json();
+        videoDataArray = data.videos;
+        
+        // Convert array to object format for player
+        videoData = {};
+        videoDataArray.forEach(video => {
+            videoData[video.id] = video;
+        });
+        
+        albumTracksData = data.albums;
+        albumMetadataArray = data.albumMetadata;
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading video data:', error);
+        return false;
+    }
+}
+
+// Fallback video data structure
+const fallbackVideoData = {
     'epic-minecraft-castle-build': {
-        title: 'Epic Minecraft Castle Build',
-        uploader: 'WigCraft',
+        title: 'Steve being a menace as always',
+        uploader: 'Steve',
         uploadDate: '3 days ago',
-        duration: '10:24',
+        duration: '02:45',
         views: '2 views',
         rating: '★★★★☆',
         ratingCount: 127,
@@ -63,7 +103,7 @@ const videoData = {
         title: 'Yo Darren',
         uploader: 'Codemittens',
         uploadDate: '05-11-2025',
-        duration: '01:41',
+        duration: '00:19',
         views: '5112025',
         rating: '★★★★★',
         ratingCount: 89,
@@ -75,7 +115,7 @@ const videoData = {
         title: 'Fredrick Fazbear Touches Youtubers Dingalings',
         uploader: 'fredbear',
         uploadDate: '1987 days ago',
-        duration: '04:37',
+        duration: '00:08',
         views: '4 views',
         rating: '★★★★☆',
         ratingCount: 203,
@@ -99,37 +139,37 @@ const videoData = {
         albumArt: 'assets/images/thumbnail/schlatt.png',
         artist: 'schlatt & Co',
         year: '2025',
-        genre: 'Lo-Fi Hip Hop'
+        genre: 'holiday'
     },
-    'html-css-tutorial': {
-        title: 'HTML & CSS Tutorial',
-        uploader: 'WigDev',
+    'blackman': {
+        title: 'freddy fazbear is about to get his dingaling touched',
+        uploader: 'fredbear',
         uploadDate: '4 days ago',
-        duration: '22:15',
+        duration: '00:08',
         views: '8,923 views',
         rating: '★★★★★',
         ratingCount: 45,
-        description: 'Complete beginner\'s guide to HTML and CSS! Learn how to create your first website from scratch.\n\nWhat you\'ll learn:\n• HTML structure and semantic tags\n• CSS styling and layout\n• Box model fundamentals\n• Responsive design basics\n• Best practices for web development\n\nThis tutorial is perfect for absolute beginners who want to get started with web development. No prior experience required!\n\nCode examples and resources:\n• All code is available for download\n• Step-by-step written guide\n• Practice exercises\n• Additional resources and links\n\nBy the end of this tutorial, you\'ll have created a complete webpage and understand the fundamentals of HTML and CSS.\n\nLet me know what web development topics you\'d like to see next!',
-        videoFile: null,
-        thumbnail: 'assets/images/thumbnail/nothtml.png'
+        description: '',
+        videoFile: 'assets/videos/blackman.mp4',
+        thumbnail: 'assets/images/thumbnail/blackman.png'
     },
-    'top-10-flash-games-2005': {
-        title: 'Top 10 Flash Games 2005',
-        uploader: 'WigRetro',
-        uploadDate: '1 day ago',
-        duration: '8:59',
+    'jolly': {
+        title: 'jolly flight',
+        uploader: 'Santa Claus',
+        uploadDate: '2512 days ago',
+        duration: '00:16',
         views: '34,782 views',
         rating: '★★★★☆',
         ratingCount: 78,
-        description: 'Countdown of the best Flash games from 2005! These games defined online gaming for a generation and are still incredibly fun to play today.\n\nGames featured:\n10. Stick War\n9. Bloons\n8. Thing Thing Series\n7. Madness Interactive\n6. Age of War\n5. Fancy Pants Adventure\n4. Red Ball\n3. Super Crazy Guitar Maniac Deluxe\n2. Line Rider\n1. Alien Hominid\n\nFlash games were the foundation of internet culture in the early 2000s. Sites like Newgrounds, Miniclip, and AddictingGames provided endless entertainment.\n\nEach game showcase includes:\n• Gameplay footage\n• Historical context\n• Developer information\n• Cultural impact\n\nRIP Flash Player (1996-2020) - You will be missed!\n\nWhat was your favorite Flash game? Let me know in the comments!',
-        videoFile: null,
-        thumbnail: 'assets/images/thumbnail/flash.png'
+        description: 'flight felt a bit jolly this year',
+        videoFile: 'assets/videos/jolly.mp4',
+        thumbnail: 'assets/images/thumbnail/santa.png'
     },
   'fredrick-fazbear-touches-youtubers-dingalings': {
         title: 'Fredrick Fazbear Touches Youtubers Dingalings',
         uploader: 'fredbear',
         uploadDate: '1987 days ago',
-        duration: '04:37',
+        duration: '04:34',
         views: '4 views',
         rating: '★★★★☆',
         ratingCount: 203,
@@ -149,11 +189,101 @@ const videoData = {
         videoFile: 'assets/videos/fnaf.mp4',
         thumbnail: 'assets/images/thumbnail/mr.png'
     },
+    'c418': {
+        title: 'hagstorm',
+        uploader: 'c418',
+        uploadDate: '1 day ago',
+        duration: '03:24',
+        views: '420 views',
+        rating: '★★★★★',
+        ratingCount: 69,
+        description: 'nostalgia is a curse',
+        videoFile: 'assets/album/hagstorm.mp4',
+        thumbnail: 'assets/images/thumbnail/nostalgia.png',
+        isMusic: true,
+        album: 'Minecraft soundtrack to contemplate life choices',
+        albumArt: 'assets/images/thumbnail/nostalgia.png',
+        artist: 'c418',
+        year: '2025',
+        genre: 'gaming'
+    },
+    'c4182': {
+        title: 'wethands',
+        uploader: 'c418',
+        uploadDate: '1 day ago',
+        duration: '01:30',
+        views: '420 views',
+        rating: '★★★★★',
+        ratingCount: 69,
+        description: 'nostalgia is a curse',
+        videoFile: 'assets/album/wet.mp4',
+        thumbnail: 'assets/images/thumbnail/nostalgia.png',
+        isMusic: true,
+        album: 'Minecraft soundtrack to contemplate life choices',
+        albumArt: 'assets/images/thumbnail/nostalgia.png',
+        artist: 'c418',
+        year: '2025',
+        genre: 'gaming'
+    },
+    'c4183': {
+        title: 'dryhands',
+        uploader: 'c418',
+        uploadDate: '1 day ago',
+        duration: '01:08',
+        views: '420 views',
+        rating: '★★★★★',
+        ratingCount: 69,
+        description: 'nostalgia is a curse',
+        videoFile: 'assets/album/dry.mp4',
+        thumbnail: 'assets/images/thumbnail/nostalgia.png',
+        isMusic: true,
+        album: 'Minecraft soundtrack to contemplate life choices',
+        albumArt: 'assets/images/thumbnail/nostalgia.png',
+        artist: 'c418',
+        year: '2025',
+        genre: 'gaming'
+    },
+    'c4184': {
+        title: 'moogcity',
+        uploader: 'c418',
+        uploadDate: '1 day ago',
+        duration: '02:40',
+        views: '420 views',
+        rating: '★★★★★',
+        ratingCount: 69,
+        description: 'nostalgia is a curse',
+        videoFile: 'assets/album/moog.mp4',
+        thumbnail: 'assets/images/thumbnail/nostalgia.png',
+        isMusic: true,
+        album: 'Minecraft soundtrack to contemplate life choices',
+        albumArt: 'assets/images/thumbnail/nostalgia.png',
+        artist: 'c418',
+        year: '2025',
+        genre: 'gaming'
+    },
+    'c4185': {
+        title: 'sweden',
+        uploader: 'c418',
+        uploadDate: '1 day ago',
+        duration: '03:35',
+        views: '420 views',
+        rating: '★★★★★',
+        ratingCount: 69,
+        description: 'nostalgia is a curse',
+        videoFile: 'assets/album/sweden.mp4',
+        thumbnail: 'assets/images/thumbnail/nostalgia.png',
+        isMusic: true,
+        album: 'Minecraft soundtrack to contemplate life choices',
+        albumArt: 'assets/images/thumbnail/nostalgia.png',
+        artist: 'c418',
+        year: '2025',
+        genre: 'gaming'
+    },
     'schlaubum1': {
         title: 'jschlatt — Santa Claus Is Coming To Town',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:15',
+        duration: '02:17',
         views: '420 views',
         rating: '★★★★★',
         ratingCount: 69,
@@ -171,7 +301,7 @@ const videoData = {
         title: 'jschlatt — The Christmas Song',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:20',
+        duration: '03:15',
         views: '380 views',
         rating: '★★★★★',
         ratingCount: 54,
@@ -189,7 +319,7 @@ const videoData = {
         title: 'jschlatt — Let It Snow! Let It Snow! Let It Snow!',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:18',
+        duration: '01:56',
         views: '512 views',
         rating: '★★★★★',
         ratingCount: 71,
@@ -207,7 +337,7 @@ const videoData = {
         title: 'jschlatt — Baby It\'s Cold Outside',
         uploader: 'schlatt & Co',
         uploadDate: '1 day ago',
-        duration: '00:25',
+        duration: '02:25',
         views: '445 views',
         rating: '★★★★★',
         ratingCount: 63,
@@ -241,52 +371,43 @@ const videoData = {
     }
 };
 
-// Album/Playlist data - Premade collections that autoplay
-const albumData = {
-    'schlaubum': {
-        id: 'schlaubum',
-        title: 'The Schlaubum - Christmas Songs',
-        description: 'Christmas songs from a totally good guy - Schlaubman brings the holiday spirit',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        tracks: [
-            'schlaubum1',
-            'schlaubum2',
-            'schlaubum3',
-            'schlaubum4',
-            'schlaubum5'
-        ],
-        creator: 'Schlaubman',
-        created: '2025-12-25',
-        totalDuration: '1:48'
-    },
-    'gaming-highlights': {
-        id: 'gaming-highlights',
-        title: 'Epic Gaming Moments',
-        description: 'The best gaming content on WigTube',
-        thumbnail: 'assets/images/thumbnail/steve.png',
-        tracks: [
-            'epic-minecraft-castle-build',
-            'yo Darren',
-            'top-10-flash-games-2005'
-        ],
-        creator: 'WigTube',
-        created: '2025-01-10',
-        totalDuration: '40:22'
-    },
-    'fnaf-collection': {
-        id: 'fnaf-collection',
-        title: 'Five Nights Collection',
-        description: 'All FNAF content in one place',
-        thumbnail: 'assets/images/thumbnail/dingaling.png',
-        tracks: [
-            'fredrick-fazbear-touches-youtubers-dingalings',
-            'fnaf-squid-games-real'
-        ],
-        creator: 'Horror Fans',
-        created: '1987-06-26',
-        totalDuration: '5:33'
+// Helper function to convert duration string to seconds
+function durationToSeconds(duration) {
+    const parts = duration.split(':');
+    if (parts.length === 2) {
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    } else if (parts.length === 3) {
+        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
     }
-};
+    return 0;
+}
+
+// Helper function to convert seconds to duration string
+function secondsToDuration(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Helper function to calculate total album duration from track IDs
+function calculateAlbumDuration(trackIds) {
+    let totalSeconds = 0;
+    trackIds.forEach(trackId => {
+        const video = videoData[trackId];
+        if (video) {
+            totalSeconds += durationToSeconds(video.duration);
+        }
+    });
+    return secondsToDuration(totalSeconds);
+}
+
+// Album/Playlist data - will be loaded from JSON and converted to object format
+let albumData = {};
 
 // Related videos for the sidebar - using proper thumbnails from main wigtube data
 const relatedVideos = [
@@ -298,31 +419,31 @@ const relatedVideos = [
         thumbnail: 'assets/images/thumbnail/yodarren.png'
     },
     {
-        id: 'chill-beats-mix-vol-12',
-        title: 'Chill Beats Mix Vol. 12',
-        uploader: 'WigBeats',
-        duration: '3:47',
-        thumbnail: 'assets/images/thumbnail/beats.png'
+        id: 'epic-minecraft-castle-build',
+        title: 'Epic Minecraft Castle Build',
+        uploader: 'Steve',
+        duration: '02:45',
+        thumbnail: 'assets/images/thumbnail/steve.png'
     },
     {
-        id: 'html-css-tutorial',
-        title: 'HTML & CSS Tutorial',
-        uploader: 'WigDev',
-        duration: '22:15',
-        thumbnail: 'assets/images/thumbnail/nothtml.png'
+        id: 'jolly',
+        title: 'Jolly Flight',
+        uploader: 'Santa Claus',
+        duration: '00:16',
+        thumbnail: 'assets/images/thumbnail/santa.png'
     },
     {
-        id: 'top-10-flash-games-2005',
-        title: 'Top 10 Flash Games 2005',
-        uploader: 'WigRetro',
-        duration: '8:59',
-        thumbnail: 'assets/images/thumbnail/flash.png'
+        id: 'blackman',
+        title: 'freddy fazbear is about to get his dingaling touched',
+        uploader: 'fredbear',
+        duration: '00:08',
+        thumbnail: 'assets/images/thumbnail/blackman.png'
     },
     {
         id: 'fredrick-fazbear-touches-youtubers-dingalings',
         title: 'Fredrick Fazbear Touches Youtubers Dingalings',
         uploader: 'fredbear',
-        duration: '04:37',
+        duration: '04:34',
         thumbnail: 'assets/images/thumbnail/dingaling.png'
     },
     {
@@ -336,6 +457,7 @@ const relatedVideos = [
 
 // Global variables
 let currentVideo = null;
+let currentVideoId = null; // Track current video ID
 let videoElement = null;
 let isPlaying = false;
 let currentTime = 0;
@@ -345,60 +467,161 @@ let videoSimulationInterval = null;
 let currentAlbum = null;
 let currentTrackIndex = 0;
 let isPlayingAlbum = false;
+let viewCountIncremented = false; // Track if view has been counted for current video
 
-document.addEventListener('DOMContentLoaded', function() {
-    initializePlayer();
-    loadVideoFromURL();
+document.addEventListener('DOMContentLoaded', async function() {
+    debugLog('DOM Content Loaded');
+    
+    // Load video data from JSON first
+    const jsonLoaded = await loadVideoDataFromJSON();
+    if (!jsonLoaded) {
+        console.error('Failed to load video data from JSON, using fallback');
+        videoData = fallbackVideoData;
+    } else {
+        // Convert album metadata to object format with tracks
+        albumData = {};
+        albumMetadataArray.forEach(album => {
+            albumData[album.id] = {
+                ...album,
+                tracks: albumTracksData[album.id] || [],
+                get totalDuration() {
+                    return calculateAlbumDuration(this.tracks);
+                }
+            };
+        });
+    }
+    
+    // Load username from localStorage
+    const username = localStorage.getItem('username');
+    debugLog('Username from localStorage:', username);
+    const usernameDisplay = document.getElementById('username-display');
+    if (usernameDisplay && username) {
+        usernameDisplay.textContent = username;
+        debugLog('Username display updated');
+    }
+    
+    debugLog('Setting up event listeners');
     setupEventListeners();
+    
+    debugLog('Initializing player and loading video');
+    await initializePlayer();
+    
+    debugLog('Populating related videos');
     populateRelatedVideos();
-    loadComments(); // Load saved comments
+    
+    // Note: loadComments() is now called from within loadVideo()
+    debugLog('Player initialization complete');
 });
 
-function initializePlayer() {
+async function initializePlayer() {
+    debugLog('initializePlayer: Starting');
     // Get video ID or album ID from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
     const albumId = urlParams.get('album');
     
-    if (albumId && albumData[albumId]) {
-        // Load album playlist
-        loadAlbum(albumId);
-    } else {
-        // Load single video
-        loadVideo(videoId || 'epic-minecraft-castle-build');
-    }
-}
-
-function loadVideoFromURL() {
-    // This function handles loading video based on URL parameters
-    // Simulates early YouTube URL structure: ?v=videoId
-    const urlParams = new URLSearchParams(window.location.search);
-    const videoId = urlParams.get('v');
+    debugLog('initializePlayer: videoId=', videoId, 'albumId=', albumId);
     
-    if (videoId && videoData[videoId]) {
-        loadVideo(videoId);
+    if (albumId && albumData[albumId]) {
+        debugLog('initializePlayer: Loading album', albumId);
+        // Load album playlist
+        await loadAlbum(albumId);
     } else {
-        // Default to first video if no valid ID
-        loadVideo('epic-minecraft-castle-build');
+        debugLog('initializePlayer: Loading single video', videoId || 'epic-minecraft-castle-build');
+        // Load single video
+        await loadVideo(videoId || 'epic-minecraft-castle-build');
     }
 }
 
-function loadVideo(videoId) {
+async function loadVideo(videoId) {
+    debugLog('loadVideo: Starting for', videoId);
     const video = videoData[videoId];
     if (!video) {
         console.error('Video not found:', videoId);
+        debugLog('loadVideo: ERROR - Video data not found for', videoId);
         return;
     }
     
+    debugLog('loadVideo: Setting current video to', videoId);
     currentVideo = video;
+    currentVideoId = videoId; // Store current video ID
+    viewCountIncremented = false; // Reset view count flag for new video
     
     // Update page title
     document.title = `${video.title} - WigTube`;
+    debugLog('loadVideo: Page title updated');
     
-    // Load saved video stats from localStorage
+    // Check if WigTubeDB is available
+    if (typeof WigTubeDB !== 'undefined') {
+        debugLog('loadVideo: WigTubeDB available, fetching stats');
+        try {
+            // Get real-time stats from database
+            const dbVideo = await WigTubeDB.getVideoById(videoId);
+            
+            let viewCount, ratingStars, ratingCount;
+            
+            if (dbVideo) {
+                debugLog('loadVideo: DB video found', dbVideo);
+                // Use database values
+                viewCount = WigTubeDB.formatViewCount(dbVideo.viewCount || 0);
+                ratingStars = WigTubeDB.calculateStarRating(dbVideo.ratings || []);
+                ratingCount = (dbVideo.ratings || []).length;
+            } else {
+                debugLog('loadVideo: DB video not found, using zeros');
+                // Initialize with zeros for new video
+                viewCount = '0 views';
+                ratingStars = '☆☆☆☆☆';
+                ratingCount = 0;
+            }
+            
+            debugLog('loadVideo: Stats -', { viewCount, ratingStars, ratingCount });
+            
+            // Update video information with real stats
+            document.getElementById('videoTitle').textContent = video.title;
+            document.getElementById('uploader').textContent = video.uploader;
+            document.getElementById('uploadDate').textContent = video.uploadDate;
+            document.getElementById('viewCount').textContent = viewCount;
+            document.getElementById('rating').textContent = ratingStars;
+            document.getElementById('ratingCount').textContent = ratingCount;
+            document.getElementById('videoDescription').textContent = video.description;
+            document.getElementById('totalTime').textContent = video.duration;
+            
+            debugLog('loadVideo: UI updated with stats');
+            
+        } catch (error) {
+            console.error('Error loading video from database:', error);
+            debugLog('loadVideo: ERROR loading from DB', error);
+            // Fallback to hardcoded values
+            await loadVideoFallback(videoId, video);
+        }
+    } else {
+        debugLog('loadVideo: WigTubeDB not available, using fallback');
+        // WigTubeDB not loaded, use fallback
+        await loadVideoFallback(videoId, video);
+    }
+    
+    // Always load comments after video info is loaded
+    debugLog('loadVideo: Loading comments');
+    await loadComments();
+    
+    // Show album section if this is a music video
+    if (video.isMusic) {
+        displayAlbumSection(video);
+    } else {
+        hideAlbumSection();
+    }
+    
+    // Start buffering simulation
+    startBuffering();
+    
+    // Update status
+    updateStatus('Loading video: ' + video.title);
+}
+
+async function loadVideoFallback(videoId, video) {
+    // Fallback method using localStorage-based stats
     const savedStats = loadVideoStats(videoId);
     
-    // Update video information with saved stats
     document.getElementById('videoTitle').textContent = video.title;
     document.getElementById('uploader').textContent = video.uploader;
     document.getElementById('uploadDate').textContent = video.uploadDate;
@@ -408,23 +631,7 @@ function loadVideo(videoId) {
     document.getElementById('videoDescription').textContent = video.description;
     document.getElementById('totalTime').textContent = video.duration;
     
-    // Show album section if this is a music video
-    if (video.isMusic) {
-        displayAlbumSection(video);
-    } else {
-        hideAlbumSection();
-    }
-    
-    // Increment view count (after a delay to simulate actual viewing)
-    setTimeout(() => {
-        incrementViewCount(videoId);
-    }, 3000);
-    
-    // Start buffering simulation
-    startBuffering();
-    
-    // Update status
-    updateStatus('Loading video: ' + video.title);
+    // Note: View count will be incremented when user clicks play
 }
 
 function startBuffering() {
@@ -521,6 +728,13 @@ function setupEventListeners() {
         const commentInput = document.querySelector('.comment-input');
         const comment = commentInput.value.trim();
         
+        // Check if user is logged in (not a guest)
+        const username = localStorage.getItem('username');
+        if (!username || username.toLowerCase() === 'guest') {
+            alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+            return;
+        }
+        
         if (comment || selectedImage) {
             addComment(comment, selectedImage);
             commentInput.value = '';
@@ -545,6 +759,7 @@ function setupEventListeners() {
 }
 
 function playVideo() {
+    debugLog('playVideo: Starting');
     const playButton = document.getElementById('playButton');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const statusText = document.getElementById('statusText');
@@ -561,18 +776,59 @@ function playVideo() {
     // Update status
     statusText.textContent = `Playing: ${currentVideo.title}`;
     
+    // Increment view count on first play only
+    if (!viewCountIncremented) {
+        debugLog('playVideo: Incrementing view count (first play)');
+        viewCountIncremented = true;
+        const videoId = currentVideoId || getVideoIdFromURL();
+        
+        debugLog('playVideo: Video ID for view increment:', videoId);
+        
+        // Try WigTubeDB first (Firestore)
+        if (typeof WigTubeDB !== 'undefined') {
+            debugLog('playVideo: Using WigTubeDB for view increment');
+            WigTubeDB.incrementViewCount(videoId, {
+                title: currentVideo.title,
+                description: currentVideo.description,
+                uploader: currentVideo.uploader,
+                uploadDate: currentVideo.uploadDate,
+                duration: currentVideo.duration,
+                thumbnail: currentVideo.thumbnail,
+                videoFile: currentVideo.videoFile
+            }).then(newViewCount => {
+                document.getElementById('viewCount').textContent = WigTubeDB.formatViewCount(newViewCount);
+                console.log(`View count updated: ${newViewCount}`);
+                debugLog('playVideo: View count updated to', newViewCount);
+            }).catch(error => {
+                console.error('Error incrementing view count:', error);
+                debugLog('playVideo: ERROR incrementing view count', error);
+            });
+        } else {
+            debugLog('playVideo: Using localStorage fallback for view increment');
+            // Fallback to localStorage
+            incrementViewCount(videoId);
+        }
+    } else {
+        debugLog('playVideo: View already counted, skipping increment');
+    }
+    
+    debugLog('playVideo: Starting video playback');
     // Try to play actual video if available
     if (currentVideo.videoFile) {
         // If video element already exists, just resume playback
         if (videoElement) {
+            debugLog('playVideo: Resuming existing video element');
             videoElement.play().catch(e => {
                 console.log('Video play failed:', e);
+                debugLog('playVideo: Video play failed', e);
             });
         } else {
+            debugLog('playVideo: Creating new video element');
             // Create new video element
             createVideoElement();
         }
     } else {
+        debugLog('playVideo: Starting video simulation (no file)');
         // Start video simulation for videos without files
         startVideoSimulation();
     }
@@ -890,43 +1146,131 @@ function flagVideo(videoId) {
     updateStatus('Video flagged for moderation review');
 }
 
-function addComment(commentText, imageData = null) {
-    const commentsList = document.querySelector('.comments-list');
-    const newComment = document.createElement('div');
-    newComment.className = 'comment';
+async function deleteComment(commentId) {
+    debugLog('deleteComment: Deleting comment', commentId);
     
-    const now = new Date();
-    const timeString = 'Just now';
-    
-    // Create comment content with optional image
-    let imageHTML = '';
-    if (imageData) {
-        imageHTML = `<div class="comment-image"><img src="${imageData}" alt="Comment image"></div>`;
+    // Get current username
+    const currentUsername = localStorage.getItem('username');
+    if (!currentUsername || currentUsername.toLowerCase() === 'guest') {
+        alert('⚠️ Delete Error\\n\\nYou must be logged in to delete comments.');
+        return;
     }
     
-    newComment.innerHTML = `
-        <div class="comment-author">Guest User</div>
-        <div class="comment-time">${timeString}</div>
-        <div class="comment-text">${commentText}</div>
-        ${imageHTML}
-    `;
+    const videoId = currentVideoId || getVideoIdFromURL();
     
-    // Add to top of comments
-    commentsList.insertBefore(newComment, commentsList.firstChild);
+    // Check if user is the author of this comment
+    let commentAuthor = null;
+    try {
+        if (typeof WigTubeDB !== 'undefined') {
+            const comments = await WigTubeDB.getComments(videoId);
+            const comment = comments.find(c => c.id === commentId);
+            commentAuthor = comment ? comment.author : null;
+        } else {
+            const allComments = getWigTubeProperty('comments') || {};
+            const comments = allComments[videoId] || [];
+            const comment = comments.find(c => c.id === commentId);
+            commentAuthor = comment ? comment.author : null;
+        }
+        
+        if (!commentAuthor) {
+            alert('⚠️ Delete Error\\n\\nComment not found.');
+            return;
+        }
+        
+        // Check if current user is the author
+        if (commentAuthor !== currentUsername) {
+            alert('⚠️ Delete Error\\n\\nYou can only delete your own comments.\\n\\nThis comment belongs to: ' + commentAuthor);
+            return;
+        }
+        
+    } catch (error) {
+        console.error('Error checking comment ownership:', error);
+        alert('⚠️ Delete Error\\n\\nFailed to verify comment ownership.');
+        return;
+    }
     
-    // Update comment count
-    const commentsHeader = document.querySelector('.comments-section .sidebar-header');
-    const currentCount = parseInt(commentsHeader.textContent.match(/\\d+/)[0]);
-    commentsHeader.textContent = `Comments (${currentCount + 1})`;
+    if (!confirm('Are you sure you want to delete this comment?')) {
+        debugLog('deleteComment: User cancelled');
+        return;
+    }
     
-    // Save comment to localStorage
-    saveComment(commentText, imageData, timeString);
-    
-    // Show success message
-    updateStatus('Comment posted successfully');
+    try {
+        if (typeof WigTubeDB !== 'undefined') {
+            debugLog('deleteComment: Using WigTubeDB');
+            await WigTubeDB.deleteComment(videoId, commentId);
+            updateStatus('Comment deleted');
+            debugLog('deleteComment: Successfully deleted from Firestore');
+        } else {
+            debugLog('deleteComment: Using localStorage');
+            // Fallback to localStorage
+            const allComments = getWigTubeProperty('comments') || {};
+            const comments = allComments[videoId] || [];
+            allComments[videoId] = comments.filter(c => c.id !== commentId);
+            updateWigTubeProperty('comments', allComments);
+            updateStatus('Comment deleted');
+            debugLog('deleteComment: Successfully deleted from localStorage');
+        }
+        
+        // Reload comments to refresh the display
+        await loadComments();
+        debugLog('deleteComment: Comments reloaded');
+        
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        debugLog('deleteComment: ERROR', error);
+        updateStatus('Failed to delete comment');
+    }
 }
 
-function saveComment(text, imageData, timeString) {
+async function addComment(commentText, imageData = null) {
+    debugLog('addComment: Starting', { text: commentText, hasImage: !!imageData });
+    
+    const timeString = 'Just now';
+    
+    // Get username from localStorage, default to 'Guest' if not found
+    const username = localStorage.getItem('username') || 'Guest';
+    
+    // Prevent guest accounts from commenting
+    if (!username || username.toLowerCase() === 'guest') {
+        alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+        return;
+    }
+    
+    // Save comment to WigTubeDB (Firestore) first
+    if (typeof WigTubeDB !== 'undefined') {
+        const videoId = currentVideoId || getVideoIdFromURL();
+        debugLog('addComment: Saving to WigTubeDB for video', videoId);
+        try {
+            await WigTubeDB.addComment(videoId, {
+                author: username,
+                text: commentText,
+                image: imageData
+            });
+            console.log('Comment saved to Firestore');
+            debugLog('addComment: Successfully saved to Firestore');
+            updateStatus('Comment posted successfully');
+            
+            // Reload all comments from Firestore to prevent duplicates
+            await loadComments();
+            debugLog('addComment: Comments reloaded');
+        } catch (error) {
+            console.error('Error saving comment:', error);
+            debugLog('addComment: ERROR saving to Firestore', error);
+            updateStatus('Comment posted (offline mode)');
+        }
+    } else {
+        debugLog('addComment: WigTubeDB not available, using localStorage');
+        // Fallback to old localStorage method if WigTubeDB not available
+        saveComment(commentText, imageData, timeString, username);
+        updateStatus('Comment posted successfully');
+        
+        // Reload comments from localStorage
+        loadComments();
+    }
+}
+
+function saveComment(text, imageData, timeString, username = 'Guest') {
+    debugLog('saveComment: Saving to localStorage');
     const videoId = getVideoIdFromURL();
     const allComments = getWigTubeProperty('comments') || {};
     const comments = allComments[videoId] || [];
@@ -935,7 +1279,7 @@ function saveComment(text, imageData, timeString) {
         text: text,
         image: imageData,
         time: timeString,
-        author: 'Guest User',
+        author: username,
         timestamp: Date.now()
     });
     
@@ -946,30 +1290,102 @@ function saveComment(text, imageData, timeString) {
     
     allComments[videoId] = comments;
     updateWigTubeProperty('comments', allComments);
+    debugLog('saveComment: Saved to localStorage', comments.length, 'comments');
 }
 
-function loadComments() {
-    const videoId = getVideoIdFromURL();
-    const allComments = getWigTubeProperty('comments') || {};
-    const comments = allComments[videoId] || [];
+async function loadComments() {
+    debugLog('loadComments: Starting');
+    const videoId = currentVideoId || getVideoIdFromURL();
+    debugLog('loadComments: Video ID:', videoId);
     const commentsList = document.querySelector('.comments-list');
     
     // Clear existing comments
     commentsList.innerHTML = '';
     
-    // Load saved comments
+    let comments = [];
+    
+    // Try to load from WigTubeDB (Firestore)
+    if (typeof WigTubeDB !== 'undefined') {
+        debugLog('loadComments: Loading from WigTubeDB');
+        try {
+            comments = await WigTubeDB.getComments(videoId);
+            console.log(`Loaded ${comments.length} comments from WigTubeDB`);
+            debugLog('loadComments: Loaded', comments.length, 'comments from WigTubeDB');
+        } catch (error) {
+            console.error('Error loading comments from WigTubeDB:', error);
+            debugLog('loadComments: ERROR loading from WigTubeDB', error);
+            // Fallback to localStorage
+            const allComments = getWigTubeProperty('comments') || {};
+            comments = allComments[videoId] || [];
+            debugLog('loadComments: Fallback -', comments.length, 'comments from localStorage');
+        }
+    } else {
+        debugLog('loadComments: WigTubeDB not available, using localStorage');
+        // Fallback to localStorage
+        const allComments = getWigTubeProperty('comments') || {};
+        comments = allComments[videoId] || [];
+        debugLog('loadComments:', comments.length, 'comments from localStorage');
+    }
+    
+    debugLog('loadComments: Displaying', comments.length, 'comments');
+    
+    // Get current username for comparison
+    const currentUsername = localStorage.getItem('username');
+    
+    // Display comments
     comments.forEach(comment => {
         const commentElement = document.createElement('div');
         commentElement.className = 'comment';
+        commentElement.dataset.commentId = comment.id; // Store comment ID for deletion
         
         let imageHTML = '';
         if (comment.image) {
             imageHTML = `<div class="comment-image"><img src="${comment.image}" alt="Comment image"></div>`;
         }
         
+        // Format timestamp
+        let timeString = comment.time || 'Just now';
+        if (comment.timestamp) {
+            const commentDate = new Date(comment.timestamp);
+            const now = new Date();
+            const diffMs = now - commentDate;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            const diffWeeks = Math.floor(diffMs / 604800000); // 7 days
+            const diffMonths = Math.floor(diffMs / 2592000000); // 30 days
+            const diffYears = Math.floor(diffMs / 31536000000); // 365 days
+            
+            if (diffSecs < 60) {
+                timeString = 'Just now';
+            } else if (diffMins < 60) {
+                timeString = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                timeString = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                timeString = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else if (diffWeeks < 4) {
+                timeString = `${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} ago`;
+            } else if (diffMonths < 12) {
+                timeString = `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+            } else {
+                timeString = `${diffYears} year${diffYears !== 1 ? 's' : ''} ago`;
+            }
+        }
+        
+        // Only show delete button if current user is the author
+        const isAuthor = currentUsername && (comment.author === currentUsername);
+        const deleteButtonHTML = isAuthor 
+            ? `<button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">🗑️</button>`
+            : '';
+        
         commentElement.innerHTML = `
-            <div class="comment-author">${comment.author}</div>
-            <div class="comment-time">${comment.time}</div>
+            <div class="comment-header">
+                <div class="comment-author">${comment.author || 'Guest'}</div>
+                ${deleteButtonHTML}
+            </div>
+            <div class="comment-time">${timeString}</div>
             <div class="comment-text">${comment.text}</div>
             ${imageHTML}
         `;
@@ -979,7 +1395,12 @@ function loadComments() {
     
     // Update comment count
     const commentsHeader = document.querySelector('.comments-section .sidebar-header');
-    commentsHeader.textContent = `Comments (${comments.length})`;
+    if (commentsHeader) {
+        commentsHeader.textContent = `Comments (${comments.length})`;
+        debugLog('loadComments: Updated header with count', comments.length);
+    }
+    
+    debugLog('loadComments: Complete');
 }
 
 function getVideoIdFromURL() {
@@ -1008,12 +1429,32 @@ function populateRelatedVideos() {
     const relatedVideosList = document.getElementById('relatedVideosList');
     const currentVideoId = getVideoIdFromURL();
     
-    // Filter out current video and get a random selection
-    const availableVideos = relatedVideos.filter(video => video.id !== currentVideoId);
+    // Get current video to check its category
+    const currentVideoData = videoData[currentVideoId];
+    const currentCategory = currentVideoData ? (currentVideoData.category || 'other') : 'other';
     
-    // Shuffle array and take first 4 videos
+    // Build list of related videos from all available video data
+    const allVideos = Object.keys(videoData).map(id => ({
+        id: id,
+        title: videoData[id].title,
+        uploader: videoData[id].uploader,
+        duration: videoData[id].duration,
+        thumbnail: videoData[id].thumbnail,
+        category: videoData[id].category || 'other'
+    }));
+    
+    // Filter videos by matching category and exclude current video
+    const availableVideos = allVideos.filter(video => {
+        // Exclude current video
+        if (video.id === currentVideoId) return false;
+        
+        // Match category: show only videos from the same category
+        return video.category === currentCategory;
+    });
+    
+    // Shuffle array and take first 4-6 videos
     const shuffled = availableVideos.sort(() => 0.5 - Math.random());
-    const selectedVideos = shuffled.slice(0, 4);
+    const selectedVideos = shuffled.slice(0, Math.min(6, availableVideos.length));
     
     selectedVideos.forEach(video => {
         const videoElement = document.createElement('div');
@@ -1039,7 +1480,7 @@ function populateRelatedVideos() {
     });
 }
 
-function loadRelatedVideo(videoId) {
+async function loadRelatedVideo(videoId) {
     // Update URL and reload video
     const newUrl = `${window.location.pathname}?v=${videoId}`;
     window.history.pushState({}, '', newUrl);
@@ -1048,14 +1489,13 @@ function loadRelatedVideo(videoId) {
     stopVideo();
     
     // Load new video
-    loadVideo(videoId);
+    await loadVideo(videoId);
     
     // Clear and repopulate related videos
     document.getElementById('relatedVideosList').innerHTML = '';
     populateRelatedVideos();
     
-    // Load comments for new video
-    loadComments();
+    // Note: loadComments() is already called inside loadVideo()
     
     // Scroll to top
     window.scrollTo(0, 0);
@@ -1066,14 +1506,19 @@ function goBack() {
     window.history.back();
 }
 
+function goBackToWigtube() {
+    // Always navigate directly to WigTube homepage
+    window.location.href = '/apps/browser/pages/wigtube.html';
+}
+
 function updateStatus(message) {
     document.getElementById('statusText').textContent = message;
 }
 
 // Handle browser back/forward buttons
-window.addEventListener('popstate', function(event) {
-    loadVideoFromURL();
-    loadComments(); // Load comments for the new video
+window.addEventListener('popstate', async function(event) {
+    await initializePlayer();
+    // Note: loadComments() is already called inside loadVideo()
 });
 
 // Simulate early internet connection quality
@@ -1097,11 +1542,11 @@ setTimeout(() => {
 /**
  * Load an album/playlist and start autoplay
  */
-function loadAlbum(albumId) {
+async function loadAlbum(albumId) {
     const album = albumData[albumId];
     if (!album || !album.tracks || album.tracks.length === 0) {
         console.error('Album not found or empty:', albumId);
-        loadVideo('epic-minecraft-castle-build');
+        await loadVideo('epic-minecraft-castle-build');
         return;
     }
     
@@ -1114,7 +1559,7 @@ function loadAlbum(albumId) {
     
     // Load first track
     const firstTrackId = album.tracks[0];
-    loadVideo(firstTrackId);
+    await loadVideo(firstTrackId);
     
     updateStatus(`Playing album: ${album.title} (Track 1 of ${album.tracks.length})`);
 }
@@ -1259,7 +1704,7 @@ function displayAlbumPlaylist(album) {
 /**
  * Play next track in album
  */
-function playNextTrack() {
+async function playNextTrack() {
     if (!currentAlbum || !isPlayingAlbum) return;
     
     currentTrackIndex++;
@@ -1278,8 +1723,8 @@ function playNextTrack() {
     const nextTrackId = currentAlbum.tracks[currentTrackIndex];
     stopVideo();
     
-    setTimeout(() => {
-        loadVideo(nextTrackId);
+    setTimeout(async () => {
+        await loadVideo(nextTrackId);
         displayAlbumPlaylist(currentAlbum); // Refresh playlist UI
         
         // Auto-play next track
@@ -1294,7 +1739,7 @@ function playNextTrack() {
 /**
  * Jump to specific track in album
  */
-function jumpToTrack(trackIndex) {
+async function jumpToTrack(trackIndex) {
     if (!currentAlbum || trackIndex < 0 || trackIndex >= currentAlbum.tracks.length) return;
     
     currentTrackIndex = trackIndex;
@@ -1302,8 +1747,8 @@ function jumpToTrack(trackIndex) {
     
     stopVideo();
     
-    setTimeout(() => {
-        loadVideo(trackId);
+    setTimeout(async () => {
+        await loadVideo(trackId);
         displayAlbumPlaylist(currentAlbum); // Refresh playlist UI
         
         // Auto-play selected track
@@ -1902,7 +2347,7 @@ function removeTrackFromPlaylist(playlistName, trackIndex) {
 /**
  * Play a user playlist
  */
-function playPlaylist(playlistName) {
+async function playPlaylist(playlistName) {
     const playlists = getUserPlaylists();
     
     if (!playlists[playlistName]) {
@@ -1920,7 +2365,7 @@ function playPlaylist(playlistName) {
     // Load first track
     const firstTrack = playlist.tracks[0];
     if (firstTrack.videoId && videoData[firstTrack.videoId]) {
-        loadVideo(firstTrack.videoId);
+        await loadVideo(firstTrack.videoId);
         updateStatus(`Playing playlist: ${playlistName}`);
         
         // Set up playlist queue
@@ -1988,12 +2433,12 @@ function displayUserPlaylist(playlist) {
 /**
  * Play track from playlist by index
  */
-function playTrackFromPlaylist(index) {
+async function playTrackFromPlaylist(index) {
     if (currentAlbum && currentAlbum.tracks && index >= 0 && index < currentAlbum.tracks.length) {
         currentTrackIndex = index;
         const videoId = currentAlbum.tracks[index];
         if (videoId && videoData[videoId]) {
-            loadVideo(videoId);
+            await loadVideo(videoId);
             
             // Update playlist display
             const playlists = getUserPlaylists();
@@ -2038,20 +2483,19 @@ function downloadTrack(trackTitle, buttonElement) {
  * Returns current view count and rating
  */
 function loadVideoStats(videoId) {
-    const video = videoData[videoId];
     const allStats = getWigTubeProperty('videoStats') || {};
     const savedStats = allStats[videoId];
     
     if (savedStats) {
         return savedStats;
     } else {
-        // Initialize with default values from videoData
+        // Initialize with zeros for new video
         const initialStats = {
-            viewCount: parseViewCount(video.views),
-            views: video.views,
+            viewCount: 0,
+            views: '0 views',
             ratingTotal: 0,
-            ratingCount: video.ratingCount || 0,
-            ratingStars: video.rating,
+            ratingCount: 0,
+            ratingStars: '☆☆☆☆☆',
             userRating: 0
         };
         allStats[videoId] = initialStats;
@@ -2134,7 +2578,44 @@ function calculateStarRating(rating) {
 /**
  * Add user rating to video
  */
-function rateVideo(videoId, rating) {
+async function rateVideo(videoId, rating) {
+    // Check if WigTubeDB is available
+    if (typeof WigTubeDB !== 'undefined') {
+        try {
+            // Check if user already rated
+            const userRating = await WigTubeDB.getUserRating(videoId);
+            if (userRating) {
+                updateStatus(`You already rated this video ${userRating} stars!`);
+                return;
+            }
+            
+            // Add rating to database
+            await WigTubeDB.addRating(videoId, rating);
+            
+            // Get updated video data
+            const dbVideo = await WigTubeDB.getVideoById(videoId);
+            const ratingStars = WigTubeDB.calculateStarRating(dbVideo.ratings || []);
+            const ratingCount = (dbVideo.ratings || []).length;
+            
+            // Update UI
+            document.getElementById('rating').textContent = ratingStars;
+            document.getElementById('ratingCount').textContent = ratingCount;
+            
+            // Show notification
+            updateStatus(`Thank you for rating! Your rating: ${rating} stars`);
+            
+            console.log(`Rating added: ${rating} stars. Total ratings: ${ratingCount}`);
+        } catch (error) {
+            console.error('Error adding rating:', error);
+            updateStatus('Error: Could not save rating');
+        }
+    } else {
+        // Fallback to localStorage
+        rateVideoFallback(videoId, rating);
+    }
+}
+
+function rateVideoFallback(videoId, rating) {
     const allStats = getWigTubeProperty('videoStats') || {};
     const stats = loadVideoStats(videoId);
     

@@ -134,7 +134,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 // Page switching functionality
-let tabCounter = 3; // Start counter after the initial 3 tabs
+let tabCounter = 1; // Start counter after the initial 1 tab
 
 function switchToPage(pageId) {
   // Hide all pages
@@ -154,22 +154,136 @@ function createNewTabContent(tabId) {
   newTabDiv.id = tabId;
   newTabDiv.className = 'page-content';
   newTabDiv.innerHTML = `
-    <div class="new-tab-page">
-      <h1>New Tab ${tabId.replace('tab-', '')}</h1>
-      <p>This is a fresh new tab! Choose what you'd like to do:</p>
-      <div class="quick-links">
-        <div class="quick-link" onclick="loadPageInTab('${tabId}', 'wiggle-search')">
-          <img src="../.././assets/images/icons/32x/rBrowser.png" alt="Search">
-          <span>Wiggle Search</span>
+    <div class="google-2003-page">
+      <div class="google-2003-header">
+        <div class="google-2003-topbar">
+          <div class="google-2003-logo-text">WiggleSearch</div>
+          <div class="google-2003-links">
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Advanced Search</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Preferences</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Language Tools</a>
+            <a href="#" onclick="alert('Coming Soon!'); return false;">Search Tips</a>
+          </div>
         </div>
-        <div class="quick-link" onclick="loadPageInTab('${tabId}', 'wigtube')">
-          <img src="../.././assets/images/icons/48x/WigleTube.png" alt="WigTube">
-          <span>WigTube</span>
+        <div class="google-2003-search-area">
+          <input type="text" class="google-2003-search-input" placeholder="">
+          <button class="google-2003-search-btn">WiggleSearch</button>
         </div>
+        <div class="google-2003-nav">
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Images</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Groups</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">Directory</a>
+          <a href="#" class="google-2003-nav-link" onclick="alert('Coming Soon!'); return false;">News</a>
+        </div>
+      </div>
+      <div class="google-2003-results">
+        <div class="google-2003-results-info">
+          Searched the web for <b>COOL SITES</b>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="navigateToWigTube('${tabId}'); return false;">Wigtube</a>
+            <span class="google-2003-sponsored">Sponsored Link</span>
+          </div>
+          <div class="google-2003-result-url">www.wigtube.com</div>
+          <div class="google-2003-result-desc">WIGTUBEEEEEEEEEEEEEEEEEE</div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="navigateToWiano('${tabId}'); return false;">Wiano - Free Online Piano</a>
+            <span class="google-2003-sponsored">Sponsored Link</span>
+          </div>
+          <div class="google-2003-result-url">www.wiano.com</div>
+          <div class="google-2003-result-desc">Play beautiful piano music right in your browser! Full keyboard support with sustain pedal. piano go weeeeeeee</div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="navigateToWinesweeper('${tabId}'); return false;">Winesweeper </a>
+          </div>
+          <div class="google-2003-result-snippet">
+             Minesweeper but wigdos touched it up a little, good luck whoever wishes to play this shitty game T_T
+          </div>
+          <div class="google-2003-result-meta">
+            <span class="google-2003-result-url">www.Winesweeper.com/Winesweeper.html</span>
+            <span class="google-2003-result-size">Vara is so going to kill me after this</span>
+            <span class="google-2003-result-date">24/11/2003</span>
+            <a href="#" onclick="alert('function soon'); return false;">Cached</a>
+            <a href="#" onclick="alert('function goon'); return false;">Similar pages</a>
+          </div>
+        </div>
+        <div class="google-2003-result">
+          <div class="google-2003-result-header">
+            <a href="#" class="google-2003-result-title" onclick="alert('ffs go goon'); return false;">placeholder</a>
+          </div>
+          <div class="google-2003-result-snippet">
+           ...
+          </div>
+          <div class="google-2003-result-meta">
+            <span class="google-2003-result-url">www.placeholder.com/placeholder/placeholder.html</span>
+            <span class="google-2003-result-size">47k</span>
+            <a href="#" onclick="alert('OI STOP IT'); return false;">Cached</a>
+            <a href="#" onclick="alert('yeah yeah do it 30 times ig'); return false;">Similar pages</a>
+          </div>
+        </div>
+      </div>
+      <div class="google-2003-footer">
+        <div class="google-2003-pagination">
+          <span class="google-2003-logo-small">WiggleSearch</span>
+          <div class="google-2003-pages">
+            <span>Result Page:</span>
+            <a href="#" onclick="alert('goon'); return false;">Previous</a>
+            <span class="google-2003-page-current">1</span>
+            <a href="#" class="google-2003-page-link" onclick="alert('I WILL TOUCH YOU'); return false;">2</a>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
   
   document.getElementById('appMain').appendChild(newTabDiv);
   return newTabDiv;
+}
+
+function loadPageInTab(tabId, pageType) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Update tab title
+  const tabs = document.querySelectorAll('.tab');
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    // fuckass shitass iframes or sum shi
+    switch(pageType) {
+      case 'wiggle-search':
+        titleSpan.textContent = 'Wiggle Search';
+        faviconImg.src = 'assets/images/icons/32x/rBrowser.png';
+        tabContent.innerHTML = `
+          <div class="google-layout">
+            <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
+            <div class="search-section">
+              <div class="search-box-container">
+                <input type="text" class="main-search-input" placeholder="Search...">
+              </div>
+              <div class="search-buttons">
+                <button class="search-btn">Wiggle Search</button>
+                <button class="search-btn">GAMBLING</button>
+              </div>
+            </div>
+          </div>
+        `;
+        break;
+      case 'wigtube':
+        titleSpan.textContent = 'WigTube';
+        faviconImg.src = 'assets/images/icons/48x/WigleTube.png';
+        tabContent.innerHTML = `<iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+        break;
+    }
+  }
+  
+  // Show this tab's content
+  switchToPage(tabId);
 }
 
 function loadPageInTab(tabId, pageType) {
@@ -234,7 +348,7 @@ function loadPageInTab(tabId, pageType) {
     tab.setAttribute('aria-selected', 'true');
     
     // Switch to corresponding page
-    const predefinedPages = ['wiggle-search', 'wigtube', 'new-tab'];
+    const predefinedPages = ['wiggle-search'];
     let pageId;
     
     if (tabIndex < predefinedPages.length) {
@@ -256,7 +370,7 @@ function loadPageInTab(tabId, pageType) {
       const tabIndex = Array.from(scroll.children).indexOf(tabEl);
       
       // Remove corresponding page content for dynamic tabs
-      if (tabIndex >= 3) { // Only for dynamically created tabs
+      if (tabIndex >= 1) { // Only for dynamically created tabs
         const pageId = `tab-${tabIndex + 1}`;
         const pageContent = document.getElementById(pageId);
         if (pageContent) {
@@ -266,10 +380,24 @@ function loadPageInTab(tabId, pageType) {
       
       tabEl.remove();
       
-      if (isActive) {
-        const next = scroll.querySelector('.tab');
-        if (next) activate(next);
-      }
+      // Check if all tabs are closed - use a slight delay to ensure DOM has updated
+      setTimeout(() => {
+        const remainingTabs = scroll.querySelectorAll('.tab');
+        console.log('Remaining tabs after close:', remainingTabs.length);
+        
+        if (remainingTabs.length === 0) {
+          console.log('No tabs remaining, closing window...');
+          // Close the WiggleSearch window by sending message to parent
+          if (window.parent && window.parent !== window) {
+            // We're in an iframe, send message to parent to close the window
+            window.parent.postMessage({ action: 'closeWindow' }, '*');
+          }
+        } else if (isActive) {
+          const next = scroll.querySelector('.tab');
+          if (next) activate(next);
+        }
+      }, 0);
+      
       return;
     }
     
@@ -300,3 +428,509 @@ function loadPageInTab(tabId, pageType) {
     btn.scrollIntoView({ inline: 'end', behavior: 'smooth' });
   });
 })();
+
+// Searchable items for autocomplete
+const searchableItems = [
+  { name: "WigTube", url: "wigtube", keywords: ["wigtube", "video", "tube", "wig", "wt"] },
+  { name: "Wiano", url: "wiano", keywords: ["wiano", "piano", "music"] },
+  { name: "Winesweeper", url: "winesweeper", keywords: ["winesweeper", "minesweeper", "wine", "game"] },
+];
+
+// Create and manage autocomplete dropdown
+function setupAutocomplete(input) {
+  // Create a wrapper if the input doesn't have one
+  let wrapper = input.parentElement;
+  
+  // For google-2003-search-input, we need to wrap it properly
+  if (input.classList.contains('google-2003-search-input')) {
+    // Check if already wrapped
+    if (!wrapper.classList.contains('search-input-wrapper')) {
+      const newWrapper = document.createElement('div');
+      newWrapper.className = 'search-input-wrapper';
+      newWrapper.style.cssText = 'position: relative; display: inline-block;';
+      
+      input.parentElement.insertBefore(newWrapper, input);
+      newWrapper.appendChild(input);
+      wrapper = newWrapper;
+    }
+  }
+  
+  let dropdown = wrapper.querySelector('.autocomplete-dropdown');
+  
+  // Create dropdown if it doesn't exist
+  if (!dropdown) {
+    dropdown = document.createElement('div');
+    dropdown.className = 'autocomplete-dropdown';
+    dropdown.style.cssText = `
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: white;
+      border: 2px inset #ddd;
+      border-top: 2px solid #0055aa;
+      max-height: 180px;
+      overflow-y: auto;
+      display: none;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      margin-top: -2px;
+      box-sizing: border-box;
+    `;
+    
+    // Ensure parent has relative positioning
+    if (window.getComputedStyle(wrapper).position === 'static') {
+      wrapper.style.position = 'relative';
+    }
+    
+    wrapper.appendChild(dropdown);
+  }
+  
+  input.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    
+    if (query.length === 0) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    
+    const matches = searchableItems.filter(item => {
+      return item.name.toLowerCase().includes(query) ||
+             item.keywords.some(keyword => keyword.includes(query));
+    });
+    
+    if (matches.length === 0) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    
+    dropdown.innerHTML = '';
+    dropdown.style.display = 'block';
+    
+    matches.forEach(match => {
+      const item = document.createElement('div');
+      item.style.cssText = `
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #e0e0e0;
+        font-family: 'Tahoma', sans-serif;
+        font-size: 12px;
+      `;
+      item.textContent = match.name;
+      
+      item.addEventListener('mouseenter', function() {
+        this.style.background = '#0055aa';
+        this.style.color = 'white';
+      });
+      
+      item.addEventListener('mouseleave', function() {
+        this.style.background = 'white';
+        this.style.color = 'black';
+      });
+      
+      item.addEventListener('click', function() {
+        input.value = match.name;
+        dropdown.style.display = 'none';
+        
+        // Trigger search
+        const pageContent = input.closest('.page-content');
+        if (pageContent) {
+          handleWiggleSearch(match.name, pageContent.id);
+        }
+      });
+      
+      dropdown.appendChild(item);
+    });
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+  
+  // Handle arrow keys for navigation
+  let selectedIndex = -1;
+  
+  input.addEventListener('keydown', function(e) {
+    const items = dropdown.querySelectorAll('div');
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+      updateSelection(items, selectedIndex);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, -1);
+      updateSelection(items, selectedIndex);
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault();
+      items[selectedIndex].click();
+      selectedIndex = -1;
+    }
+  });
+  
+  function updateSelection(items, index) {
+    items.forEach((item, i) => {
+      if (i === index) {
+        item.style.background = '#0055aa';
+        item.style.color = 'white';
+      } else {
+        item.style.background = 'white';
+        item.style.color = 'black';
+      }
+    });
+  }
+}
+
+// Initialize autocomplete for all search inputs
+document.addEventListener('DOMContentLoaded', function() {
+  // Setup for main search input
+  const mainSearchInputs = document.querySelectorAll('.main-search-input');
+  mainSearchInputs.forEach(input => setupAutocomplete(input));
+  
+  // Setup for Google 2003 search inputs
+  const google2003Inputs = document.querySelectorAll('.google-2003-search-input');
+  google2003Inputs.forEach(input => setupAutocomplete(input));
+});
+
+// Observe for dynamically added search inputs
+const observer = new MutationObserver(function(mutations) {
+  mutations.forEach(function(mutation) {
+    mutation.addedNodes.forEach(function(node) {
+      if (node.nodeType === 1) { // Element node
+        // Check for main search inputs
+        const mainInputs = node.querySelectorAll ? node.querySelectorAll('.main-search-input') : [];
+        mainInputs.forEach(input => setupAutocomplete(input));
+        
+        // Check for Google 2003 search inputs
+        const googleInputs = node.querySelectorAll ? node.querySelectorAll('.google-2003-search-input') : [];
+        googleInputs.forEach(input => setupAutocomplete(input));
+        
+        // Check if the node itself is a search input
+        if (node.classList && (node.classList.contains('main-search-input') || node.classList.contains('google-2003-search-input'))) {
+          setupAutocomplete(node);
+        }
+      }
+    });
+  });
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
+// Handle Wiggle Search searches
+document.addEventListener('click', (e) => {
+  // Handle "Wiggle Search" button clicks
+  if (e.target.classList.contains('search-btn') && e.target.textContent === 'Wiggle Search') {
+    const pageContent = e.target.closest('.page-content');
+    if (!pageContent) return;
+    
+    const input = pageContent.querySelector('.main-search-input');
+    if (input && input.value.trim()) {
+      handleWiggleSearch(input.value.trim(), pageContent.id);
+    }
+  }
+});
+
+// Handle Enter key in Wiggle Search inputs
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('main-search-input')) {
+    const searchTerm = e.target.value.trim();
+    const pageContent = e.target.closest('.page-content');
+    
+    if (searchTerm && pageContent) {
+      handleWiggleSearch(searchTerm, pageContent.id);
+    }
+  }
+});
+
+function handleWiggleSearch(searchTerm, tabId) {
+  const searchLower = searchTerm.toLowerCase();
+  
+  // Check searchable items
+  const match = searchableItems.find(item => 
+    item.name.toLowerCase() === searchLower ||
+    item.keywords.includes(searchLower) ||
+    item.url.toLowerCase() === searchLower
+  );
+  
+  if (match) {
+    if (match.url === 'wigtube') {
+      navigateToWigTube(tabId);
+    } else if (match.url === 'wiano') {
+      navigateToWiano(tabId);
+    } else if (match.url === 'winesweeper') {
+      navigateToWinesweeper(tabId);
+    } else {
+      alert(`Navigating to ${match.name}...`);
+    }
+  } else {
+    // Perform regular search
+    performSearch(searchTerm, tabId);
+  }
+}
+
+function navigateToWigTube(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'WigTube';
+    faviconImg.src = 'assets/images/icons/48x/WigleTube.png';
+  }
+  
+  // Load WigTube content
+  tabContent.innerHTML = `<iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
+function navigateToWiano(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Wiano Piano';
+    faviconImg.src = 'assets/images/icons/32x/wiano.png';
+  }
+  
+  // Load Wiano content
+  tabContent.innerHTML = `<iframe src="apps/wiano/wiano.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
+function navigateToWinesweeper(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Winesweeper';
+    faviconImg.src = 'assets/images/icons/32x/winesweeper.png';
+  }
+  
+  // Load Winesweeper content
+  tabContent.innerHTML = `<iframe src="apps/games/winesweeper.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+}
+
+function loadWiggleSearchInTab(tabId) {
+  // If it's the new-tab (second tab), just switch to the first tab (wiggle-search)
+  if (tabId === 'new-tab') {
+    const firstTab = document.querySelector('.tab');
+    if (firstTab) {
+      firstTab.click();
+    }
+    return;
+  }
+  
+  // For dynamic tabs, load Wiggle Search content
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  // If it's a dynamic tab, calculate its position
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'Wiggle Search';
+    faviconImg.src = 'assets/images/icons/32x/rBrowser.png';
+  }
+  
+  // Load Wiggle Search content
+  tabContent.innerHTML = `
+    <div class="google-layout">
+      <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
+      <div class="search-section">
+        <div class="search-box-container">
+          <input type="text" class="main-search-input" placeholder="Search...">
+        </div>
+        <div class="search-buttons">
+          <button class="search-btn">Wiggle Search</button>
+          <button class="search-btn">GAMBLING</button>
+        </div>
+      </div>
+    </div>
+    <div id="content">
+      <h2>Enter the Secret Code</h2>
+      <input type="text" id="codeInput" placeholder="Enter code here" />
+      <button onclick="checkCode()">Submit</button>
+    </div>
+  `;
+}
+
+function performSearch(searchTerm, tabId) {
+  // This function can be expanded to handle actual search functionality
+  console.log('Searching for:', searchTerm, 'in tab:', tabId);
+  // For now, just show an alert or could navigate to a search results page
+  alert(`Searching for: ${searchTerm}`);
+}
+
+// Address bar functionality
+document.addEventListener('DOMContentLoaded', () => {
+  const addressInput = document.getElementById('addressInput');
+  const addressGoBtn = document.querySelector('.address-go-btn');
+  
+  function handleAddressBarNavigation() {
+    const input = addressInput.value.trim().toLowerCase();
+    
+    if (!input) return;
+    
+    // Get current active tab
+    const activeTab = document.querySelector('.tab.active');
+    const tabs = document.querySelectorAll('.tab');
+    const tabIndex = Array.from(tabs).indexOf(activeTab);
+    
+    // Determine the page ID
+    const predefinedPages = ['wiggle-search', 'new-tab'];
+    let pageId;
+    
+    if (tabIndex < predefinedPages.length) {
+      pageId = predefinedPages[tabIndex];
+    } else {
+      pageId = `tab-${tabIndex + 1}`;
+    }
+    
+    // Check searchable items
+    const match = searchableItems.find(item => 
+      item.name.toLowerCase() === input ||
+      item.keywords.includes(input) ||
+      item.url.toLowerCase() === input
+    );
+    
+    if (match) {
+      if (match.url === 'wigtube') {
+        navigateToWigTube(pageId);
+        addressInput.value = 'wigtube.com';
+      } else if (match.url === 'wiano') {
+        navigateToWiano(pageId);
+        addressInput.value = 'wiano.com';
+      } else if (match.url === 'winesweeper') {
+        navigateToWinesweeper(pageId);
+        addressInput.value = 'winesweeper.com';
+      } else {
+        alert(`Navigating to ${match.name}...`);
+      }
+    } else {
+      // For other searches or URLs
+      alert(`Navigating to: ${input}`);
+    }
+  }
+  
+  // Handle Go button click
+  if (addressGoBtn) {
+    addressGoBtn.addEventListener('click', handleAddressBarNavigation);
+  }
+  
+  // Handle Enter key in address bar
+  if (addressInput) {
+    addressInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleAddressBarNavigation();
+      }
+    });
+  }
+});
+
+// Handle Google 2003 search button and input
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('google-2003-search-btn')) {
+    const pageContent = e.target.closest('.page-content');
+    if (!pageContent) return;
+    
+    const input = pageContent.querySelector('.google-2003-search-input');
+    if (input && input.value.trim()) {
+      handleGoogle2003Search(input.value.trim(), pageContent.id);
+    }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.classList.contains('google-2003-search-input')) {
+    const searchTerm = e.target.value.trim();
+    const pageContent = e.target.closest('.page-content');
+    
+    if (searchTerm && pageContent) {
+      handleGoogle2003Search(searchTerm, pageContent.id);
+    }
+  }
+});
+
+function handleGoogle2003Search(searchTerm, tabId) {
+  const searchLower = searchTerm.toLowerCase();
+  
+  // Check searchable items
+  const match = searchableItems.find(item => 
+    item.name.toLowerCase() === searchLower ||
+    item.keywords.includes(searchLower) ||
+    item.url.toLowerCase() === searchLower
+  );
+  
+  if (match) {
+    if (match.url === 'wigtube') {
+      navigateToWigTube(tabId);
+    } else if (match.url === 'wiano') {
+      navigateToWiano(tabId);
+    } else if (match.url === 'winesweeper') {
+      navigateToWinesweeper(tabId);
+    } else {
+      alert(`Navigating to ${match.name}...`);
+    }
+  } else {
+    // Perform regular search
+    alert(`Searching for: ${searchTerm}`);
+  }
+}

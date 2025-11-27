@@ -14,9 +14,9 @@ class Application {
         this.path  = (path[0] == "external" ? path[1] : (path[1] + name[0] + ".html"));
 
         this.icon = {
-            s: !series ? `assets/images/icons/16x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`,
-            m: !series ? `assets/images/icons/32x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`,
-            l: !series ? `assets/images/icons/48x/${name[0]}.png` : `assets/images/icons/games/${series}/${name[0]}.png`
+            s: !series ? `/assets/images/icons/16x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`,
+            m: !series ? `/assets/images/icons/32x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`,
+            l: !series ? `/assets/images/icons/48x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`
         }
 
         this.save = save;
@@ -50,15 +50,13 @@ const applications = {
         "",
         true, 
         ["internal", "apps/browser/"],
-        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
     ),
 
     fBrowser: new Application(
         ["fBrowser", "WigleFari"], 
         "",
         true, 
-        ["internal", "apps/browser/"],
-        true  // Enable save functionality for localStorage data (WigTube playlists, etc.)
+        ["internal", "apps/browser/"]
     ),
 
 

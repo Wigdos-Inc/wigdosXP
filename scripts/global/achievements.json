@@ -1,0 +1,97 @@
+{
+  "categories": {
+    "winesweeper": {
+      "name": "Winesweeper",
+      "badges": {
+        "winesweeper_impossible": {
+          "name": "They said it was impossible but i beg to differ",
+          "description": "Beat Winesweeper on Impossible difficulty",
+          "icon": "/assets/images/icons/achievment/badge_impossible.png",
+          "color": "#9b59b6"
+        },
+        "winesweeper_expert_abilities": {
+          "name": "Bazinga!",
+          "description": "Beat Winesweeper Expert using abilities",
+          "icon": "/assets/images/icons/achievment/badge_tactical.png",
+          "color": "#e74c3c"
+        },
+        "winesweeper_expert_no_abilities": {
+          "name": "Why?",
+          "description": "Beat Winesweeper Expert without using any abilities",
+          "icon": "/assets/images/icons/achievment/badge_expert_purist.png",
+          "color": "#27ae60"
+        },
+        "winesweeper_no_abilities": {
+          "name": "Purist",
+          "description": "Beat Winesweeper without using any abilities",
+          "icon": "/assets/images/icons/achievment/badge_purist.png",
+          "color": "#f39c12"
+        },
+        "winesweeper_beginner_10bombs": {
+          "name": "i mean ig bro",
+          "description": "Use the 10 bombs ability in Beginner mode",
+          "icon": "/assets/images/icons/achievment/i_mean_ig_bro.gif",
+          "color": "#e67e22"
+        },
+        "winesweeper_beginner_abilities": {
+          "name": "Are we deadass?",
+          "description": "Beat Winesweeper Beginner using abilities",
+          "icon": "/assets/images/icons/achievment/deadass.gif",
+          "color": "#3498db"
+        },
+        "winesweeper_intermediate_abilities": {
+          "name": "smart minds think alike",
+          "description": "Beat Winesweeper Intermediate using abilities",
+          "icon": "/assets/images/icons/achievment/think.gif",
+          "color": "#f39c12"
+        },
+        "winesweeper_intermediate_no_abilities": {
+          "name": "holy shit well done",
+          "description": "Beat Winesweeper Intermediate without using any abilities",
+          "icon": "/assets/images/icons/achievment/schocked.gif",
+          "color": "#16a085"
+        },
+        "winesweeper_qte_master": {
+          "name": "average dead by daylight enjoyer",
+          "description": "Complete 10 QTEs in Impossible mode",
+          "icon": "/assets/images/icons/achievment/dbd.png",
+          "color": "#e74c3c"
+        },
+        "winesweeper_qte_survivor": {
+          "name": "Mistakes can be erased, foolishnes can't",
+          "description": "Successfully complete a QTE",
+          "icon": "/assets/images/icons/achievment/mistake.png",
+          "color": "#f39c12"
+        }
+      }
+    },
+    "wigtube": {
+      "name": "WigTube",
+      "badges": {
+        "wigtube_first_view": {
+          "name": "First View",
+          "description": "Watch your first video on WigTube",
+          "icon": "/assets/images/icons/achievment/badge_impossible.png",
+          "color": "#FF0000"
+        },
+        "wigtube_content_creator": {
+          "name": "Content Creator",
+          "description": "Upload a video to WigTube",
+          "icon": "/assets/images/icons/achievment/badge_tactical.png",
+          "color": "#FF6B00"
+        }
+      }
+    },
+    "other": {
+      "name": "Other",
+      "badges": {
+        "placeholder_1": {
+          "name": "Coming Soon",
+          "description": "More achievements coming soon!",
+          "icon": "/assets/images/icons/achievment/badge_purist.png",
+          "color": "#888"
+        }
+      }
+    }
+  }
+}

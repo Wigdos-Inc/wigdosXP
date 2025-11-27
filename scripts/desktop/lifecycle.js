@@ -184,10 +184,19 @@ let power = {
         const shutDownSFX = new Audio("assets/audio/system/shutdown.mp3");
         shutDownSFX.play();
 
-        shutDownSFX.onended = () => {
+        shutDownSFX.onended = async () => {
 
             // Remove Shutdown Screen
             this.accBox.remove();
+
+            // Sync achievements to Firebase before clearing
+            if (window.AchievementsDB) {
+                try {
+                    await window.AchievementsDB.syncOfflineData();
+                } catch (e) {
+                    // Silent fail - don't block shutdown
+                }
+            }
 
             // Clear local Data
             localStorage.clear();

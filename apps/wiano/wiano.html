@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wiano - Free Online Piano!</title>
+    <link rel="stylesheet" href="../../styles/apps/browser/wiano.css" />
+</head>
+<body>
+    <div id="loader" style="font-family:'MS Sans Serif', Arial, sans-serif; text-align:center; margin-top:40px; color:#000; background:#c0c0c0; padding:20px; border:3px ridge #dfdfdf; max-width:400px; margin:40px auto; font-size:13px; font-weight:bold;">⏳ Loading piano samples...</div>
+    <!-- Use UMD build so window.Tone is defined -->
+    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js" defer></script>
+    <!-- Tesseract.js for OCR - helps with music symbol detection -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="../../scripts/apps/browser/wiano.js" defer></script>
+</body>
+</html>

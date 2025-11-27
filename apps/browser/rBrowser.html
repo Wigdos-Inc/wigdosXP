@@ -25,26 +25,18 @@
             <span class="title">Wiggle Search</span>
             <span class="close" aria-hidden="true">✕</span>
           </button>
-          <button class="tab" role="tab" aria-selected="false">
-            <img class="favicon" src="assets/images/icons/48x/WigleTube.png" alt="" aria-hidden="true"/>
-            <span class="title">WigTube</span>
-            <span class="close" aria-hidden="true">✕</span>
-          </button>
-          <button class="tab" role="tab" aria-selected="false">
-            <img class="favicon" src="assets/images/icons/32x/rBrowser.png" alt="" aria-hidden="true"/>
-            <span class="title">New Tab</span>
-            <span class="close" aria-hidden="true">✕</span>
-          </button>
         </div>
         <div class="tabs-actions">
           <button class="tab-action add" aria-label="New tab"></button>
         </div>
       </div>
-    <div class="search-container">
-
-    <input type="text" class="search-input" placeholder="Search...">
-    <button class="search-button">Go</button>
-     </div>
+      
+      <!-- Address bar below tabs -->
+      <div class="address-bar">
+        <label for="addressInput">Address:</label>
+        <input type="text" id="addressInput" class="address-input" placeholder="Type URL or search term...">
+        <button class="address-go-btn">Go</button>
+      </div>
     </div>
 
     <div id="appMain">
@@ -70,38 +62,11 @@
                 <button onclick="checkCode()">Submit</button>
             </div>
         </div>
-
-        <div id="wigtube" class="page-content">
-            <iframe src="apps/browser/pages/wigtube.html" style="width: 100%; height: calc(100vh - 72px); border: none;"></iframe>
-        </div>
-
-        <div id="new-tab" class="page-content">
-            <div class="new-tab-page">
-                <h1>New Tab</h1>
-                <p>New Tab</p>
-                <div class="quick-links">
-                    <div class="quick-link" onclick="switchToPage('wiggle-search')">
-                        <img src="../.././assets/images/icons/32x/rBrowser.png" alt="Search">
-                        <span>Wiggle Search</span>
-                    </div>
-                    <div class="quick-link" onclick="switchToPage('wigtube')">
-                        <img src="../.././assets/images/icons/48x/WigleTube.png" alt="WigTube">
-                        <span>WigTube</span>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
     
     <div id="bottomBar"></div>
   
-  <video id="bgVideo" muted autoplay loop></video>
-
-  
-
-  <img id="gif" src="assets/secrets/gif/tenna.gif" draggable="false" >
-  <audio id="music" src="assets/music/27. Its TV Time! (DELTARUNE Chapter 34 Soundtrack) - Toby Fox.mp3"></audio>
-  
+  <video id="bgVideo" muted autoplay loop></video> 
   
   <script src="scripts/apps/browser/fuzzy.js"></script>
 </body>
