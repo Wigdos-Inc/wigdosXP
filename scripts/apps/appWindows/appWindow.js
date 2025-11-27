@@ -1,6 +1,5 @@
 // ============================================================================
 // WigdosXP Window Management
-// Core AppWindow class - Refactored to use UIBuilder
 // ============================================================================
 
 // Import Save System
@@ -89,42 +88,21 @@ class AppWindow {
 
         this.element.classList.add("appWindow");
 
-        // App Window Header
-        const appHeader = UIBuilder.div({ classes: 'appHeader' });
-        this.element.appendChild(appHeader);
-
-        // Name Box
-        this.nameBox = UIBuilder.div({ classes: 'appName' });
-        appHeader.appendChild(this.nameBox);
-
-        // Header Buttons
-        const selectBox = UIBuilder.div({ classes: 'selectBox' });
-        appHeader.appendChild(selectBox);
-
-        // Minimize Button
-        const minBtn = UIBuilder.windowButton('minimize', () => this.minimize());
-        selectBox.appendChild(minBtn);
-
-        // Screen Change Button
-        const screenBtn = UIBuilder.windowButton('maximize', () => {
+        // Element Creation (UIBuilder)
+        const appHeader = this.element.appendChild(UIBuilder.div({ classes: 'appHeader' }));                      // App Window Header
+        this.nameBox = appHeader.appendChild(UIBuilder.div({ classes: 'appName' }));                              // App Name Box
+        const selectBox = appHeader.appendChild(UIBuilder.div({ classes: 'selectBox' }));                         // Window Header Buttons
+        const minBtn = selectBox.appendChild(UIBuilder.windowButton('minimize', () => this.minimize()));          // Minimize Button
+        const screenBtn = selectBox.appendChild(UIBuilder.windowButton('maximize', () => {                        // Screen Change Button
             this.full = !this.full;
             this.screenChange();
-        });
-        selectBox.appendChild(screenBtn);
-
-        // Close Button
-        const closeBtn = UIBuilder.windowButton('close', () => this.close());
-        selectBox.appendChild(closeBtn);
-
-        // App Window Main
-        const appMain = UIBuilder.div({ classes: 'appMain' });
-        this.element.appendChild(appMain);
-
-        // Create iframe
-        this.iframe = UIBuilder.iframe({
+        }));
+        const closeBtn = selectBox.appendChild(UIBuilder.windowButton('close', () => this.close()));              // Close Button
+        const appMain = this.element.appendChild(UIBuilder.div({ classes: 'appMain' }));                          // App Window Main
+        this.iframe = appMain.appendChild(UIBuilder.iframe({                                                      // Create Iframe for Application
             classes: 'appContent',
             attributes: { 'data-app-index': this.index }
-        });
+        }));
 
         // Optional sandboxing
         if (this.app && this.app.sandbox) {
@@ -133,12 +111,9 @@ class AppWindow {
             window.Logger.info('AppWindow', `Iframe for ${this.app.name.s} created with sandboxing`);
         }
 
-        appMain.appendChild(this.iframe);
-
         // Focus Functionality
-        const overlay = UIBuilder.div({ classes: 'appOverlay' });
+        const overlay = appMain.appendChild(UIBuilder.div({ classes: 'appOverlay' }));                            // Focus overlay
         UIBuilder.hide(overlay);
-        appMain.appendChild(overlay);
 
         this._onDocumentMouseDown = (event) => {
             if (this.element.contains(event.target)) {
@@ -480,6 +455,7 @@ class AppWindow {
 
     screenChange() {
         if (this.full) {
+
             this.element.classList.add("fullscreen");
             this.element.style.left = 0;
             this.element.style.top = 0;
@@ -488,7 +464,9 @@ class AppWindow {
             this.element.style.width = "100%";
             this.element.style.borderTopLeftRadius = 0;
             this.element.style.borderTopRightRadius = 0;
+
         } else {
+
             this.element.classList.remove("fullscreen");
 
             if (this.move.storage.x !== undefined) {
@@ -504,10 +482,12 @@ class AppWindow {
             this.element.style.width = `${this.move.storage.w}px`;
             this.element.style.borderTopLeftRadius = "5px";
             this.element.style.borderTopRightRadius = "5px";
+
         }
     }
 
     minimize() {
+
         if (this._closing || this.minimized) return;
 
         try {
@@ -538,7 +518,9 @@ class AppWindow {
     }
 
     restore() {
+
         if (this._pendingRemoval) {
+
             try {
                 this._pendingRemoval.cancelled = true;
             } catch (e) {
@@ -546,6 +528,7 @@ class AppWindow {
             }
             this._pendingRemoval = null;
             this._closing = false;
+            
         }
 
         if (this._closing || !this.minimized) return;
@@ -683,3 +666,9 @@ function startApp(app, session) {
     }, 50);
     appWindow.addTimeout(taskbarTimeoutId);
 }
+
+// Export startApp for Modules
+export { startApp };
+
+// Make Global for Non-Modules
+window.startApp = startApp;
