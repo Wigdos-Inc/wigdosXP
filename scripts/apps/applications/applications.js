@@ -197,7 +197,7 @@ const applications = {
         ["sublimator", "Sublimator"],
         "other",
         false,
-        ["internal", "apps/games/"]
+        ["external", "https://wigdos-inc.github.io/Internal-Games/OFES/sublimator/sublimator.html"]
     ),
     jeff: new Application(
         ["jeff", "Super Jeff"],
