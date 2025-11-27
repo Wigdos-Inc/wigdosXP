@@ -1,8 +1,15 @@
+#topBar {
+    background-color: #f0f0f0;
+    border-bottom: 2px solid #808080;
+}
+
 #appMain {
     display: flex;
     flex-wrap: wrap;
+    align-content: flex-start;
     
     padding: 5px;
+    overflow-y: auto;
 
     background-color: #ffffff;
 }

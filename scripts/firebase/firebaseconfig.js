@@ -34,7 +34,7 @@
 
             window.firebaseAPI = { db, auth, setDoc, getDoc, doc, createUserWithEmailAndPassword, signInWithEmailAndPassword, collection, getDocs };
             window.firebaseOnline = true;
-            console.log("Firebase initialized successfully");
+            console.debug("Firebase initialized successfully");
         } catch (error) {
             console.warn("Firebase connection failed, initializing offline mode:", error);
             window.firebaseAPI = createMockFirebaseAPI();
@@ -51,11 +51,11 @@
             db: null,
             auth: null,
             setDoc: async () => { 
-                console.log("Mock setDoc called - data will be stored locally only");
+                console.debug("Mock setDoc called - data will be stored locally only");
                 return Promise.resolve();
             },
             getDoc: async () => {
-                console.log("Mock getDoc called - no remote data available");
+                console.debug("Mock getDoc called - no remote data available");
                 return { exists: () => false };
             },
             doc: () => null,
@@ -67,7 +67,7 @@
             },
             collection: () => null,
             getDocs: async () => {
-                console.log("Mock getDocs called - no remote data available");
+                console.debug("Mock getDocs called - no remote data available");
                 return { docs: [] };
             }
         };

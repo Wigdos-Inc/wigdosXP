@@ -4,8 +4,10 @@ const audio = new Audio('assets/audio/system/startup.mp3');
 
 window.onload = () => {
 
-    if (localStorage.getItem("loaded")) load();
-    else {
+    // Check if computer is powered on (separate from logged in status)
+    if (localStorage.getItem("wigdos_powered_on") === "true") {
+        load();
+    } else {
 
         // Create Power Button UI
         const powerOn = document.body.appendChild(document.createElement("div")); powerOn.classList.add("powerOn");
@@ -26,6 +28,8 @@ window.onload = () => {
             creature.remove();
             powerOn.remove();
             
+            // Mark computer as powered on
+            localStorage.setItem("wigdos_powered_on", "true");
             load();
         }
 
@@ -37,36 +41,61 @@ window.onload = () => {
 
 function load() {
 
-    // If the User hasn't loaded before
-    if (!localStorage.getItem("loaded")) {
+    // Check if user is logged in (separate from computer power state)
+    const isLoggedIn = localStorage.getItem("wigdos_logged_in") === "true";
+    // Check if this is the first boot (startup animation not played yet)
+    const hasBooted = sessionStorage.getItem("wigdos_has_booted") === "true";
+    
+    if (!isLoggedIn) {
+        // User needs to log in - show login screen
+        
+        // Only show startup animation on first boot (when computer is powered on)
+        if (!hasBooted) {
+            // Mark that we've booted (for this session)
+            sessionStorage.setItem("wigdos_has_booted", "true");
+            
+            const loader = document.body.appendChild(document.createElement("div")); 
+            loader.classList.add("loader");
+            loader.style.visibility = "unset";
 
-        const loader = document.body.appendChild(document.createElement("div")); loader.classList.add("loader");
-        loader.style.visibility = "unset";
+            // Prep Desktop Background
+            setTimeout(() => { document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)"; }, 500);
 
+            // Log/Sign In
+            setTimeout(() => {
 
-        // Prep Desktop Background
-        setTimeout(() => { document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)"; }, 500);
+                // Create Account Screen
+                const accBox = document.body.appendChild(document.createElement("div")); 
+                accBox.classList.add("accBox", "startup");
 
+                const cBox = accScreen(accBox);
+                cBox[0].innerHTML = "<i><strong>welcome</strong></i>";
+                fill(cBox[1], "login");            
 
-        // Log/Sign In
-        setTimeout(() => {
-
-            // Create Account Screen
-            const accBox = document.body.appendChild(document.createElement("div")); accBox.classList.add("accBox", "startup");
+                // Remove Loader
+                loader.remove();
+            }, 3700);
+        } else {
+            // Already booted - skip animation and go straight to login
+            document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
+            
+            const accBox = document.body.appendChild(document.createElement("div")); 
+            accBox.classList.add("accBox", "startup");
 
             const cBox = accScreen(accBox);
             cBox[0].innerHTML = "<i><strong>welcome</strong></i>";
-            fill(cBox[1], "login");            
-
-            // Remove Loader
-            loader.remove();
-        }, 3700);
+            fill(cBox[1], "login");
+        }
 
     }
     else {
+        // User is already logged in - load desktop directly
+        sessionStorage.setItem("wigdos_has_booted", "true");
 
         document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
-        desktopFill("load", JSON.parse(localStorage.getItem("layout")));
+        if (window.desktopFill) {
+            window.desktopFill("load", JSON.parse(localStorage.getItem("layout")));
+        }
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
 
@@ -164,6 +193,13 @@ let power = {
             localStorage.clear();
             localStorage.clear();
 
+            // For restart, keep computer powered on but user logged out
+            // For power off, clear everything
+            if (!this.type) {
+                // Restart - keep powered_on flag
+                localStorage.setItem("wigdos_powered_on", "true");
+            }
+
             // Shutdown
             this.overlay.style.backgroundImage = "none";
             this.overlay.style.backgroundColor = "black";
@@ -176,6 +212,7 @@ let power = {
         }
     }
 }
+
 
 
 
@@ -201,6 +238,9 @@ function accScreen(container) {
 
     return [contentLeft, contentRight];
 }
+
+// Expose globally for other modules
+window.accScreen = accScreen;
 
 function fill(parent, type) {
 
@@ -267,7 +307,10 @@ function fill(parent, type) {
         login.guest.onclick = () => {
 
             localStorage.setItem("username", "guest");
-            desktopFill("base");
+            localStorage.setItem("wigdos_logged_in", "true");
+            if (window.desktopFill) {
+                window.desktopFill("base");
+            }
             fill(parent, "in");
         }
         
@@ -497,7 +540,9 @@ function fill(parent, type) {
 
         setTimeout(() => {
             
-            if (type == "out") parent.parentElement.remove();
+            if (type == "out") {
+                parent.parentElement.remove();
+            }
             type == "in" ? start() : power.stage3();
         }, 3000); // Duration of Logging In/Out
     }
@@ -595,11 +640,12 @@ async function db(data, type) {
                 email: data.e,
                 username: data.u,
                 password: hash,
-                layout: desktopFill("base"),
+                layout: window.desktopFill ? window.desktopFill("base") : "[]",
                 admin: false
             });
 
             localStorage.setItem("username", data.u);
+            localStorage.setItem("wigdos_logged_in", "true");
             fill(document.getElementById("contentRight"), "in");
 
         } else if (type === "login") {
@@ -620,22 +666,62 @@ async function db(data, type) {
             if (hash === userData.password) {
 
                 localStorage.setItem("username", data.u);
+                localStorage.setItem("wigdos_logged_in", "true");
 
-                // Check if stored Layout is valid
-                let layout;
-                try {
-                    layout = JSON.parse(userData.layout);
-                } catch {
-                    layout = null;
+                // Determine layout to load: prefer localStorage if exists, else DB
+                let layoutToLoad;
+                const localLayout = localStorage.getItem("layout");
+                if (localLayout) {
+                    try {
+                        layoutToLoad = JSON.parse(localLayout);
+                    } catch {
+                        console.warn('Invalid local layout, falling back to DB');
+                        layoutToLoad = null;
+                    }
                 }
-                if (!layout || !Array.isArray(layout) || layout.length === 0) {
 
-                    // Create new Valid Layout
-                    layout = desktopFill("base");
-                    desktopFill("update");
-
+                if (!layoutToLoad) {
+                    // Load from DB
+                    let layout;
+                    try {
+                        // Support both object and string forms stored in Firestore
+                        if (typeof userData.layout === 'string') layout = JSON.parse(userData.layout);
+                        else layout = userData.layout;
+                    } catch {
+                        layout = null;
+                    }
+                    // If layout missing or invalid, create a fresh base layout
+                    const layoutInvalid = !layout || (
+                        Array.isArray(layout) ? layout.length === 0 : (
+                            typeof layout === 'object' && (!layout.desktopGrid || !Array.isArray(layout.desktopGrid))
+                        )
+                    );
+                    if (layoutInvalid) {
+                        // Create new Valid Layout locally (do NOT push to DB here).
+                        if (window.desktopFill) {
+                            layout = window.desktopFill("base");
+                            // Do NOT call desktopFill("update") here to avoid
+                            // overwriting the user's stored layout in Firestore on login.
+                        } else {
+                            console.warn('desktopFill not yet loaded, will use default layout');
+                        }
+                    }
+                    layoutToLoad = layout;
                 }
-                else desktopFill("load", JSON.parse(userData.layout));
+
+                if (window.desktopFill) {
+                    window.desktopFill("load", layoutToLoad);
+                    try {
+                        // Persist the layout we loaded from the DB into localStorage
+                        if (layoutToLoad) {
+                            localStorage.setItem("layout", JSON.stringify(layoutToLoad));
+                            // Notify other modules that layout changed so they can re-render if needed
+                            try { window.dispatchEvent(new Event('layout-changed')); } catch (e) { /* noop */ }
+                        }
+                    } catch (e) { console.warn('[Lifecycle] Failed to persist loaded layout:', e); }
+                } else {
+                    console.warn('desktopFill not yet loaded, layout will load when desktop.js loads');
+                }
                 
                 fill(document.getElementById("contentRight"), "in");
                 if (userData.admin) localStorage.setItem("admin", "t");
@@ -681,7 +767,6 @@ function start() {
         if (param == "minor") window.alert("Hallo docent, de Minor opdracht staat in de Singular Upgrading App.\nAls u verder wilt testen, kunt u naar de taken kijken.\nLet op! Singular Upgrading update alleen maar als de applicatie nog open is!");
         else if (param == "beroeps") window.alert("Hallo docent, de nieuwste Wigdos XP uitbreiding (gemaakt voor beroeps) is Singular Upgrading.\nSommige functies binnen SU werken samen met andere games. Er zal altijd vermeld staan over welke game het gaat.\nLet op! Singular Upgrading update alleen maar de data van andere games als de applicatie zelf nog open is!");
     });
-    localStorage.setItem("loaded", true);
 }
 
 
