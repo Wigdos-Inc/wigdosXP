@@ -164,22 +164,16 @@ const applications = {
         ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"]
     ),
 
-    hlf: new Application(
-        ["hlf", "Half-Life"],
-        "other",
-        true,
-        ["external", "https://102462-p.github.io/repo0.github.io/"]
-    ),
 
 
-
-    /* SPECIAL */
+    /* INTERNAL-GAMES (Repository) */
     bombs: new Application(
         ["bombs", "Wigsplosionator"],
         "",
         true, 
         ["internal", "apps/bombs/"]
     ),
+    
     su: new Application(
         ["su", "Singular Upgrading"],
         "other",
@@ -187,30 +181,43 @@ const applications = {
         ["internal", "apps/su/"],
         true
     ),
+    
     breakout: new Application(
         ["breakout", "Breakout"],
         "other",
         false,
         ["internal", "apps/games/"]
     ),
+    
     sublimator: new Application(
         ["sublimator", "Sublimator"],
         "other",
         false,
         ["internal", "apps/games/"]
     ),
+    
+    hlf: new Application(
+        ["hlf", "Half-Life"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/halflife/"]
+    ),
+    
     jeff: new Application(
         ["jeff", "Super Jeff"],
         "other",
         true,
-        ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/superjeff/"]
     ),
+    
     pHub: new Application(
         ["pHub", "PokeHub"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/PokeHub/"]
     )
+
+    /* INTERNAL-APPS (Repository) */
 }
 
 // Expose applications globally for Start Menu and other systems
