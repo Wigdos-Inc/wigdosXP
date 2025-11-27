@@ -58,10 +58,64 @@ class Winesweeper {
     }
     
     async init() {
+        // Wait for Firebase to be ready before loading badges
+        await this.waitForFirebase();
         await this.loadBadges(); // Load badges from Firebase
         await this.loadAchievementsConfig(); // Load achievements config from JSON
         this.initGame();
         this.setupEventListeners();
+    }
+    
+    async waitForFirebase() {
+        console.log('Winesweeper: Waiting for Firebase and AchievementsDB...');
+        
+        // Check both current window and parent window (for iframe context)
+        const checkAvailable = () => {
+            const firebaseAPI = window.firebaseAPI || (window.parent && window.parent !== window && window.parent.firebaseAPI);
+            const achievementsDB = window.AchievementsDB || (window.parent && window.parent !== window && window.parent.AchievementsDB);
+            console.log('  - firebaseAPI:', typeof firebaseAPI);
+            console.log('  - AchievementsDB:', typeof achievementsDB);
+            return firebaseAPI && achievementsDB;
+        };
+        
+        // If both are already ready, continue immediately
+        if (checkAvailable()) {
+            console.log('Winesweeper: Firebase and AchievementsDB already available');
+            return;
+        }
+        
+        // Wait for achievementsSystemReady event which fires after both Firebase and AchievementsDB are ready
+        return new Promise((resolve) => {
+            if (checkAvailable()) {
+                resolve();
+            } else {
+                console.log('Winesweeper: Waiting for achievementsSystemReady event...');
+                const handler = () => {
+                    console.log('Winesweeper: achievementsSystemReady event received');
+                    // Verify availability after event with a small delay
+                    setTimeout(() => {
+                        if (checkAvailable()) {
+                            console.log('Winesweeper: Both systems confirmed available');
+                        } else {
+                            console.warn('Winesweeper: Systems not available after delay');
+                        }
+                        resolve();
+                    }, 100);
+                };
+                
+                // Listen on both current window and parent window
+                window.addEventListener('achievementsSystemReady', handler, { once: true });
+                if (window.parent && window.parent !== window) {
+                    window.parent.addEventListener('achievementsSystemReady', handler, { once: true });
+                }
+                
+                // Fallback timeout in case event doesn't fire
+                setTimeout(() => {
+                    console.warn('Winesweeper: Timeout waiting for achievementsSystemReady, proceeding anyway');
+                    resolve();
+                }, 3000);
+            }
+        });
     }
     
     initGame() {
@@ -520,37 +574,22 @@ class Winesweeper {
     }
     
     async loadBadges() {
-        // Load badges from Firebase for current user
-        if (!window.firebaseAPI) {
-            console.log('Firebase API not available - badges will not be loaded');
-            this.badgesLoaded = true;
-            return;
-        }
+        // Load badges using centralized AchievementsDB module
+        // Check both current window and parent window (for iframe context)
+        const AchievementsDB = window.AchievementsDB || (window.parent && window.parent !== window && window.parent.AchievementsDB);
         
-        const username = window.getUser ? window.getUser() : 'guest';
-        if (username === 'guest') {
-            console.log('Guest user - badges will not be loaded from Firebase');
-            this.badges = [];
+        if (!AchievementsDB) {
+            console.error('AchievementsDB not available - badges will not be loaded');
             this.badgesLoaded = true;
+            this.badges = [];
             return;
         }
         
         try {
-            const { db, getDoc, doc } = window.firebaseAPI;
-            const docRef = doc(db, 'winesweeper_badges', username);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                const loadedBadges = docSnap.data().badges || [];
-                // Remove duplicates when loading from database
-                this.badges = [...new Set(loadedBadges)];
-                console.log('✓ Loaded badges from Firebase:', this.badges);
-            } else {
-                console.log('No badges found in Firebase for user:', username);
-                this.badges = [];
-            }
+            this.badges = await AchievementsDB.loadAchievements();
+            console.log('✓ Loaded badges via AchievementsDB:', this.badges);
         } catch (error) {
-            console.error('Error loading badges from Firebase:', error);
+            console.error('Error loading badges:', error);
             this.badges = [];
         }
         
@@ -558,38 +597,38 @@ class Winesweeper {
     }
     
     async saveBadges() {
-        // Save badges to Firebase
-        if (!window.firebaseAPI) {
-            console.warn('Firebase API not available - badges will not be saved');
-            return;
+        // Save badges using centralized AchievementsDB module
+        // Check both current window and parent window (for iframe context)
+        const AchievementsDB = window.AchievementsDB || (window.parent && window.parent !== window && window.parent.AchievementsDB);
+        
+        if (!AchievementsDB) {
+            console.error('AchievementsDB not available - badges will not be saved');
+            return false;
         }
         
-        const username = window.getUser ? window.getUser() : 'guest';
-        if (username === 'guest') {
-            console.warn('Guest user - badges will not be saved to Firebase');
-            return;
-        }
+        // Get username from current or parent window
+        const getUser = window.getUser || (window.parent && window.parent !== window && window.parent.getUser);
+        const username = getUser ? getUser() : 'guest';
         
-        // Remove duplicates before saving
-        this.badges = [...new Set(this.badges)];
-        
-        console.log('Attempting to save badges to Firebase:', this.badges);
+        console.log('Attempting to save badges via AchievementsDB for user:', username);
+        console.log('Badges to save:', this.badges);
         
         try {
-            const { db, setDoc, doc } = window.firebaseAPI;
+            const success = await AchievementsDB.saveAchievements(this.badges, username);
+            console.log('✓ Badges successfully saved via AchievementsDB:', success);
             
-            if (!db) {
-                console.error('Firebase database not initialized - badges not saved');
-                return;
+            // Dispatch events to notify taskbar to refresh badges
+            if (window.parent && window.parent !== window) {
+                window.parent.dispatchEvent(new Event('achievementSaved'));
+                window.parent.dispatchEvent(new Event('badgesUpdated'));
             }
+            window.dispatchEvent(new Event('achievementSaved'));
+            window.dispatchEvent(new Event('badgesUpdated'));
             
-            await setDoc(doc(db, 'winesweeper_badges', username), {
-                badges: this.badges,
-                lastUpdated: Date.now()
-            });
-            console.log('✓ Badges successfully saved to Firebase');
+            return success;
         } catch (error) {
-            console.error('Error saving badges to Firebase:', error);
+            console.error('Error saving badges:', error);
+            return false;
         }
     }
     

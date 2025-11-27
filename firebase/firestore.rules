@@ -32,5 +32,15 @@ service cloud.firestore {
       allow update: if true; // Anyone can update their own ratings
       allow delete: if true; // Anyone can delete their own ratings
     }
+
+    // User achievements collection
+    match /user_achievements/{username} {
+      allow read, write: if true; // Open access for now
+    }
+
+    // Legacy winesweeper badges collection (for backwards compatibility)
+    match /winesweeper_badges/{username} {
+      allow read, write: if true; // Open access for now
+    }
   }
 }

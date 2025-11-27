@@ -492,8 +492,37 @@ tsBtn.addEventListener("click", () => {
     const badgesList = rightColumn.appendChild(document.createElement("div"));
     badgesList.id = "cbBadgesList";
 
-    // Get user badges from Winesweeper Firebase collection
+    // Get user badges from centralized AchievementsDB
     async function loadAndDisplayBadges() {
+        // Wait for AchievementsDB to be ready if it's not already
+        if (!window.AchievementsDB) {
+            console.log('Taskbar: Waiting for AchievementsDB to be ready...');
+            await new Promise((resolve) => {
+                // Check if it becomes available
+                const checkInterval = setInterval(() => {
+                    if (window.AchievementsDB) {
+                        clearInterval(checkInterval);
+                        console.log('Taskbar: AchievementsDB is now available');
+                        resolve();
+                    }
+                }, 50);
+                
+                // Also listen for the ready event
+                window.addEventListener('achievementsSystemReady', () => {
+                    clearInterval(checkInterval);
+                    console.log('Taskbar: achievementsSystemReady event received');
+                    resolve();
+                }, { once: true });
+                
+                // Timeout fallback
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.warn('Taskbar: Timeout waiting for AchievementsDB');
+                    resolve();
+                }, 3000);
+            });
+        }
+        
         // Load achievements configuration from JSON
         let badgeCategories = {};
         try {
@@ -504,40 +533,22 @@ tsBtn.addEventListener("click", () => {
             console.error('Error loading achievements config:', error);
             return;
         }
+        
         let userBadges = [];
         
-        if (window.firebaseAPI && window.getUser) {
-            const username = window.getUser();
-            if (username !== 'guest') {
-                try {
-                    const { db, getDoc, doc } = window.firebaseAPI;
-                    
-                    // Load badges from all possible collections
-                    const collections = ['winesweeper_badges', 'wigtube_badges', 'other_badges'];
-                    
-                    for (const collection of collections) {
-                        try {
-                            const docRef = doc(db, collection, username);
-                            const docSnap = await getDoc(docRef);
-                            
-                            if (docSnap.exists()) {
-                                const badges = docSnap.data().badges || [];
-                                userBadges = [...userBadges, ...badges];
-                            }
-                        } catch (collectionError) {
-                            // Collection might not exist yet, that's okay
-                            console.log(`No badges found in ${collection}`);
-                        }
-                    }
-                    
-                    // Remove duplicates
-                    userBadges = [...new Set(userBadges)];
-                    console.log('Loaded all user badges:', userBadges);
-                    
-                } catch (error) {
-                    console.error('Error loading badges:', error);
-                }
+        // Get current username to display in console
+        const username = window.getUser ? window.getUser() : 'guest';
+        
+        // Load badges using centralized AchievementsDB module
+        if (window.AchievementsDB) {
+            try {
+                userBadges = await window.AchievementsDB.loadAchievements();
+                console.log('Taskbar: Loaded', userBadges.length, 'badges for user:', username, userBadges);
+            } catch (error) {
+                console.error('Error loading badges via AchievementsDB:', error);
             }
+        } else {
+            console.warn('AchievementsDB not available - badges will not be displayed');
         }
 
         // Display categories
@@ -627,6 +638,15 @@ tsBtn.addEventListener("click", () => {
 
     // Load and display badges
     loadAndDisplayBadges();
+    
+    // Listen for achievement updates and refresh display
+    const refreshHandler = (event) => {
+        console.log('Taskbar: Achievement saved event received, refreshing badges...');
+        // Clear and reload badges
+        badgesList.innerHTML = '';
+        loadAndDisplayBadges();
+    };
+    window.addEventListener('achievementSaved', refreshHandler);
 
     // Close panel when clicking outside
     setTimeout(() => {
@@ -635,6 +655,7 @@ tsBtn.addEventListener("click", () => {
                 panel.remove();
                 clearInterval(clockInterval);
                 document.removeEventListener("click", closePanel);
+                window.removeEventListener('achievementSaved', refreshHandler);
             }
         };
         document.addEventListener("click", closePanel);
