@@ -830,7 +830,7 @@ smBtnBox.addEventListener("click", (event) => {
             images : 
             [
                 "assets/images/icons/32x/files.png",
-                "assets/images/icons/32x/wiano.png"
+                "assets/images/icons/32x/notes.png"
             ],
             titles : ["File Explorer", "Notepad"],
             actions:
