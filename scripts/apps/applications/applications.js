@@ -191,7 +191,7 @@ const applications = {
         ["breakout", "Breakout"],
         "other",
         false,
-        ["internal", "apps/games/"]
+        ["external", "https://wigdos-inc.github.io/Internal-Games/OFES/breakout/breakout.html"]
     ),
     sublimator: new Application(
         ["sublimator", "Sublimator"],
