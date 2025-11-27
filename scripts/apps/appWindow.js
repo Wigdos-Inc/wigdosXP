@@ -16,7 +16,7 @@ window.windows = windows;
 
 const SAVE_CONFIG = {
     timeout: 5000,
-    retryAttempts: 3,
+    retryAttempts: 1,
     retryDelay: 1000,
     version: '1.0',
     maxBackups: 5
@@ -94,7 +94,7 @@ function wrapSaveData(gameId, data) {
 function unwrapSaveData(wrapped) {
     // If it's not wrapped (old data or plain object), return as-is
     if (!wrapped || !wrapped.version || !wrapped.data) {
-        Logger.info('SaveSystem', 'Save data is not wrapped format, returning as-is');
+        Logger.debug('SaveSystem', 'Save data is not wrapped format, returning as-is');
         return wrapped;
     }
     
@@ -218,7 +218,7 @@ class AppWindow {
         if (this.app && this.app.sandbox) {
             this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms');
             this.iframe.dataset.sandboxed = 'true';
-            Logger.info('AppWindow', `Iframe for ${this.app.name.s} created with sandboxing`);
+            Logger.debug('AppWindow', `Iframe for ${this.app.name.s} created with sandboxing`);
         }
 
         // Focus Functionality
@@ -476,7 +476,7 @@ class AppWindow {
     closeSameOrigin() {
         pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
-                if (saved) Logger.info('SaveSystem', `Game data saved for ${this.app.name.s}`);
+                if (saved) Logger.debug('SaveSystem', `Game data saved for ${this.app.name.s}`);
             })
             .catch(err => Logger.error('SaveSystem', 'Save failed', err))
             .finally(() => {
@@ -506,7 +506,7 @@ class AppWindow {
 
         pushIframeSaveToFirestore(this.app.name.s, this.iframe)
             .then(saved => {
-                if (saved) Logger.info('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
+                if (saved) Logger.debug('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
             })
             .catch(err => Logger.error('SaveSystem', 'Background save failed', err))
             .finally(() => {
@@ -706,6 +706,15 @@ function startApp(app, session) {
     const appWindow = new AppWindow(app);
     appWindow.create();
 
+    // Track as recent app
+    if (app && app.name && app.name.s && window.addRecentApp) {
+        try {
+            window.addRecentApp(app.name.s);
+        } catch(e) {
+            console.error('[StartApp] Failed to track recent app', e);
+        }
+    }
+
     if (session) {
         try {
             if (typeof session.w === 'number') appWindow.move.storage.w = session.w;
@@ -751,9 +760,9 @@ function startApp(app, session) {
                 try {
                     const loaded = await loadFirestoreToIframe(app.name.s, appWindow.iframe);
                     if (loaded) {
-                        Logger.info('SaveSystem', `Save data loaded for ${app.name.s}`);
+                        Logger.debug('SaveSystem', `Save data loaded for ${app.name.s}`);
                     } else {
-                        Logger.info('SaveSystem', `No remote save data found for ${app.name.s}`);
+                        Logger.debug('SaveSystem', `No remote save data found for ${app.name.s}`);
                     }
                 } catch (error) {
                     Logger.error('SaveSystem', `Could not load save data for ${app.name.s}`, error);
@@ -809,12 +818,12 @@ async function pushIframeSaveToFirestore(gameId, iframe) {
         
         Logger.debug('SaveSystem', `Retrieved ${Object.keys(allLocalStorageData).length} localStorage items`);
     } catch (err) {
-        Logger.info('SaveSystem', 'Cross-origin iframe detected, using postMessage');
+        Logger.debug('SaveSystem', 'Cross-origin iframe detected, using postMessage');
         return await pushSaveViaPostMessageWithRetry(iframe, gameId);
     }
 
     if (Object.keys(allLocalStorageData).length === 0) {
-        Logger.info('SaveSystem', 'No data to save');
+        Logger.debug('SaveSystem', 'No data to save');
         return false;
     }
 
@@ -823,8 +832,8 @@ async function pushIframeSaveToFirestore(gameId, iframe) {
 
 async function pushSaveViaPostMessageWithRetry(iframe, gameId, attempts = SAVE_CONFIG.retryAttempts) {
     for (let i = 0; i < attempts; i++) {
-        try {
-            Logger.info('SaveSystem', `Save attempt ${i + 1}/${attempts} for ${gameId}`);
+            try {
+            Logger.debug('SaveSystem', `Save attempt ${i + 1}/${attempts} for ${gameId}`);
             const result = await pushSaveViaPostMessage(iframe, gameId);
             if (result) return true;
         } catch (e) {
@@ -861,11 +870,11 @@ async function pushSaveViaPostMessage(iframe, gameId) {
             if (event.data && event.data.type === 'saveDataResponse' && event.data.messageId === messageId) {
                 window.removeEventListener('message', handleResponse);
 
-                if (event.data.allLocalStorageData && Object.keys(event.data.allLocalStorageData).length > 0) {
-                    Logger.info('SaveSystem', `Save data received for ${gameId}, uploading to Firebase`);
+                    if (event.data.allLocalStorageData && Object.keys(event.data.allLocalStorageData).length > 0) {
+                    Logger.debug('SaveSystem', `Save data received for ${gameId}, uploading to Firebase`);
                     uploadSaveDataToFirebase(gameId, event.data.allLocalStorageData)
                         .then(success => {
-                            Logger.info('SaveSystem', `Firebase upload ${success ? 'successful' : 'failed'} for ${gameId}`);
+                            Logger.debug('SaveSystem', `Firebase upload ${success ? 'successful' : 'failed'} for ${gameId}`);
                             resolve(success);
                         })
                         .catch((err) => {
@@ -873,7 +882,7 @@ async function pushSaveViaPostMessage(iframe, gameId) {
                             resolve(false);
                         });
                 } else {
-                    Logger.info('SaveSystem', `No save data received for ${gameId}`);
+                    Logger.debug('SaveSystem', `No save data received for ${gameId}`);
                     resolve(false);
                 }
             }
@@ -912,7 +921,7 @@ async function pushSaveViaPostMessage(iframe, gameId) {
 async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
     const user = localStorage.getItem('username') || 'guest';
     if (user === 'guest') {
-        Logger.info('SaveSystem', 'Guest user, skipping Firebase upload');
+        Logger.debug('SaveSystem', 'Guest user, skipping Firebase upload');
         return false;
     }
 
@@ -936,7 +945,7 @@ async function uploadSaveDataToFirebase(gameId, allLocalStorageData) {
             { merge: true }
         );
         
-        Logger.info('SaveSystem', `Successfully uploaded save data for ${gameId}`);
+        Logger.debug('SaveSystem', `Successfully uploaded save data for ${gameId}`);
         
         // Backup management
         await manageBackups(gameId, wrappedData);
@@ -994,11 +1003,11 @@ async function loadFirestoreToIframe(gameId, iframe) {
         throw new Error('Game iframe not found');
     }
 
-    Logger.info('SaveSystem', `Loading save data for ${gameId}`);
+    Logger.debug('SaveSystem', `Loading save data for ${gameId}`);
 
     const user = localStorage.getItem('username') || 'guest';
     if (user === 'guest') {
-        Logger.info('SaveSystem', 'Guest user, skipping save load');
+        Logger.debug('SaveSystem', 'Guest user, skipping save load');
         return false;
     }
 
@@ -1013,14 +1022,14 @@ async function loadFirestoreToIframe(gameId, iframe) {
         const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
         
         if (!userDoc.exists()) {
-            Logger.info('SaveSystem', `No save document found for ${gameId}`);
+            Logger.debug('SaveSystem', `No save document found for ${gameId}`);
             return false;
         }
 
         const docData = userDoc.data();
         
         if (!docData[gameId]) {
-            Logger.info('SaveSystem', `No save data found for ${gameId}`);
+            Logger.debug('SaveSystem', `No save data found for ${gameId}`);
             return false;
         }
 
@@ -1029,7 +1038,7 @@ async function loadFirestoreToIframe(gameId, iframe) {
         try {
             const raw = JSON.parse(docData[gameId]);
             allLocalStorageData = unwrapSaveData(raw);
-            Logger.info('SaveSystem', `Save data found for ${gameId}`, {
+            Logger.debug('SaveSystem', `Save data found for ${gameId}`, {
                 keys: Object.keys(allLocalStorageData).length
             });
         } catch (e) {
@@ -1046,7 +1055,7 @@ async function loadFirestoreToIframe(gameId, iframe) {
                 return false;
             }
         } else {
-            Logger.info('SaveSystem', `No save data to load for ${gameId}`);
+            Logger.debug('SaveSystem', `No save data to load for ${gameId}`);
         }
     } catch (err) {
         Logger.error('SaveSystem', `Load error for ${gameId}`, err);
@@ -1078,7 +1087,7 @@ async function loadSaveViaPostMessage(iframe, gameId, allLocalStorageData) {
             
             if (event.data && event.data.type === 'loadDataResponse' && event.data.messageId === messageId) {
                 window.removeEventListener('message', handleResponse);
-                Logger.info('SaveSystem', `Load ${event.data.success ? 'successful' : 'failed'} for ${gameId}`);
+                Logger.debug('SaveSystem', `Load ${event.data.success ? 'successful' : 'failed'} for ${gameId}`);
                 resolve(event.data.success === true);
             }
         };
@@ -1153,12 +1162,12 @@ window.addEventListener('message', function(event) {
     if (!event.data.type) return;
     
     if (event.data.type === 'getInitialSaveData') {
-        Logger.info('SaveSystem', 'Game requesting initial save data', event.data);
+        Logger.debug('SaveSystem', 'Game requesting initial save data', event.data);
         handleInitialSaveDataRequest(event);
     }
     
     if (event.data.type === 'wigdosxp-integration-ready') {
-        Logger.info('SaveSystem', 'Game integration ready', event.data.gameId);
+        Logger.debug('SaveSystem', 'Game integration ready', event.data.gameId);
     }
 });
 
@@ -1166,12 +1175,12 @@ async function handleInitialSaveDataRequest(event) {
     const gameId = event.data.gameId;
     const messageId = event.data.messageId;
     
-    Logger.info('SaveSystem', `Processing initial save data request for ${gameId}`);
+    Logger.debug('SaveSystem', `Processing initial save data request for ${gameId}`);
     
     try {
         const user = localStorage.getItem('username') || 'guest';
         if (user === 'guest') {
-            Logger.info('SaveSystem', `Guest user - no save data for ${gameId}`);
+            Logger.debug('SaveSystem', `Guest user - no save data for ${gameId}`);
             event.source.postMessage({
                 type: 'initialSaveDataResponse',
                 messageId: messageId,
@@ -1203,7 +1212,7 @@ async function handleInitialSaveDataRequest(event) {
                 try {
                     const raw = JSON.parse(docData[gameId]);
                     allLocalStorageData = unwrapSaveData(raw);
-                    Logger.info('SaveSystem', `Found save data for ${gameId}`, { 
+                    Logger.debug('SaveSystem', `Found save data for ${gameId}`, { 
                         keys: Object.keys(allLocalStorageData).length 
                     });
                 } catch (e) {
@@ -1211,7 +1220,7 @@ async function handleInitialSaveDataRequest(event) {
                     allLocalStorageData = {};
                 }
             } else {
-                Logger.info('SaveSystem', `No save data found for ${gameId}`);
+                Logger.debug('SaveSystem', `No save data found for ${gameId}`);
             }
         }
 

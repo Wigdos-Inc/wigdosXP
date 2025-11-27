@@ -1,0 +1,25 @@
+#taskbar-settings-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #1f2937;
+  color: #e6eef8;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 100000;
+  min-width: 360px;
+  display: none;
+}
+
+#taskbar-settings-modal h3 { margin: 0 0 10px 0; }
+#taskbar-settings-modal .ts-list { max-height: 260px; overflow-y: auto; margin-bottom: 10px; }
+#taskbar-settings-modal .ts-item { display:flex; align-items:center; gap:8px; padding:8px; border-radius:4px; }
+#taskbar-settings-modal .ts-item + .ts-item { margin-top:4px; }
+#taskbar-settings-modal .ts-item img { width:20px; height:20px; }
+#taskbar-settings-modal .ts-actions { margin-left: auto; display:flex; gap:6px; }
+#taskbar-settings-modal .ts-actions button { background:#2b3646; color:#e6eef8; border:0; padding:4px 6px; border-radius:4px; cursor:pointer; }
+#taskbar-settings-modal .ts-actions button:disabled { opacity:0.45; cursor:default; }
+#taskbar-settings-modal .ts-controls { display:flex; justify-content:flex-end; gap:8px; }
+#taskbar-settings-overlay { position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:99999; display:none; }

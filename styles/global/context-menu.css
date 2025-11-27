@@ -1,0 +1,206 @@
+/* Windows XP Style Context Menu */
+#custom-context-menu {
+    position: fixed;
+    background: #f0f0f0;
+    color: #000000;
+    border: 1px solid #0054e3;
+    border-radius: 0;
+    box-shadow: 
+        2px 2px 3px rgba(0,0,0,0.3),
+        inset 1px 1px 0 rgba(255,255,255,0.6);
+    padding: 2px;
+    z-index: 99999;
+    min-width: 180px;
+    display: none;
+    font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+    font-size: 11px;
+    user-select: none;
+}
+
+#custom-context-menu .context-item {
+    padding: 4px 22px 4px 28px;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #000000;
+    position: relative;
+    line-height: 20px;
+}
+
+#custom-context-menu .context-item:hover,
+#custom-context-menu .context-item:focus {
+    background: linear-gradient(to bottom, #3169d6, #2758c4);
+    color: #ffffff;
+    outline: none;
+    border: 1px solid #1943a6;
+    margin: -1px;
+    padding: 4px 21px 4px 27px;
+}
+
+#custom-context-menu .context-item.disabled {
+    color: #999999;
+    cursor: default;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.6);
+}
+
+#custom-context-menu .context-item.disabled:hover,
+#custom-context-menu .context-item.disabled:focus {
+    background: transparent;
+    color: #999999;
+    border: none;
+    margin: 0;
+    padding: 4px 22px 4px 28px;
+}
+
+#custom-context-menu .context-sep {
+    height: 1px;
+    margin: 3px 2px 3px 26px;
+    background: linear-gradient(to right, 
+        transparent 0%, 
+        #d0d0d0 2%, 
+        #d0d0d0 98%, 
+        transparent 100%);
+    border-top: 1px solid #ffffff;
+}
+
+#custom-context-menu img.icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Left gutter for icons (classic Windows XP style) */
+#custom-context-menu::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, #f5f5f5 0%, #f0f0f0 100%);
+    border-right: 1px solid #dfdfdf;
+    pointer-events: none;
+}
+
+/* Submenu item with arrow */
+#custom-context-menu .context-item-submenu {
+    position: relative;
+}
+
+.submenu-arrow {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: #000000;
+}
+
+#custom-context-menu .context-item-submenu:hover .submenu-arrow,
+#custom-context-menu .context-item-submenu:focus .submenu-arrow {
+    color: #ffffff;
+}
+
+/* Submenu (appears to the right) */
+.context-submenu {
+    position: fixed;
+    background: #f0f0f0;
+    color: #000000;
+    border: 1px solid #0054e3;
+    border-radius: 0;
+    box-shadow: 
+        2px 2px 3px rgba(0,0,0,0.3),
+        inset 1px 1px 0 rgba(255,255,255,0.6);
+    padding: 2px;
+    z-index: 100000;
+    min-width: 180px;
+    max-width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    font-family: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+    font-size: 11px;
+    user-select: none;
+}
+
+.context-submenu .context-item {
+    padding: 4px 22px 4px 28px;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #000000;
+    position: relative;
+    line-height: 20px;
+}
+
+.context-submenu .context-item:hover,
+.context-submenu .context-item:focus {
+    background: linear-gradient(to bottom, #3169d6, #2758c4);
+    color: #ffffff;
+    outline: none;
+    border: 1px solid #1943a6;
+    margin: -1px;
+    padding: 4px 21px 4px 27px;
+}
+
+.context-submenu .context-item.disabled {
+    color: #999999;
+    cursor: default;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.6);
+}
+
+.context-submenu .context-item.disabled:hover,
+.context-submenu .context-item.disabled:focus {
+    background: transparent;
+    color: #999999;
+    border: none;
+    margin: 0;
+    padding: 4px 22px 4px 28px;
+}
+
+.context-submenu img.icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Left gutter for submenu icons */
+.context-submenu::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, #f5f5f5 0%, #f0f0f0 100%);
+    border-right: 1px solid #dfdfdf;
+    pointer-events: none;
+}
+
+/* Custom scrollbar for submenu */
+.context-submenu::-webkit-scrollbar {
+    width: 16px;
+}
+
+.context-submenu::-webkit-scrollbar-track {
+    background: #f0f0f0;
+}
+
+.context-submenu::-webkit-scrollbar-thumb {
+    background: #c0c0c0;
+    border: 1px solid #808080;
+}
+
+.context-submenu::-webkit-scrollbar-thumb:hover {
+    background: #a0a0a0;
+}

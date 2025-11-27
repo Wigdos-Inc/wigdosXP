@@ -26,3 +26,12 @@ html, body {
 
     background-color: black;
 }
+
+/* Drag and drop styles */
+[draggable="true"] {
+    cursor: grab;
+}
+
+[draggable="true"]:active {
+    cursor: grabbing;
+}

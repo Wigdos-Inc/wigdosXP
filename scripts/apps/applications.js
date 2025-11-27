@@ -213,6 +213,12 @@ const applications = {
     )
 }
 
+// Expose applications globally for Start Menu and other systems
+window.applications = applications;
+
+// Notify other modules that the applications registry is ready
+try { window.dispatchEvent(new Event('apps-ready')); } catch (e) { /* noop */ }
+
 
 
 /* SU Data Tracking */

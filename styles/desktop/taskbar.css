@@ -64,11 +64,17 @@ footer div {
 
 
 #qa_iconBox {
-    width: 120px;
-    padding: 0 15px;
+    /* Make the quick-access area fixed width so it doesn't push active apps far right.
+       Allow horizontal scrolling when there are more icons than fit. */
+    flex: 0 0 auto;
+    min-width: 120px;
+    max-width: 400px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .qa_icon {
@@ -115,6 +121,7 @@ footer div {
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 8px;
     color: whitesmoke;
     user-select: none;
 }
@@ -123,6 +130,57 @@ footer div {
     cursor: pointer;
 }
 #ts_btn:active { background-image: linear-gradient(to top, #0599e8, #008cec, #008cec, #0599e8, #06aef9); }
+
+/* Firebase status indicator inside clock */
+#firebase_status {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.3s;
+    position: relative;
+}
+
+#firebase_status img {
+    width: 16px;
+    height: 16px;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
+#firebase_status:hover {
+    opacity: 0.8;
+}
+
+#firebase_status.connected img {
+    filter: hue-rotate(90deg) drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
+#firebase_status.disconnected img {
+    filter: grayscale(100%) brightness(0.7) drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
+#firebase_status_tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: -20px;
+    background: #ffffcc;
+    border: 1px solid #000;
+    padding: 4px 8px;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    white-space: nowrap;
+    display: none;
+    z-index: 1000;
+    box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+}
+
+#ts_clock {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 14px;
+    font-weight: normal;
+}
 
 
 
@@ -576,7 +634,7 @@ footer div {
 
 #smHeader {
     width: 100%;
-    height: 20%;
+    height: 18%;
     background-image: linear-gradient(to top, #488fee, #3181e4, #1b6dd3, #0d5eca, #0d5eca, #1c6dd6, #64a2e7);
 
     display: flex;
@@ -584,7 +642,7 @@ footer div {
 }
 #smHeader img {
     max-height: 70%;
-    max-width: 100px;
+    max-width: 70px;
     margin-left: 10px;
 
     border: 3px solid white;
@@ -593,7 +651,7 @@ footer div {
 }
 #smHeader p {
     font-family: Tahoma, 'Segoe UI';
-    font-size: 20px;
+    font-size: 18px;
     text-shadow: 
         3px 2px 3px rgba(0, 0, 0, 0.5);
 
@@ -603,7 +661,7 @@ footer div {
 
 #smMain {
     width: 100%;
-    height: 58%;
+    height: 62%;
 
     background-color: white;
     border: 2px solid #488fee;
@@ -612,21 +670,36 @@ footer div {
 
     text-shadow: none;
     display: flex;
+    overflow-y: hidden;
 }
 
 .smHalf {
-    height: 100%;
-    width: 100%;
-
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 2px;
+    padding: 4px;
+    overflow-y: auto;
 }
+
+.smSectionTitle {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 12px;
+    font-weight: bold;
+    color: #0d5eca;
+    padding: 6px 8px 4px 8px;
+    border-bottom: 1px solid #d3e5fb;
+    margin-bottom: 4px;
+    background: #f0f4f9;
+}
+
 .smLeftItem, .smRightItem {
-    height: 20%;
+    min-height: 36px;
     display: flex;
     align-items: center;
-    padding: 5px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    transition: background-color 0.1s;
 }
 .smLeftItem:hover, .smRightItem:hover {
     background-color: #2b68c3;
@@ -634,14 +707,22 @@ footer div {
     cursor: pointer;
 }
 .smItemImg {
-    max-height: 100%;
-    max-width: 30%;
-
-    margin-right: 10px;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    flex-shrink: 0;
 }
 
 .smLeftItem {
     color: black;
+}
+
+.smNoResults {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    font-size: 11px;
 }
 
 #smRightHalf {
@@ -653,44 +734,83 @@ footer div {
 
 #smFooter {
     width: 100%;
-    height: 12%;
+    height: 10%;
     background-image: linear-gradient(to bottom, #488fee, #3584e3, #2878e1, #176cd9, #0f64d1);
     
     display: flex;
     position: relative;
+    justify-content: space-between;
 
     text-shadow: none;
 }
 #smFooter div {
     height: 100%;
 }
-#smFooterRight {
-    position: absolute;
-    right: 0;
-    width: 70%;
-
+#smFooterLeft {
     display: flex;
+    padding-left: 8px;
+}
+#smFooterRight {
+    display: flex;
+    padding-right: 8px;
+}
 
+/* Search Bar at bottom */
+#smSearch {
+    width: 100%;
+    height: 10%;
+    background: #ffffff;
+    border-top: 2px solid #aec2d9;
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    box-sizing: border-box;
+}
+
+#smSearchInput {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #7694bb;
+    border-radius: 2px;
+    padding: 2px 6px;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+#smSearchInput:focus {
+    border: 1px solid #3c7fb1;
+    box-shadow: 0 0 2px rgba(60, 127, 177, 0.5);
 }
 
 .powerOptionBox {
     width: fit-content;
-    padding: 10px;
-
+    padding: 6px 10px;
     display: flex;
     align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+    border-radius: 3px;
+}
+.powerOptionBox:hover {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 .powerOptionBox img {
-    max-width: 100%;
-    max-height: 100%;
-
-    padding: 5px;
-    margin-right: 8px;
-
+    width: 24px;
+    height: 24px;
     border: 2px solid white;
     border-radius: 5px;
-
-    cursor: pointer;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.1);
+}
+.powerOptionBox p {
+    margin: 0;
+    font-size: 11px;
+    color: white;
+    font-family: Tahoma, 'Segoe UI';
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 #minimized_bar {
     display: flex;
