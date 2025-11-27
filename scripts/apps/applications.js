@@ -210,14 +210,27 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/superjeff/"]
     ),
     
+    gJeff: new Application(
+        ["gJeff", "Super Jeff 2 Galaxy Jeff"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/galaxyjeff/"]
+    ),
+    
     pHub: new Application(
         ["pHub", "PokeHub"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/PokeHub/"]
-    )
+    ),
 
     /* INTERNAL-APPS (Repository) */
+    cmd: new Application(
+        ["cmd", "Terminal"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/WdosCMD/wingDosCMD.html"]
+    )
 }
 
 // Expose applications globally for Start Menu and other systems
