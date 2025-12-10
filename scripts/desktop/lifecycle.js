@@ -650,7 +650,8 @@ async function db(data, type) {
                 username: data.u,
                 password: hash,
                 layout: window.desktopFill ? window.desktopFill("base") : "[]",
-                admin: false
+                admin: false,
+                profilePicture: null
             });
 
             localStorage.setItem("username", data.u);
@@ -734,6 +735,11 @@ async function db(data, type) {
                 
                 fill(document.getElementById("contentRight"), "in");
                 if (userData.admin) localStorage.setItem("admin", "t");
+                
+                // Load and cache profile picture
+                if (userData.profilePicture) {
+                    localStorage.setItem(`pfp_${data.u}`, userData.profilePicture);
+                }
                 
             } else {
                 output.innerHTML = "Incorrect password";

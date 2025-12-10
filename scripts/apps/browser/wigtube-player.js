@@ -611,6 +611,15 @@ async function loadVideo(videoId) {
         hideAlbumSection();
     }
     
+    // Update favorite button text based on current status
+    if (typeof WigTubeDB !== 'undefined') {
+        const isFavorited = WigTubeDB.isFavorited(videoId);
+        const favoriteBtn = document.querySelector('.action-btn');
+        if (favoriteBtn) {
+            favoriteBtn.textContent = isFavorited ? 'Remove from Favorites' : 'Add to Favorites';
+        }
+    }
+    
     // Start buffering simulation
     startBuffering();
     
@@ -787,6 +796,15 @@ function playVideo() {
         // Try WigTubeDB first (Firestore)
         if (typeof WigTubeDB !== 'undefined') {
             debugLog('playVideo: Using WigTubeDB for view increment');
+            
+            // Track in history
+            WigTubeDB.addToHistory(videoId, {
+                title: currentVideo.title,
+                thumbnail: currentVideo.thumbnail,
+                duration: currentVideo.duration,
+                author: currentVideo.uploader
+            });
+            
             WigTubeDB.incrementViewCount(videoId, {
                 title: currentVideo.title,
                 description: currentVideo.description,
@@ -1044,7 +1062,54 @@ function handleActionButton(action) {
 }
 
 function addToFavorites(videoId) {
-    // Get current favorites from centralized storage
+    // Use WigTubeDB if available
+    if (typeof WigTubeDB !== 'undefined') {
+        const isFavorited = WigTubeDB.isFavorited(videoId);
+        
+        if (isFavorited) {
+            // Remove from favorites
+            const removed = WigTubeDB.removeFromFavorites(videoId);
+            if (removed) {
+                // Visual feedback
+                const favoriteBtn = document.querySelector('.action-btn');
+                favoriteBtn.textContent = '☆ Removed from Favorites';
+                favoriteBtn.style.background = '#ffcccc';
+                
+                setTimeout(() => {
+                    favoriteBtn.textContent = 'Add to Favorites';
+                    favoriteBtn.style.background = '';
+                }, 2000);
+                
+                updateStatus(`Removed "${currentVideo.title}" from favorites`);
+            }
+        } else {
+            // Add to favorites
+            const added = WigTubeDB.addToFavorites(videoId, {
+                title: currentVideo.title,
+                thumbnail: currentVideo.thumbnail,
+                duration: currentVideo.duration,
+                author: currentVideo.uploader
+            });
+            
+            if (added) {
+                // Visual feedback
+                const favoriteBtn = document.querySelector('.action-btn');
+                favoriteBtn.textContent = '⭐ Added to Favorites';
+                favoriteBtn.style.background = '#90EE90';
+                
+                setTimeout(() => {
+                    favoriteBtn.textContent = 'Remove from Favorites';
+                    favoriteBtn.style.background = '';
+                }, 2000);
+                
+                updateStatus(`Added "${currentVideo.title}" to favorites`);
+            }
+        }
+        
+        return;
+    }
+    
+    // Fallback to old method if WigTubeDB not available
     let favorites = getWigTubeProperty('favorites') || [];
     
     // Check if already in favorites
@@ -1333,7 +1398,7 @@ async function loadComments() {
     const currentUsername = localStorage.getItem('username');
     
     // Display comments
-    comments.forEach(comment => {
+    for (const comment of comments) {
         const commentElement = document.createElement('div');
         commentElement.className = 'comment';
         commentElement.dataset.commentId = comment.id; // Store comment ID for deletion
@@ -1341,6 +1406,42 @@ async function loadComments() {
         let imageHTML = '';
         if (comment.image) {
             imageHTML = `<div class="comment-image"><img src="${comment.image}" alt="Comment image"></div>`;
+        }
+        
+        // Get profile picture for comment author (async load from Firebase if needed)
+        let profilePicHTML = '';
+        let authorPfp = null;
+        
+        // First check cache
+        if (window.getUserProfilePicture) {
+            authorPfp = window.getUserProfilePicture(comment.author);
+        }
+        
+        // If not in cache and not guest, load from Firebase user profile
+        if (!authorPfp && comment.author && comment.author.toLowerCase() !== 'guest') {
+            // Try to load from Firebase users collection
+            if (window.firebaseAPI && window.firebaseAPI.db && window.firebaseOnline) {
+                try {
+                    const { doc, getDoc } = window.firebaseAPI;
+                    const userDoc = await getDoc(doc(window.firebaseAPI.db, "users", comment.author));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        if (userData.profilePicture) {
+                            authorPfp = userData.profilePicture;
+                            // Cache it for future use
+                            localStorage.setItem(`pfp_${comment.author}`, authorPfp);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading profile picture from Firebase for', comment.author, e);
+                }
+            }
+        }
+        
+        if (authorPfp) {
+            profilePicHTML = `<img src="${authorPfp}" alt="${comment.author}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 8px; border: 1px solid #999;">`;
+        } else {
+            profilePicHTML = `<div style="width: 32px; height: 32px; border-radius: 50%; background: #ccc; margin-right: 8px; border: 1px solid #999; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666;">${(comment.author || 'G').charAt(0).toUpperCase()}</div>`;
         }
         
         // Format timestamp
@@ -1381,17 +1482,20 @@ async function loadComments() {
             : '';
         
         commentElement.innerHTML = `
-            <div class="comment-header">
-                <div class="comment-author">${comment.author || 'Guest'}</div>
+            <div class="comment-header" style="display: flex; align-items: center;">
+                ${profilePicHTML}
+                <div style="flex: 1;">
+                    <div class="comment-author">${comment.author || 'Guest'}</div>
+                    <div class="comment-time">${timeString}</div>
+                </div>
                 ${deleteButtonHTML}
             </div>
-            <div class="comment-time">${timeString}</div>
-            <div class="comment-text">${comment.text}</div>
-            ${imageHTML}
+            <div class="comment-text" style="margin-left: 40px;">${comment.text}</div>
+            ${imageHTML ? `<div style="margin-left: 40px;">${imageHTML}</div>` : ''}
         `;
         
         commentsList.appendChild(commentElement);
-    });
+    }
     
     // Update comment count
     const commentsHeader = document.querySelector('.comments-section .sidebar-header');
@@ -2579,32 +2683,37 @@ function calculateStarRating(rating) {
  * Add user rating to video
  */
 async function rateVideo(videoId, rating) {
+    // Get current user
+    const username = localStorage.getItem('username') || 'anonymous';
+    
     // Check if WigTubeDB is available
     if (typeof WigTubeDB !== 'undefined') {
         try {
             // Check if user already rated
-            const userRating = await WigTubeDB.getUserRating(videoId);
-            if (userRating) {
-                updateStatus(`You already rated this video ${userRating} stars!`);
-                return;
-            }
+            const userRating = await WigTubeDB.getUserRating(videoId, username);
+            const isUpdate = userRating !== null;
             
-            // Add rating to database
-            await WigTubeDB.addRating(videoId, rating);
+            // Add or update rating in database
+            await WigTubeDB.addRating(videoId, rating, username);
             
-            // Get updated video data
-            const dbVideo = await WigTubeDB.getVideoById(videoId);
-            const ratingStars = WigTubeDB.calculateStarRating(dbVideo.ratings || []);
-            const ratingCount = (dbVideo.ratings || []).length;
+            // Get all ratings to calculate average (from cached data, efficient)
+            const allRatings = await WigTubeDB.getAllRatings(videoId);
+            const ratingStars = WigTubeDB.calculateStarRating(allRatings);
+            const ratingCount = allRatings.length;
+            const avgRating = allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length;
             
             // Update UI
             document.getElementById('rating').textContent = ratingStars;
             document.getElementById('ratingCount').textContent = ratingCount;
             
             // Show notification
-            updateStatus(`Thank you for rating! Your rating: ${rating} stars`);
+            if (isUpdate) {
+                updateStatus(`Rating updated! Your new rating: ${rating} stars (Avg: ${avgRating.toFixed(1)})`);
+            } else {
+                updateStatus(`Thank you for rating! Your rating: ${rating} stars (Avg: ${avgRating.toFixed(1)})`);
+            }
             
-            console.log(`Rating added: ${rating} stars. Total ratings: ${ratingCount}`);
+            console.log(`Rating ${isUpdate ? 'updated' : 'added'}: ${rating} stars. Total ratings: ${ratingCount}, Average: ${avgRating.toFixed(2)}`);
         } catch (error) {
             console.error('Error adding rating:', error);
             updateStatus('Error: Could not save rating');
@@ -2649,7 +2758,7 @@ function rateVideoFallback(videoId, rating) {
 /**
  * Add interactive rating buttons to the page
  */
-function setupRatingButtons() {
+async function setupRatingButtons() {
     const ratingSection = document.querySelector('.video-stats');
     if (!ratingSection) return;
     
@@ -2667,58 +2776,72 @@ function setupRatingButtons() {
             <button class="rate-btn" data-rating="4" style="padding: 5px 10px; cursor: pointer; background: white; border: 1px solid #999;">⭐ 4</button>
             <button class="rate-btn" data-rating="5" style="padding: 5px 10px; cursor: pointer; background: white; border: 1px solid #999;">⭐ 5</button>
         </div>
+        <div id="userRatingStatus" style="margin-top: 5px; font-size: 11px; color: #666;"></div>
     `;
     
     ratingSection.appendChild(ratingContainer);
     
+    const videoId = getVideoIdFromURL();
+    const username = localStorage.getItem('username') || 'anonymous';
+    
+    // Check if user already rated (for WigTubeDB)
+    let currentUserRating = null;
+    if (typeof WigTubeDB !== 'undefined') {
+        try {
+            currentUserRating = await WigTubeDB.getUserRating(videoId, username);
+            if (currentUserRating) {
+                document.getElementById('userRatingStatus').textContent = `You rated this ${currentUserRating} stars. Click another star to update your rating.`;
+            }
+        } catch (e) {
+            console.error('Error checking user rating:', e);
+        }
+    }
+    
     // Add click handlers to rating buttons
     document.querySelectorAll('.rate-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
+        const btnRating = parseInt(btn.getAttribute('data-rating'));
+        
+        // Highlight current user rating
+        if (currentUserRating && btnRating === currentUserRating) {
+            btn.style.background = '#90EE90';
+            btn.style.fontWeight = 'bold';
+        }
+        
+        btn.addEventListener('click', async function() {
             const rating = parseInt(this.getAttribute('data-rating'));
-            const videoId = getVideoIdFromURL();
-            rateVideo(videoId, rating);
+            await rateVideo(videoId, rating);
             
-            // Disable all rating buttons after rating
+            // Update all buttons to show new selection
             document.querySelectorAll('.rate-btn').forEach(b => {
-                b.disabled = true;
-                b.style.opacity = '0.5';
-                b.style.cursor = 'not-allowed';
+                b.style.background = 'white';
+                b.style.fontWeight = 'normal';
             });
             
-            // Highlight selected rating
+            // Highlight new rating
             this.style.background = '#90EE90';
             this.style.fontWeight = 'bold';
+            
+            // Update status text
+            document.getElementById('userRatingStatus').textContent = `You rated this ${rating} stars. Click another star to update your rating.`;
+            
+            // Update the currentUserRating variable
+            currentUserRating = rating;
         });
         
         // Hover effect
         btn.addEventListener('mouseenter', function() {
-            if (!this.disabled) {
-                this.style.background = '#e0e0e0';
-            }
+            this.style.background = '#e0e0e0';
         });
         
         btn.addEventListener('mouseleave', function() {
-            if (!this.disabled && this.style.background !== 'rgb(144, 238, 144)') {
+            const btnRating = parseInt(this.getAttribute('data-rating'));
+            if (currentUserRating === btnRating || this.style.background === 'rgb(144, 238, 144)') {
+                this.style.background = '#90EE90';
+            } else {
                 this.style.background = 'white';
             }
         });
     });
-    
-    // Check if user already rated and disable buttons
-    const videoId = getVideoIdFromURL();
-    const stats = loadVideoStats(videoId);
-    if (stats.userRating > 0) {
-        document.querySelectorAll('.rate-btn').forEach(btn => {
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.cursor = 'not-allowed';
-            
-            if (parseInt(btn.getAttribute('data-rating')) === stats.userRating) {
-                btn.style.background = '#90EE90';
-                btn.style.fontWeight = 'bold';
-            }
-        });
-    }
 }
 
 // Setup rating buttons after page loads

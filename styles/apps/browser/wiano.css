@@ -6,6 +6,7 @@ body {
   font-family: 'MS Sans Serif', 'Tahoma', Arial, sans-serif;
   min-height: 100vh;
   color: #000;
+  cursor: url('data:image/x-icon;base64,AAACAAEAICACAAAAAAAwAQAAFgAAACgAAAAgAAAAQAAAAAEAAQAAAAAAgAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAwAAAAMAAAAGAAAARgAAAGwAAAB8AAAAf4AAAH8AAAB+AAAAfAAAAHgAAABwAAAAYAAAAEAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////+f////D////w////4f///eH///zD///8Q////Af///wAf//8AP///AH///wD///8B////A////wf///8P////H////z////9/////////8='), auto;
 }
 
 .piano-container {

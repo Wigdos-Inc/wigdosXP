@@ -13,7 +13,7 @@ footer {
         0 0 2px black,
         0 0 1px black;
 
-
+    cursor: url('data:image/x-icon;base64,AAACAAEAICACAAAAAAAwAQAAFgAAACgAAAAgAAAAQAAAAAEAAQAAAAAAgAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAwAAAAMAAAAGAAAARgAAAGwAAAB8AAAAf4AAAH8AAAB+AAAAfAAAAHgAAABwAAAAYAAAAEAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////+f////D////w////4f///eH///zD///8Q////Af///wAf//8AP///AH///wD///8B////A////wf///8P////H////z////9/////////8='), auto;
     z-index: 20;
 }
 footer div {
@@ -209,7 +209,7 @@ footer div {
     bottom: 0;
     right: 0;
 
-    width: 700px;
+    width: 450px;
     height: 550px;
 
     border-top-left-radius: 10px;
@@ -220,6 +220,23 @@ footer div {
     overflow: hidden;
     user-select: none;
     background-color: white;
+    
+    transform-origin: bottom right;
+}
+
+#clockBadgePanel.closing {
+    animation: shrinkToTaskbar 0.3s ease-in forwards;
+}
+
+@keyframes shrinkToTaskbar {
+    from {
+        transform: scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: scale(0);
+        opacity: 0;
+    }
 }
 
 #cbHeader {
@@ -230,7 +247,7 @@ footer div {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    padding: 20px;
+    padding: 15px;
     box-sizing: border-box;
 }
 
@@ -241,15 +258,15 @@ footer div {
 
 .cb-time {
     font-family: 'Courier New', monospace;
-    font-size: 56px;
+    font-size: 48px;
     font-weight: bold;
     letter-spacing: 4px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .cb-date {
     font-family: Tahoma, 'Segoe UI';
-    font-size: 15px;
+    font-size: 14px;
     opacity: 1;
 }
 
@@ -263,7 +280,7 @@ footer div {
 #cbLeftColumn {
     width: 50%;
     height: 100%;
-    padding: 15px;
+    padding: 12px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -273,7 +290,7 @@ footer div {
 #cbRightColumn {
     width: 50%;
     height: 100%;
-    padding: 15px;
+    padding: 12px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -281,159 +298,101 @@ footer div {
 
 .cb-section-title {
     font-family: Tahoma, 'Segoe UI';
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
     color: #0d5eca;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     text-align: center;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
-/* Calendar Styles */
-#cbCalendar {
+/* Weather Styles */
+#cbWeather {
     background: white;
     border: 2px solid #0054e3;
     border-radius: 4px;
-    padding: 12px;
+    padding: 10px;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-    margin-bottom: 15px;
-}
-
-.cb-cal-header {
     margin-bottom: 10px;
-}
-
-.cb-cal-month-year {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    align-items: center;
-}
-
-.cb-cal-month-select {
-    flex: 1;
-    max-width: 140px;
-}
-
-.cb-cal-year-input {
-    width: 70px;
-}
-
-.cb-cal-select {
-    padding: 4px 8px;
-    border: 2px inset #ddd;
-    background: white;
-    font-family: Tahoma, 'Segoe UI';
-    font-size: 11px;
-    color: #000;
-}
-
-.cb-cal-select:focus {
-    outline: 1px dotted #000;
-}
-
-.cb-cal-days-header {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-    margin-bottom: 6px;
-}
-
-.cb-cal-day-name {
     text-align: center;
+}
+
+.cb-weather-loading {
     font-family: Tahoma, 'Segoe UI';
     font-size: 11px;
+    color: #666;
+    padding: 20px;
+}
+
+.cb-weather-icon {
+    font-size: 48px;
+    margin: 10px 0;
+}
+
+.cb-weather-temp {
+    font-family: 'Courier New', monospace;
+    font-size: 32px;
     font-weight: bold;
-    color: #000080;
-    padding: 4px 0;
+    color: #0054e3;
+    margin: 8px 0;
 }
 
-.cb-cal-days-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+.cb-weather-condition {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 13px;
+    font-weight: bold;
+    color: #000;
+    margin: 4px 0;
 }
 
-.cb-cal-day {
-    aspect-ratio: 1;
+.cb-weather-location {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
+    color: #666;
+    margin: 8px 0 4px 0;
+}
+
+.cb-weather-details {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #ddd;
+}
+
+.cb-weather-detail {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 500;
-    border: 1px solid transparent;
-    cursor: pointer;
-    color: whitesmoke;
-    text-shadow: 
-        0 0 2px black,
-        0 0 1px black;
-    background: white;
-    padding: 2px;
-    position: relative;
-    overflow: hidden;
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 10px;
 }
 
-.cb-cal-day-number {
-    font-size: 12px;
-    font-weight: 500;
-    z-index: 1;
+.cb-weather-detail-label {
+    color: #666;
+    margin-bottom: 2px;
 }
 
-.cb-cal-holiday-label {
-    font-size: 8px;
-    font-weight: 600;
-    line-height: 1;
-    text-align: center;
-    margin-top: 2px;
-    color: inherit;
-    text-shadow: inherit;
-    max-width: 100%;
-    word-wrap: break-word;
-    hyphens: auto;
-    z-index: 1;
-}
-
-.cb-cal-day:hover:not(.cb-cal-day-empty) {
-    border: 1px solid #0054e3;
-    background: #e8f4ff;
-}
-
-.cb-cal-day-today {
-    background: #0054e3 !important;
-    color: white !important;
+.cb-weather-detail-value {
     font-weight: bold;
-    border: 1px solid #003399 !important;
+    color: #000;
 }
 
-.cb-cal-day-holiday {
-    background: #fff0f0;
-    font-weight: bold;
+.cb-weather-error {
+    font-family: Tahoma, 'Segoe UI';
+    font-size: 11px;
     color: #c00;
-}
-
-.cb-cal-day-holiday:hover {
-    background: #ffe0e0 !important;
-}
-
-.cb-cal-day-today.cb-cal-day-holiday {
-    background: #0054e3 !important;
-    color: white !important;
-}
-
-.cb-cal-day-empty {
-    cursor: default;
-    background: #f0f0f0;
+    padding: 15px;
 }
 
 .cb-timezone-info {
-    margin-top: 12px;
-    padding: 8px;
+    margin-top: 8px;
+    padding: 6px;
     background: white;
     border: 1px solid #ccc;
     border-radius: 3px;
     font-family: Tahoma, 'Segoe UI';
-    font-size: 11px;
+    font-size: 10px;
     color: #000;
     text-align: center;
 }
@@ -443,17 +402,17 @@ footer div {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     overflow: visible;
 }
 
 /* Category Header */
 .cb-badge-category-header {
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: linear-gradient(to bottom, #0078d7, #0054e3);
     color: white;
     font-family: Tahoma, 'Segoe UI';
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
     border-radius: 4px;
     cursor: pointer;
@@ -482,7 +441,7 @@ footer div {
 .cb-badge-category-content {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     padding-left: 8px;
     transition: all 0.3s ease;
     max-height: 520px;
@@ -512,8 +471,8 @@ footer div {
 .cb-badge-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: 8px;
+    padding: 8px;
     background: white;
     border: 2px solid #0054e3;
     border-radius: 4px;
@@ -562,7 +521,7 @@ footer div {
 }
 
 .cb-badge-icon {
-    min-width: 50px;
+    min-width: 40px;
     text-align: center;
     display: flex;
     align-items: center;
@@ -570,8 +529,8 @@ footer div {
 }
 
 .cb-badge-icon img {
-    max-width: 50px;
-    max-height: 50px;
+    max-width: 40px;
+    max-height: 40px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -606,7 +565,7 @@ footer div {
 }
 
 .cb-badge-name {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
     color: whitesmoke;
     text-shadow: 
@@ -615,7 +574,7 @@ footer div {
 }
 
 .cb-badge-desc {
-    font-size: 11px;
+    font-size: 10px;
     color: whitesmoke;
     text-shadow: 
         0 0 2px black,

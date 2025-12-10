@@ -522,8 +522,14 @@ tsBtn.addEventListener("click", () => {
 
     // Expanded Time Stuff - Clock and Badges Panel
     if (document.getElementById("clockBadgePanel")) {
-        // If panel already exists, remove it
-        document.getElementById("clockBadgePanel").remove();
+        // If panel already exists, animate it closing then remove it
+        const panel = document.getElementById("clockBadgePanel");
+        panel.classList.add("closing");
+        
+        // Wait for animation to complete before removing
+        setTimeout(() => {
+            panel.remove();
+        }, 300); // Match animation duration
         return;
     }
 
@@ -560,213 +566,127 @@ tsBtn.addEventListener("click", () => {
     const mainContent = panel.appendChild(document.createElement("div"));
     mainContent.id = "cbMainContent";
 
-    // Left column - Calendar
+    // Left column - Weather
     const leftColumn = mainContent.appendChild(document.createElement("div"));
     leftColumn.id = "cbLeftColumn";
 
-    const calendarTitle = leftColumn.appendChild(document.createElement("div"));
-    calendarTitle.className = "cb-section-title";
-    calendarTitle.textContent = "DATE";
+    const weatherTitle = leftColumn.appendChild(document.createElement("div"));
+    weatherTitle.className = "cb-section-title";
+    weatherTitle.textContent = "WEATHER";
 
-    const calendarContainer = leftColumn.appendChild(document.createElement("div"));
-    calendarContainer.id = "cbCalendar";
+    const weatherContainer = leftColumn.appendChild(document.createElement("div"));
+    weatherContainer.id = "cbWeather";
 
-    // State for calendar navigation
-    let currentMonth = new Date().getMonth();
-    let currentYear = new Date().getFullYear();
-    const today = new Date();
-
-    // Generate calendar
-    function generateCalendar() {
-        calendarContainer.innerHTML = ""; // Clear previous calendar
-
-        // Month/Year header
-        const calHeader = calendarContainer.appendChild(document.createElement("div"));
-        calHeader.className = "cb-cal-header";
+    // Fetch and display weather
+    async function fetchWeather() {
+        weatherContainer.innerHTML = '<div class="cb-weather-loading">Loading weather...</div>';
         
-        const monthYear = calHeader.appendChild(document.createElement("div"));
-        monthYear.className = "cb-cal-month-year";
-        
-        const monthSelect = document.createElement("select");
-        monthSelect.className = "cb-cal-select cb-cal-month-select";
-        monthSelect.id = "cbMonthSelect";
-        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        months.forEach((monthName, index) => {
-            const option = document.createElement("option");
-            option.value = index;
-            option.textContent = monthName;
-            if (index === currentMonth) option.selected = true;
-            monthSelect.appendChild(option);
-        });
-        
-        const yearInput = document.createElement("input");
-        yearInput.type = "number";
-        yearInput.className = "cb-cal-select cb-cal-year-input";
-        yearInput.id = "cbYearInput";
-        yearInput.value = currentYear;
-        yearInput.min = "1900";
-        yearInput.max = "2100";
-        
-        monthYear.appendChild(monthSelect);
-        monthYear.appendChild(yearInput);
-
-        // Add change listeners
-        monthSelect.addEventListener("change", function() {
-            currentMonth = parseInt(this.value);
-            generateCalendar();
-        });
-
-        yearInput.addEventListener("change", function() {
-            currentYear = parseInt(this.value);
-            if (currentYear < 1900) currentYear = 1900;
-            if (currentYear > 2100) currentYear = 2100;
-            this.value = currentYear;
-            generateCalendar();
-        });
-
-        // Day headers
-        const dayHeaders = calendarContainer.appendChild(document.createElement("div"));
-        dayHeaders.className = "cb-cal-days-header";
-        ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(day => {
-            const dayHeader = dayHeaders.appendChild(document.createElement("div"));
-            dayHeader.className = "cb-cal-day-name";
-            dayHeader.textContent = day;
-        });
-
-        // Days grid
-        const daysGrid = calendarContainer.appendChild(document.createElement("div"));
-        daysGrid.className = "cb-cal-days-grid";
-
-        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-        // Empty cells for days before month starts
-        for (let i = 0; i < firstDay; i++) {
-            const emptyCell = daysGrid.appendChild(document.createElement("div"));
-            emptyCell.className = "cb-cal-day cb-cal-day-empty";
-        }
-
-        // Days of the month
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dayCell = daysGrid.appendChild(document.createElement("div"));
-            dayCell.className = "cb-cal-day";
+        try {
+            // Get user's location first
+            const position = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported'));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(resolve, (error) => {
+                    reject(new Error(error.code === 1 ? 'User denied Geolocation' : 'Location unavailable'));
+                }, {
+                    timeout: 10000,
+                    enableHighAccuracy: false
+                });
+            });
             
-            // Highlight today if viewing current month/year
-            if (day === today.getDate() && 
-                currentMonth === today.getMonth() && 
-                currentYear === today.getFullYear()) {
-                dayCell.classList.add("cb-cal-day-today");
+            const { latitude, longitude } = position.coords;
+            console.log('Location:', latitude, longitude);
+            
+            // Use Open-Meteo API (free, no key required)
+            const weatherResponse = await fetch(
+                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`
+            );
+            
+            if (!weatherResponse.ok) throw new Error('Weather API failed');
+            
+            const weatherData = await weatherResponse.json();
+            console.log('Weather data:', weatherData);
+            const current = weatherData.current;
+            
+            // Get location name using reverse geocoding
+            let location = 'Your Location';
+            try {
+                const geoResponse = await fetch(
+                    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                );
+                const geoData = await geoResponse.json();
+                location = geoData.city || geoData.locality || 'Your Location';
+            } catch (e) {
+                console.warn('Could not fetch location name:', e);
             }
             
-            // Check for holidays
-            const holiday = getHoliday(currentMonth, day, currentYear);
-            if (holiday) {
-                dayCell.classList.add("cb-cal-day-holiday");
-                dayCell.title = holiday;
-                
-                // Create holiday label
-                const holidayLabel = document.createElement("div");
-                holidayLabel.className = "cb-cal-holiday-label";
-                holidayLabel.textContent = holiday;
-                dayCell.appendChild(holidayLabel);
-            }
+            // Weather code to emoji and description mapping
+            const weatherCodes = {
+                0: { emoji: '☀️', desc: 'Clear Sky' },
+                1: { emoji: '🌤️', desc: 'Mainly Clear' },
+                2: { emoji: '⛅', desc: 'Partly Cloudy' },
+                3: { emoji: '☁️', desc: 'Overcast' },
+                45: { emoji: '🌫️', desc: 'Foggy' },
+                48: { emoji: '🌫️', desc: 'Foggy' },
+                51: { emoji: '🌦️', desc: 'Light Drizzle' },
+                53: { emoji: '🌦️', desc: 'Drizzle' },
+                55: { emoji: '🌧️', desc: 'Heavy Drizzle' },
+                61: { emoji: '🌧️', desc: 'Light Rain' },
+                63: { emoji: '🌧️', desc: 'Rain' },
+                65: { emoji: '🌧️', desc: 'Heavy Rain' },
+                71: { emoji: '🌨️', desc: 'Light Snow' },
+                73: { emoji: '❄️', desc: 'Snow' },
+                75: { emoji: '❄️', desc: 'Heavy Snow' },
+                77: { emoji: '🌨️', desc: 'Snow Grains' },
+                80: { emoji: '🌦️', desc: 'Light Showers' },
+                81: { emoji: '🌧️', desc: 'Showers' },
+                82: { emoji: '⛈️', desc: 'Heavy Showers' },
+                85: { emoji: '🌨️', desc: 'Snow Showers' },
+                86: { emoji: '❄️', desc: 'Heavy Snow Showers' },
+                95: { emoji: '⛈️', desc: 'Thunderstorm' },
+                96: { emoji: '⛈️', desc: 'Thunderstorm with Hail' },
+                99: { emoji: '⛈️', desc: 'Heavy Thunderstorm' }
+            };
             
-            // Create day number element
-            const dayNumber = document.createElement("div");
-            dayNumber.className = "cb-cal-day-number";
-            dayNumber.textContent = day;
-            dayCell.insertBefore(dayNumber, dayCell.firstChild);
+            const weatherInfo = weatherCodes[current.weather_code] || { emoji: '🌡️', desc: 'Unknown' };
+            
+            weatherContainer.innerHTML = `
+                <div class="cb-weather-icon">${weatherInfo.emoji}</div>
+                <div class="cb-weather-temp">${Math.round(current.temperature_2m)}°F</div>
+                <div class="cb-weather-condition">${weatherInfo.desc}</div>
+                <div class="cb-weather-location">📍 ${location}</div>
+                <div class="cb-weather-details">
+                    <div class="cb-weather-detail">
+                        <div class="cb-weather-detail-label">Humidity</div>
+                        <div class="cb-weather-detail-value">${current.relative_humidity_2m}%</div>
+                    </div>
+                    <div class="cb-weather-detail">
+                        <div class="cb-weather-detail-label">Wind</div>
+                        <div class="cb-weather-detail-value">${Math.round(current.wind_speed_10m)} mph</div>
+                    </div>
+                </div>
+            `;
+            
+        } catch (error) {
+            console.error('Weather fetch error:', error);
+            weatherContainer.innerHTML = `
+                <div class="cb-weather-error">
+                    ⚠️ Unable to load weather<br>
+                    <small>${error.message || 'Please check connection'}</small>
+                </div>
+            `;
         }
     }
-
-    // Holiday detection function
-    function getHoliday(month, day, year) {
-        // Fixed date holidays
-        const fixedHolidays = {
-            '0-1': "New Year's Day",
-            '1-14': "Valentine's Day",
-            '2-17': "St. Patrick's Day",
-            '3-1': "April Fools' Day",
-            '3-22': "Earth Day",
-            '4-5': "Cinco de Mayo",
-            '5-14': "Flag Day",
-            '6-4': "Independence Day",
-            '9-31': "Halloween",
-            '10-11': "Veterans Day",
-            '11-25': "Christmas Day",
-            '11-31': "New Year's Eve"
-        };
-
-        const key = `${month}-${day}`;
-        if (fixedHolidays[key]) {
-            return fixedHolidays[key];
-        }
-
-        // Floating holidays (based on day of week)
-        const firstDayOfMonth = new Date(year, month, 1).getDay();
-        const nthDayOfWeek = (day, dayOfWeek, n) => {
-            const firstOccurrence = (7 + dayOfWeek - firstDayOfMonth) % 7 + 1;
-            return firstOccurrence + (n - 1) * 7 === day;
-        };
-
-        // Martin Luther King Jr. Day - 3rd Monday in January
-        if (month === 0 && nthDayOfWeek(day, 1, 3)) return "Martin Luther King Jr. Day";
-        
-        // Presidents' Day - 3rd Monday in February
-        if (month === 1 && nthDayOfWeek(day, 1, 3)) return "Presidents' Day";
-        
-        // Memorial Day - Last Monday in May
-        const lastMondayMay = new Date(year, 5, 0);
-        lastMondayMay.setDate(lastMondayMay.getDate() - (lastMondayMay.getDay() + 6) % 7);
-        if (month === 4 && day === lastMondayMay.getDate()) return "Memorial Day";
-        
-        // Labor Day - 1st Monday in September
-        if (month === 8 && nthDayOfWeek(day, 1, 1)) return "Labor Day";
-        
-        // Columbus Day - 2nd Monday in October
-        if (month === 9 && nthDayOfWeek(day, 1, 2)) return "Columbus Day";
-        
-        // Thanksgiving - 4th Thursday in November
-        if (month === 10 && nthDayOfWeek(day, 4, 4)) return "Thanksgiving Day";
-        
-        // Mother's Day - 2nd Sunday in May
-        if (month === 4 && nthDayOfWeek(day, 0, 2)) return "Mother's Day";
-        
-        // Father's Day - 3rd Sunday in June
-        if (month === 5 && nthDayOfWeek(day, 0, 3)) return "Father's Day";
-
-        // Easter calculation (simplified - Meeus/Jones/Butcher algorithm)
-        const easterDate = calculateEaster(year);
-        if (month === easterDate.month && day === easterDate.day) return "Easter Sunday";
-
-        return null;
-    }
-
-    function calculateEaster(year) {
-        const a = year % 19;
-        const b = Math.floor(year / 100);
-        const c = year % 100;
-        const d = Math.floor(b / 4);
-        const e = b % 4;
-        const f = Math.floor((b + 8) / 25);
-        const g = Math.floor((b - f + 1) / 3);
-        const h = (19 * a + b - d - g + 15) % 30;
-        const i = Math.floor(c / 4);
-        const k = c % 4;
-        const l = (32 + 2 * e + 2 * i - h - k) % 7;
-        const m = Math.floor((a + 11 * h + 22 * l) / 451);
-        const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
-        const day = ((h + l - 7 * m + 114) % 31) + 1;
-        return { month, day };
-    }
-
-    generateCalendar();
+    
+    fetchWeather();
 
     // Timezone info
     const timezoneInfo = leftColumn.appendChild(document.createElement("div"));
     timezoneInfo.className = "cb-timezone-info";
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    timezoneInfo.textContent = `Current time zone: ${timezone}`;
+    timezoneInfo.textContent = `Time zone: ${timezone}`;
 
     // Right column - Badges
     const rightColumn = mainContent.appendChild(document.createElement("div"));
@@ -822,11 +742,78 @@ tsBtn.addEventListener("click", () => {
         }
         
         let userBadges = [];
-        
+
         // Get current username to display in console
         const username = window.getUser ? window.getUser() : 'guest';
         
-        // Load badges using centralized AchievementsDB module
+        // Add profile picture option for logged-in users
+        if (username && username !== 'guest') {
+            const changePfpOption = document.createElement('div');
+            changePfpOption.textContent = '🖼️ Change Profile Picture';
+            changePfpOption.style.cssText = `
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #ccc;
+                background: white;
+                font-size: 12px;
+            `;
+            changePfpOption.onmouseover = () => changePfpOption.style.background = '#e8e8e8';
+            changePfpOption.onmouseout = () => changePfpOption.style.background = 'white';
+            changePfpOption.onclick = () => {
+                // Create hidden file input
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+                fileInput.style.display = 'none';
+                fileInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Check file size (max 500KB)
+                        if (file.size > 500000) {
+                            alert('Image too large! Please select an image under 500KB.');
+                            return;
+                        }
+                        
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            const imageData = event.target.result;
+                            if (window.setUserProfilePicture) {
+                                const success = await window.setUserProfilePicture(imageData);
+                                if (success) {
+                                    // Update all visible comments with this user's pfp
+                                    const currentUser = window.getUser ? window.getUser() : null;
+                                    if (currentUser && window.updateCommentProfilePictures) {
+                                        window.updateCommentProfilePictures(currentUser, imageData);
+                                    }
+                                    if (window.userBox) {
+                                        window.userBox.remove();
+                                        window.userBox = null;
+                                    }
+                                }
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                    fileInput.remove();
+                };
+                document.body.appendChild(fileInput);
+                fileInput.click();
+                if (window.userBox) {
+                    window.userBox.remove();
+                    window.userBox = null;
+                }
+            };
+            
+            if (window.userBox) {
+                // Insert after the username display
+                const firstChild = window.userBox.querySelector('div');
+                if (firstChild && firstChild.nextSibling) {
+                    window.userBox.insertBefore(changePfpOption, firstChild.nextSibling);
+                } else {
+                    window.userBox.insertBefore(changePfpOption, window.userBox.firstChild);
+                }
+            }
+        }        // Load badges using centralized AchievementsDB module
         if (window.AchievementsDB) {
             try {
                 userBadges = await window.AchievementsDB.loadAchievements();
@@ -1105,10 +1092,70 @@ function createStartMenu() {
     smHeader.id = "smHeader";
 
     const headerImg = smHeader.appendChild(document.createElement("img"));
-    headerImg.src = "assets/images/icons/user/guest.png";
+    const username = (typeof getUser === 'function') ? getUser() : (localStorage.getItem('username') || 'Guest');
+    
+    // Set profile picture - guest users get guest.png, others get their custom pfp or guest.png as fallback
+    if (username && username !== 'guest') {
+        const userPfp = window.getUserProfilePicture ? window.getUserProfilePicture(username) : null;
+        headerImg.src = userPfp || "assets/images/icons/user/guest.png";
+        
+        // Try to load from Firebase if not cached
+        if (!userPfp && window.loadUserProfilePicture) {
+            window.loadUserProfilePicture(username).then(pfp => {
+                if (pfp) {
+                    headerImg.src = pfp;
+                }
+            }).catch(e => {
+                console.error('Error loading profile picture:', e);
+            });
+        }
+        
+        // Make profile picture clickable for logged-in users
+        headerImg.style.cursor = "pointer";
+        headerImg.title = "Click to change profile picture";
+        headerImg.onclick = () => {
+            // Create hidden file input
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Check file size (max 500KB)
+                    if (file.size > 500000) {
+                        alert('Image too large! Please select an image under 500KB.');
+                        return;
+                    }
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const imageData = event.target.result;
+                        if (window.setUserProfilePicture) {
+                            const success = await window.setUserProfilePicture(imageData);
+                            if (success) {
+                                // Update the image immediately
+                                headerImg.src = imageData;
+                                // Update all visible comments with this user's pfp
+                                if (window.updateCommentProfilePictures) {
+                                    window.updateCommentProfilePictures(username, imageData);
+                                }
+                            }
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+                fileInput.remove();
+            };
+            document.body.appendChild(fileInput);
+            fileInput.click();
+        };
+    } else {
+        // Guest user always gets guest.png
+        headerImg.src = "assets/images/icons/user/guest.png";
+    }
 
     const headerText = smHeader.appendChild(document.createElement("p"));
-    const username = (typeof getUser === 'function') ? getUser() : (localStorage.getItem('username') || 'Guest');
     headerText.innerHTML = `<strong>${username}</strong>`;
     
 

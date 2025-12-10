@@ -362,6 +362,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             else if (itemText.includes('What\'s Hot')) {
                 showWhatsHot();
             }
+            // Handle History
+            else if (itemText.includes('History')) {
+                showHistory();
+            }
+            // Handle Favorites
+            else if (itemText.includes('Favorites')) {
+                showFavorites();
+            }
             else {
                 updateStatus(`Navigation: ${itemText} - Feature coming soon`);
                 
@@ -430,11 +438,13 @@ async function loadVideosWithStats() {
                     debugLog('loadVideosWithStats: Fetching', video.id);
                     const dbVideo = await WigTubeDB.getVideoById(video.id);
                     if (dbVideo) {
-                        debugLog('loadVideosWithStats: Got stats for', video.id, '-', dbVideo.viewCount, 'views');
+                        // Use cached rating data from video document (efficient - no extra reads)
+                        const userRatings = dbVideo.userRatings ? Object.values(dbVideo.userRatings) : [];
+                        debugLog('loadVideosWithStats: Got stats for', video.id, '-', dbVideo.viewCount, 'views,', userRatings.length, 'ratings');
                         return {
                             ...video,
                             views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
-                            rating: WigTubeDB.calculateStarRating(dbVideo.ratings || [])
+                            rating: WigTubeDB.calculateStarRating(userRatings)
                         };
                     }
                 } catch (err) {
@@ -994,6 +1004,198 @@ async function showWhatsHot() {
     } catch (error) {
         console.error('Error loading What\'s Hot:', error);
         updateStatus('Error loading hot videos');
+    }
+}
+
+/**
+ * Show watch history
+ */
+async function showHistory() {
+    const categoryButtons = document.querySelector('.video-categories');
+    const contentHeader = document.querySelector('.content-header');
+    const videoGrid = document.querySelector('.video-grid');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Hide category buttons
+    if (categoryButtons) {
+        categoryButtons.style.display = 'none';
+    }
+    
+    // Update header
+    contentHeader.innerHTML = '📜 Watch History';
+    
+    updateStatus('Loading watch history...');
+    showLoadingProgress();
+    
+    try {
+        // Get history from WigTubeDB
+        if (typeof WigTubeDB === 'undefined') {
+            updateStatus('History feature requires database connection');
+            videoGrid.innerHTML = '<div style="padding: 20px; text-align: center;">History feature unavailable</div>';
+            return;
+        }
+        
+        const history = WigTubeDB.getHistory(50);
+        
+        // Clear grid
+        videoGrid.innerHTML = '';
+        
+        // Add back button
+        const backButton = document.createElement('div');
+        backButton.style.cssText = `
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: white;
+            border: 2px outset #ddd;
+            display: inline-block;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        `;
+        backButton.innerHTML = '⬅ Back to Home';
+        backButton.onclick = showHomePage;
+        videoGrid.appendChild(backButton);
+        
+        if (history.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = `
+                padding: 40px 20px;
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+            `;
+            emptyMsg.innerHTML = '📺 No watch history yet<br>Start watching videos to build your history!';
+            videoGrid.appendChild(emptyMsg);
+            updateStatus('No watch history found');
+            return;
+        }
+        
+        // Render history videos
+        for (const historyItem of history) {
+            // Get full video data
+            const dbVideo = await WigTubeDB.getVideoById(historyItem.videoId);
+            const videoInfo = {
+                id: historyItem.videoId,
+                title: historyItem.title,
+                thumbnail: historyItem.thumbnail,
+                duration: historyItem.duration,
+                author: historyItem.author,
+                views: dbVideo ? WigTubeDB.formatViewCount(dbVideo.viewCount || 0) : '0 views',
+                rating: dbVideo ? WigTubeDB.calculateStarRating(Object.values(dbVideo.userRatings || {})) : '☆☆☆☆☆',
+                uploadDate: dbVideo ? dbVideo.uploadDate : ''
+            };
+            
+            const videoCard = createVideoCard(videoInfo);
+            videoGrid.appendChild(videoCard);
+        }
+        
+        // Re-attach click events
+        attachVideoCardEvents();
+        
+        updateStatus(`Showing ${history.length} video(s) from history`);
+        
+    } catch (error) {
+        console.error('Error loading history:', error);
+        updateStatus('Error loading watch history');
+    }
+}
+
+/**
+ * Show favorites
+ */
+async function showFavorites() {
+    const categoryButtons = document.querySelector('.video-categories');
+    const contentHeader = document.querySelector('.content-header');
+    const videoGrid = document.querySelector('.video-grid');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Hide category buttons
+    if (categoryButtons) {
+        categoryButtons.style.display = 'none';
+    }
+    
+    // Update header
+    contentHeader.innerHTML = '⭐ Favorites';
+    
+    updateStatus('Loading favorites...');
+    showLoadingProgress();
+    
+    try {
+        // Get favorites from WigTubeDB
+        if (typeof WigTubeDB === 'undefined') {
+            updateStatus('Favorites feature requires database connection');
+            videoGrid.innerHTML = '<div style="padding: 20px; text-align: center;">Favorites feature unavailable</div>';
+            return;
+        }
+        
+        const favorites = WigTubeDB.getFavorites();
+        
+        // Clear grid
+        videoGrid.innerHTML = '';
+        
+        // Add back button
+        const backButton = document.createElement('div');
+        backButton.style.cssText = `
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: white;
+            border: 2px outset #ddd;
+            display: inline-block;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        `;
+        backButton.innerHTML = '⬅ Back to Home';
+        backButton.onclick = showHomePage;
+        videoGrid.appendChild(backButton);
+        
+        if (favorites.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = `
+                padding: 40px 20px;
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+            `;
+            emptyMsg.innerHTML = '⭐ No favorites yet<br>Click the star button on videos to add them to your favorites!';
+            videoGrid.appendChild(emptyMsg);
+            updateStatus('No favorites found');
+            return;
+        }
+        
+        // Render favorite videos
+        for (const favoriteItem of favorites) {
+            // Get full video data
+            const dbVideo = await WigTubeDB.getVideoById(favoriteItem.videoId);
+            const videoInfo = {
+                id: favoriteItem.videoId,
+                title: favoriteItem.title,
+                thumbnail: favoriteItem.thumbnail,
+                duration: favoriteItem.duration,
+                author: favoriteItem.author,
+                views: dbVideo ? WigTubeDB.formatViewCount(dbVideo.viewCount || 0) : '0 views',
+                rating: dbVideo ? WigTubeDB.calculateStarRating(Object.values(dbVideo.userRatings || {})) : '☆☆☆☆☆',
+                uploadDate: dbVideo ? dbVideo.uploadDate : ''
+            };
+            
+            const videoCard = createVideoCard(videoInfo);
+            
+            // Add favorite indicator
+            videoCard.style.border = '3px solid gold';
+            
+            videoGrid.appendChild(videoCard);
+        }
+        
+        // Re-attach click events
+        attachVideoCardEvents();
+        
+        updateStatus(`Showing ${favorites.length} favorite video(s)`);
+        
+    } catch (error) {
+        console.error('Error loading favorites:', error);
+        updateStatus('Error loading favorites');
     }
 }
 

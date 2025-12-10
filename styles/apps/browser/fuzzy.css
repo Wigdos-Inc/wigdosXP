@@ -18,6 +18,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    cursor: url('data:image/x-icon;base64,AAACAAEAICACAAAAAAAwAQAAFgAAACgAAAAgAAAAQAAAAAEAAQAAAAAAgAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAwAAAAMAAAAGAAAARgAAAGwAAAB8AAAAf4AAAH8AAAB+AAAAfAAAAHgAAABwAAAAYAAAAEAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////+f////D////w////4f///eH///zD///8Q////Af///wAf//8AP///AH///wD///8B////A////wf///8P////H////z////9/////////8='), auto;
 }
 
 main, footer {
@@ -33,7 +34,6 @@ main {
     grid-template-rows: repeat(5, minmax(0, 1fr));
     padding: 5px;
     color: #000000;
-    cursor: url("../../assets/cursor/cursor.cur");
 }
 #topBar { 
     display: flex;
@@ -550,6 +550,7 @@ main {
     font-family: 'MS Sans Serif', sans-serif;
     background: white;
     color: black;
+    cursor: text;
 }
 
 .main-search-input:focus {

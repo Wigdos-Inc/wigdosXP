@@ -9,6 +9,7 @@
             font-size: 11px;
             background: #ffffff;
             color: #000000;
+            cursor: url('data:image/x-icon;base64,AAACAAEAICACAAAAAAAwAQAAFgAAACgAAAAgAAAAQAAAAAEAAQAAAAAAgAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAABgAAAAwAAAAMAAAAGAAAARgAAAGwAAAB8AAAAf4AAAH8AAAB+AAAAfAAAAHgAAABwAAAAYAAAAEAAAAAAAAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////+f////D////w////4f///eH///zD///8Q////Af///wAf//8AP///AH///wD///8B////A////wf///8P////H////z////9/////////8='), auto;
         }
 
         .wigtube-header {
@@ -58,6 +59,7 @@
             border: 2px inset #d4d0c8;
             font-size: 11px;
             font-family: 'MS Sans Serif', sans-serif;
+            cursor: text;
         }
 
         .search-btn {

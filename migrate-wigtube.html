@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigTube Migration Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .warning-box ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            color: #0c5460;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-box pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            color: #0c5460;
+        }
+        
+        .btn-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+        
+        #log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .log-info { color: #4ec9b0; }
+        .log-success { color: #4caf50; }
+        .log-warning { color: #ffa500; }
+        .log-error { color: #f44336; }
+        .log-highlight { color: #569cd6; font-weight: bold; }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 WigTube Migration Tool</h1>
+        <p class="subtitle">Migrate Firebase data from collections to map-based documents</p>
+        
+        <div class="warning-box">
+            <h3>⚠️ Important Notice</h3>
+            <ul>
+                <li>This will migrate all WigTube data to a new structure</li>
+                <li>Original collections will be DELETED after successful migration</li>
+                <li>Make sure you have a backup of your data</li>
+                <li>This operation cannot be undone</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 Migration Details</h3>
+            <pre>FROM (old structure):
+├─ wigtube_data/{videoId}
+├─ wigtube_comments/{commentId}
+└─ wigtube_user_ratings/{ratingId}
+
+TO (new structure):
+wigtube/
+├─ data {videos: {...}}
+├─ wigtube_comments {comments: {...}}
+└─ user_ratings {ratings: {...}}</pre>
+        </div>
+        
+        <div class="btn-container">
+            <button id="migrateBtn" class="btn-primary" onclick="startMigration()">
+                Start Migration
+            </button>
+            <button id="deleteBtn" class="btn-danger" onclick="deleteOldCollections()" disabled>
+                Delete Old Collections
+            </button>
+        </div>
+        
+        <div id="log"></div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            getDocs, 
+            doc, 
+            setDoc,
+            writeBatch
+        } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDqDU6p8BH1hTqox7f5Sj1ySTWifIP2818",
+            authDomain: "wigdos-9aa6a.firebaseapp.com",
+            databaseURL: "https://wigdos-9aa6a-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "wigdos-9aa6a",
+            storageBucket: "wigdos-9aa6a.firebasestorage.app",
+            messagingSenderId: "124867645389",
+            appId: "1:124867645389:web:4530e19e575669f3cabe84",
+            measurementId: "G-1KTKSSCJ33"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+        const migrateBtn = document.getElementById('migrateBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const span = document.createElement('div');
+            span.className = `log-${type}`;
+            span.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(span);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.startMigration = async function() {
+            migrateBtn.disabled = true;
+            deleteBtn.disabled = true;
+            statusEl.style.display = 'none';
+            logEl.innerHTML = '';
+            
+            log('═══════════════════════════════════════════', 'highlight');
+            log('  WigTube Firebase Migration Started', 'highlight');
+            log('═══════════════════════════════════════════', 'highlight');
+
+            try {
+                const videoResult = await migrateVideoData();
+                const commentsResult = await migrateComments();
+                const ratingsResult = await migrateRatings();
+
+                const allSuccess = videoResult.success && commentsResult.success && ratingsResult.success;
+
+                log('═══════════════════════════════════════════', 'highlight');
+                log('  Migration Summary', 'highlight');
+                log('═══════════════════════════════════════════', 'highlight');
+                log(`Videos:   ${videoResult.success ? '✅' : '❌'} ${videoResult.count || 0} migrated`, videoResult.success ? 'success' : 'error');
+                log(`Comments: ${commentsResult.success ? '✅' : '❌'} ${commentsResult.count || 0} migrated`, commentsResult.success ? 'success' : 'error');
+                log(`Ratings:  ${ratingsResult.success ? '✅' : '❌'} ${ratingsResult.count || 0} migrated`, ratingsResult.success ? 'success' : 'error');
+
+                if (allSuccess) {
+                    log('✅ All migrations completed successfully!', 'success');
+                    statusEl.className = 'status success';
+                    statusEl.innerHTML = '<strong>✅ Migration Complete!</strong><br>You can now delete the old collections using the button above.';
+                    deleteBtn.disabled = false;
+                } else {
+                    log('⚠️ Some migrations failed. Please check the errors above.', 'error');
+                    statusEl.className = 'status error';
+                    statusEl.innerHTML = '<strong>❌ Migration Failed</strong><br>Some migrations failed. Old collections will not be deleted. Check the log above.';
+                }
+            } catch (error) {
+                log(`💥 Fatal error: ${error.message}`, 'error');
+                statusEl.className = 'status error';
+                statusEl.innerHTML = `<strong>❌ Fatal Error</strong><br>${error.message}`;
+            } finally {
+                migrateBtn.disabled = false;
+            }
+        };
+
+        async function migrateVideoData() {
+            log('📹 Migrating video data...', 'info');
+            
+            try {
+                const videosSnapshot = await getDocs(collection(db, 'wigtube_data'));
+                
+                if (videosSnapshot.empty) {
+                    log('  ℹ️  No video data found', 'warning');
+                    return { success: true, count: 0 };
+                }
+                
+                const videos = {};
+                let count = 0;
+                
+                videosSnapshot.forEach(docSnap => {
+                    videos[docSnap.id] = docSnap.data();
+                    count++;
+                    log(`  ✓ Loaded video: ${docSnap.id}`, 'info');
+                });
+                
+                await setDoc(doc(db, 'wigtube', 'data'), { videos }, { merge: true });
+                log(`  ✅ Migrated ${count} videos`, 'success');
+                return { success: true, count };
+                
+            } catch (error) {
+                log(`  ❌ Error: ${error.message}`, 'error');
+                return { success: false, error };
+            }
+        }
+
+        async function migrateComments() {
+            log('💬 Migrating comments...', 'info');
+            
+            try {
+                const commentsSnapshot = await getDocs(collection(db, 'wigtube_comments'));
+                
+                if (commentsSnapshot.empty) {
+                    log('  ℹ️  No comments found', 'warning');
+                    return { success: true, count: 0 };
+                }
+                
+                const comments = {};
+                let count = 0;
+                
+                commentsSnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const videoId = data.videoId;
+                    
+                    if (!videoId) {
+                        log(`  ⚠️  Comment ${docSnap.id} has no videoId`, 'warning');
+                        return;
+                    }
+                    
+                    if (!comments[videoId]) comments[videoId] = [];
+                    
+                    comments[videoId].push({ id: docSnap.id, ...data });
+                    count++;
+                });
+                
+                for (const videoId in comments) {
+                    comments[videoId].sort((a, b) => {
+                        const timeA = a.timestamp?.seconds || 0;
+                        const timeB = b.timestamp?.seconds || 0;
+                        return timeB - timeA;
+                    });
+                    log(`  ✓ Loaded ${comments[videoId].length} comments for: ${videoId}`, 'info');
+                }
+                
+                await setDoc(doc(db, 'wigtube', 'wigtube_comments'), { comments }, { merge: true });
+                log(`  ✅ Migrated ${count} comments`, 'success');
+                return { success: true, count };
+                
+            } catch (error) {
+                log(`  ❌ Error: ${error.message}`, 'error');
+                return { success: false, error };
+            }
+        }
+
+        async function migrateRatings() {
+            log('⭐ Migrating ratings...', 'info');
+            
+            try {
+                const ratingsSnapshot = await getDocs(collection(db, 'wigtube_user_ratings'));
+                
+                if (ratingsSnapshot.empty) {
+                    log('  ℹ️  No ratings found', 'warning');
+                    return { success: true, count: 0 };
+                }
+                
+                const ratings = {};
+                let count = 0;
+                
+                ratingsSnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const videoId = data.videoId;
+                    const userId = data.userId || 'anonymous';
+                    
+                    if (!videoId || data.rating === undefined) {
+                        log(`  ⚠️  Rating ${docSnap.id} missing data`, 'warning');
+                        return;
+                    }
+                    
+                    if (!ratings[videoId]) ratings[videoId] = {};
+                    ratings[videoId][userId] = data.rating;
+                    count++;
+                });
+                
+                for (const videoId in ratings) {
+                    const ratingCount = Object.keys(ratings[videoId]).length;
+                    log(`  ✓ Loaded ${ratingCount} ratings for: ${videoId}`, 'info');
+                }
+                
+                await setDoc(doc(db, 'wigtube', 'user_ratings'), { ratings }, { merge: true });
+                log(`  ✅ Migrated ${count} ratings`, 'success');
+                return { success: true, count };
+                
+            } catch (error) {
+                log(`  ❌ Error: ${error.message}`, 'error');
+                return { success: false, error };
+            }
+        }
+
+        window.deleteOldCollections = async function() {
+            if (!confirm('⚠️ Are you ABSOLUTELY SURE you want to delete the old collections?\n\nThis cannot be undone!')) {
+                return;
+            }
+
+            deleteBtn.disabled = true;
+            log('🗑️  Deleting old collections...', 'warning');
+
+            const collections = ['wigtube_data', 'wigtube_comments', 'wigtube_user_ratings'];
+
+            for (const collectionName of collections) {
+                try {
+                    log(`  Deleting ${collectionName}...`, 'info');
+                    const snapshot = await getDocs(collection(db, collectionName));
+                    
+                    if (snapshot.empty) {
+                        log(`  ℹ️  ${collectionName} is already empty`, 'info');
+                        continue;
+                    }
+                    
+                    const batch = writeBatch(db);
+                    let count = 0;
+                    
+                    snapshot.forEach(docSnap => {
+                        batch.delete(docSnap.ref);
+                        count++;
+                    });
+                    
+                    await batch.commit();
+                    log(`  ✅ Deleted ${count} documents from ${collectionName}`, 'success');
+                    
+                } catch (error) {
+                    log(`  ❌ Error deleting ${collectionName}: ${error.message}`, 'error');
+                }
+            }
+
+            log('🎉 Old collections deleted!', 'success');
+            statusEl.className = 'status success';
+            statusEl.innerHTML = '<strong>🎉 Complete!</strong><br>Migration finished and old collections have been deleted.';
+        };
+    </script>
+</body>
+</html>

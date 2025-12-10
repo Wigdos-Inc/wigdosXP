@@ -147,6 +147,93 @@ function getUser() {
     return localStorage.getItem("username") || 'guest';
 }
 
+// Profile Picture Management
+function getUserProfilePicture(username) {
+    if (!username || username === 'guest') {
+        return null;
+    }
+    // Get from localStorage cache first
+    const cached = localStorage.getItem(`pfp_${username}`);
+    if (cached) {
+        return cached;
+    }
+    return null;
+}
+
+async function setUserProfilePicture(imageDataUrl) {
+    const username = getUser();
+    if (!username || username === 'guest') {
+        return false;
+    }
+    
+    try {
+        // Save to localStorage cache
+        localStorage.setItem(`pfp_${username}`, imageDataUrl);
+        
+        // Save to Firebase if available
+        if (window.firebaseAPI && window.firebaseAPI.db && window.firebaseOnline) {
+            const { doc, setDoc } = window.firebaseAPI;
+            await setDoc(doc(window.firebaseAPI.db, "users", username), {
+                profilePicture: imageDataUrl
+            }, { merge: true });
+            console.log('Profile picture saved to Firebase');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error setting profile picture:', error);
+        return false;
+    }
+}
+
+async function loadUserProfilePicture(username) {
+    if (!username || username === 'guest') {
+        return null;
+    }
+    
+    // Try Firebase first if available
+    if (window.firebaseAPI && window.firebaseAPI.db && window.firebaseOnline) {
+        try {
+            const { doc, getDoc } = window.firebaseAPI;
+            const userDoc = await getDoc(doc(window.firebaseAPI.db, "users", username));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if (data.profilePicture) {
+                    // Cache it locally
+                    localStorage.setItem(`pfp_${username}`, data.profilePicture);
+                    return data.profilePicture;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile picture from Firebase:', error);
+        }
+    }
+    
+    // Fallback to localStorage cache
+    return getUserProfilePicture(username);
+}
+
+// Update all visible comment profile pictures for a specific user
+function updateCommentProfilePictures(username, newPfpUrl) {
+    if (!username || !newPfpUrl) return;
+    
+    // Find all comment elements for this user
+    const comments = document.querySelectorAll('.comment');
+    comments.forEach(comment => {
+        const authorElement = comment.querySelector('.comment-author');
+        if (authorElement && authorElement.textContent === username) {
+            // Find the profile picture in the comment header
+            const commentHeader = comment.querySelector('.comment-header');
+            if (commentHeader) {
+                const pfpImg = commentHeader.querySelector('img');
+                if (pfpImg) {
+                    pfpImg.src = newPfpUrl;
+                }
+            }
+        }
+    });
+}
+
 
 
 // Catch errors for further handling if needed
