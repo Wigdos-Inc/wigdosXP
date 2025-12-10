@@ -88,8 +88,12 @@ const applications = {
         false, 
         ["internal", "apps/"]
     ),
-
-
+    saveEditor: new Application(
+        ["save-editor", "Wigdos Save Editor"], 
+        "",
+        false, 
+        ["internal", "apps/save-editor/"],
+    ),
 
     /* EXTERNAL */
     feddy1: new Application(
@@ -161,7 +165,8 @@ const applications = {
         ["sm64", "Mario 64", "Super Mario 64"],
         "other",
         true, 
-        ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"]
+        ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"],
+        true
     ),
 
     hlf: new Application(
