@@ -275,7 +275,11 @@ function desktopFill(type, layout) {
                         for (let col=0; col < dkGridArray[row].length; col++) {
 
                             const appID = grid[row][col];
-                            if (appID) dkGridArray[row][col].attach(applications[appID]);
+                            if (appID) {
+                                // Support both application map keys and stored app.name.s strings
+                                const appObj = applications[appID] || Object.values(applications).find(a => a && a.name && a.name.s === appID);
+                                if (appObj) dkGridArray[row][col].attach(appObj);
+                            }
                             else if (newApps.i < newApps.a.length) {
 
                                 // Attach New App
@@ -298,8 +302,9 @@ function desktopFill(type, layout) {
                     for (let row=0; row < dkGridArray.length; row++) {
                         for (let col=0; col < dkGridArray[row].length; col++) {
                             const appID = grid[row] && grid[row][col];
-                            if (appID && applications[appID]) {
-                                dkGridArray[row][col].attach(applications[appID]);
+                            if (appID) {
+                                const appObj = applications[appID] || Object.values(applications).find(a => a && a.name && a.name.s === appID);
+                                if (appObj) dkGridArray[row][col].attach(appObj);
                             }
                         }
                     }

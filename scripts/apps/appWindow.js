@@ -25,7 +25,8 @@ const SAVE_CONFIG = {
 const ALLOWED_ORIGINS = [
     window.location.origin,
     'https://wigdos-inc.github.io',
-    '*'
+    '*',
+    "https://danie-glr.github.io"
 ];
 
 // ============================================================================
@@ -108,6 +109,137 @@ function unwrapSaveData(wrapped) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Attempt to delete all IndexedDB databases accessible from a given window
+async function clearIndexedDBInWindow(win) {
+    try {
+        const idb = win.indexedDB;
+        if (!idb) return false;
+
+        // If the browser supports listing databases, use it to delete each one
+        if (typeof idb.databases === 'function') {
+            const dbs = await idb.databases();
+            await Promise.all(dbs.map(dbInfo => {
+                if (!dbInfo || !dbInfo.name) return Promise.resolve(false);
+                return new Promise((resolve) => {
+                    try {
+                        const req = idb.deleteDatabase(dbInfo.name);
+                        req.onsuccess = () => resolve(true);
+                        req.onerror = () => resolve(false);
+                        req.onblocked = () => resolve(false);
+                    } catch (e) {
+                        resolve(false);
+                    }
+                });
+            }));
+            return true;
+        }
+
+        // Fallback: try deleting a couple of likely database names
+        const guesses = ['files', 'game_data', 'wigdosxp', 'wigtube'];
+        await Promise.all(guesses.map(name => new Promise((resolve) => {
+            try {
+                const req = idb.deleteDatabase(name);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => resolve(false);
+                req.onblocked = () => resolve(false);
+            } catch (e) {
+                resolve(false);
+            }
+        })));
+
+        return true;
+    } catch (e) {
+        Logger.warn('SaveSystem', 'IndexedDB clear failed', e);
+        return false;
+    }
+}
+
+// Clear iframe storage: tries direct access for same-origin, otherwise uses postMessage
+async function clearIframeStorageBeforeClose(iframe, gameId) {
+    if (!iframe) return false;
+
+    let iframeOrigin = '*';
+    try {
+        iframeOrigin = new URL(iframe.src).origin;
+    } catch (e) {
+        iframeOrigin = '*';
+    }
+
+    const isSameOrigin = (() => {
+        try {
+            return iframeOrigin === window.location.origin;
+        } catch (e) {
+            return false;
+        }
+    })();
+
+    if (isSameOrigin) {
+        try {
+            try {
+                if (iframe.contentWindow && iframe.contentWindow.localStorage) {
+                    iframe.contentWindow.localStorage.clear();
+                    Logger.debug('SaveSystem', `Cleared localStorage for ${gameId}`);
+                }
+            } catch (e) {
+                Logger.warn('SaveSystem', 'Failed to clear iframe localStorage', e);
+            }
+
+            // Attempt to clear IndexedDB from the iframe's window context
+            const cleared = await clearIndexedDBInWindow(iframe.contentWindow);
+            Logger.debug('SaveSystem', `IndexedDB clear ${cleared ? 'attempted' : 'skipped'} for ${gameId}`);
+            return true;
+        } catch (e) {
+            Logger.warn('SaveSystem', `Failed to clear same-origin storage for ${gameId}`, e);
+            return false;
+        }
+    }
+
+    // Cross-origin: send a postMessage request and wait for a response
+    return new Promise((resolve) => {
+        const messageId = `clear_${gameId}_${Date.now()}`;
+
+        const handleResponse = (event) => {
+            // allow wildcard origins if iframeOrigin is '*'
+            if (iframeOrigin !== '*' && event.origin !== iframeOrigin) return;
+
+            if (event.data && event.data.type === 'clearAllStorageResponse' && event.data.messageId === messageId) {
+                window.removeEventListener('message', handleResponse);
+                Logger.debug('SaveSystem', `Clear storage response received for ${gameId}`, event.data);
+                resolve(event.data.success === true);
+            }
+        };
+
+        window.addEventListener('message', handleResponse);
+
+        try {
+            iframe.contentWindow.postMessage({
+                type: 'clearAllStorageRequest',
+                gameId: gameId,
+                messageId: messageId
+            }, iframeOrigin);
+        } catch (err) {
+            Logger.warn('SaveSystem', 'postMessage clear request failed, falling back to "*"', err);
+            try {
+                iframe.contentWindow.postMessage({
+                    type: 'clearAllStorageRequest',
+                    gameId: gameId,
+                    messageId: messageId
+                }, '*');
+            } catch (e) {
+                Logger.error('SaveSystem', 'All postMessage clear attempts failed', e);
+                window.removeEventListener('message', handleResponse);
+                resolve(false);
+            }
+        }
+
+        setTimeout(() => {
+            window.removeEventListener('message', handleResponse);
+            Logger.warn('SaveSystem', `Clear storage timeout for ${gameId}`);
+            resolve(false);
+        }, SAVE_CONFIG.timeout);
+    });
 }
 
 // ============================================================================
@@ -475,8 +607,16 @@ class AppWindow {
 
     closeSameOrigin() {
         pushIframeSaveToFirestore(this.app.name.s, this.iframe)
-            .then(saved => {
-                if (saved) Logger.debug('SaveSystem', `Game data saved for ${this.app.name.s}`);
+            .then(async (saved) => {
+                if (saved) {
+                    Logger.debug('SaveSystem', `Game data saved for ${this.app.name.s}`);
+                    try {
+                        const cleared = await clearIframeStorageBeforeClose(this.iframe, this.app.name.s);
+                        Logger.debug('SaveSystem', `Cleared storage before close for ${this.app.name.s}: ${cleared}`);
+                    } catch (e) {
+                        Logger.warn('SaveSystem', `Failed to clear storage before close for ${this.app.name.s}`, e);
+                    }
+                }
             })
             .catch(err => Logger.error('SaveSystem', 'Save failed', err))
             .finally(() => {
@@ -505,8 +645,16 @@ class AppWindow {
         }
 
         pushIframeSaveToFirestore(this.app.name.s, this.iframe)
-            .then(saved => {
-                if (saved) Logger.debug('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
+            .then(async (saved) => {
+                if (saved) {
+                    Logger.debug('SaveSystem', `Cross-origin game data saved for ${this.app.name.s}`);
+                    try {
+                        const cleared = await clearIframeStorageBeforeClose(this.iframe, this.app.name.s);
+                        Logger.debug('SaveSystem', `Cleared storage before close for ${this.app.name.s}: ${cleared}`);
+                    } catch (e) {
+                        Logger.warn('SaveSystem', `Failed to clear storage before close for ${this.app.name.s}`, e);
+                    }
+                }
             })
             .catch(err => Logger.error('SaveSystem', 'Background save failed', err))
             .finally(() => {
@@ -1169,6 +1317,90 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'wigdosxp-integration-ready') {
         Logger.debug('SaveSystem', 'Game integration ready', event.data.gameId);
     }
+    
+    if (event.data && event.data.type === 'admin_get_all_saves') {
+        const messageId = event.data.messageId;
+        (async () => {
+            try {
+                const user = localStorage.getItem('username') || 'guest';
+                const api = window.firebaseAPI;
+                if (user === 'guest' || !api || !api.db) {
+                    event.source.postMessage({
+                        type: 'admin_all_saves',
+                        messageId,
+                        user,
+                        savesDoc: {}
+                    }, event.origin);
+                    return;
+                }
+
+                const userDoc = await api.getDoc(api.doc(api.db, 'game_saves', user));
+                const savesDoc = userDoc.exists() ? userDoc.data() : {};
+                event.source.postMessage({
+                    type: 'admin_all_saves',
+                    messageId,
+                    user,
+                    savesDoc
+                }, event.origin);
+            } catch (err) {
+                event.source.postMessage({
+                    type: 'admin_all_saves',
+                    messageId,
+                    user: localStorage.getItem('username') || 'guest',
+                    savesDoc: {},
+                    error: err && err.message ? err.message : String(err)
+                }, event.origin);
+            }
+        })();
+        return;
+    }
+
+    if (event.data && event.data.type === 'admin_set_wrapped_save') {
+        const messageId = event.data.messageId;
+        const { gameId, wrappedString } = event.data || {};
+        (async () => {
+            try {
+                const user = localStorage.getItem('username') || 'guest';
+                const api = window.firebaseAPI;
+                if (user === 'guest' || !api || !api.db) {
+                    event.source.postMessage({
+                        type: 'admin_set_wrapped_save_response',
+                        messageId,
+                        success: false,
+                        error: 'unauthorized or firebase unavailable'
+                    }, event.origin);
+                    return;
+                }
+
+                if (!gameId || typeof wrappedString !== 'string') {
+                    event.source.postMessage({
+                        type: 'admin_set_wrapped_save_response',
+                        messageId,
+                        success: false,
+                        error: 'missing gameId or wrappedString'
+                    }, event.origin);
+                    return;
+                }
+
+                await api.setDoc(api.doc(api.db, 'game_saves', user), { [gameId]: wrappedString }, { merge: true });
+
+                event.source.postMessage({
+                    type: 'admin_set_wrapped_save_response',
+                    messageId,
+                    success: true
+                }, event.origin);
+            } catch (err) {
+                event.source.postMessage({
+                    type: 'admin_set_wrapped_save_response',
+                    messageId,
+                    success: false,
+                    error: err && err.message ? err.message : String(err)
+                }, event.origin);
+            }
+        })();
+        return;
+    }
+
 });
 
 async function handleInitialSaveDataRequest(event) {

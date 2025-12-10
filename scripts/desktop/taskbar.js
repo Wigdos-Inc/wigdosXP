@@ -346,7 +346,9 @@ function renderPinnedIcons(){
 
     pinned.forEach(id => {
         try {
-            const app = applications[id];
+            // Support layout entries that are either application object keys (e.g. 'saveEditor')
+            // or stored `app.name.s` values (e.g. 'save-editor'). Resolve accordingly.
+            const app = applications[id] || Object.values(applications).find(a => a && a.name && a.name.s === id);
             if (!app) return;
             const el = document.createElement('div');
             el.classList.add('qa_icon');
@@ -1290,10 +1292,10 @@ function createStartMenu() {
             leftTitle.style.display = 'block';
             rightTitle.style.display = 'block';
             
-            // LEFT: Pinned apps
-            const pinnedIds = getStartMenuPinned();
-            smLog('Pinned IDs:', pinnedIds);
-            const pinnedApps = pinnedIds.map(id => allApps.find(a => a.id === id)).filter(a => a);
+                    // LEFT: Pinned apps
+                    const pinnedIds = getStartMenuPinned();
+                    smLog('Pinned IDs:', pinnedIds);
+                    const pinnedApps = pinnedIds.map(id => allApps.find(a => a.id === id || (a.app && a.app.name && a.app.name.s === id))).filter(a => a);
             smLog('Pinned apps resolved:', pinnedApps.length, pinnedApps.map(a => a.name));
             
             if (pinnedApps.length === 0) {
@@ -1344,7 +1346,7 @@ function createStartMenu() {
             // RIGHT: Recent apps
             const recentIds = getRecentApps();
             smLog('Recent IDs:', recentIds);
-            const recentApps = recentIds.map(id => allApps.find(a => a.id === id)).filter(a => a);
+            const recentApps = recentIds.map(id => allApps.find(a => a.id === id || (a.app && a.app.name && a.app.name.s === id))).filter(a => a);
             smLog('Recent apps resolved:', recentApps.length, recentApps.map(a => a.name));
             
             if (recentApps.length === 0) {

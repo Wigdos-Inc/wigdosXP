@@ -88,8 +88,12 @@ const applications = {
         false, 
         ["internal", "apps/"]
     ),
-
-
+    saveEditor: new Application(
+        ["save-editor", "Wigdos Save Editor"], 
+        "",
+        false, 
+        ["internal", "apps/save-editor/"],
+    ),
 
     /* EXTERNAL */
     feddy1: new Application(
@@ -161,25 +165,20 @@ const applications = {
         ["sm64", "Mario 64", "Super Mario 64"],
         "other",
         true, 
-        ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"]
-    ),
-
-    hlf: new Application(
-        ["hlf", "Half-Life"],
-        "other",
-        true,
-        ["external", "https://102462-p.github.io/repo0.github.io/"]
+        ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"],
+        true
     ),
 
 
 
-    /* SPECIAL */
+    /* INTERNAL-GAMES (Repository) */
     bombs: new Application(
         ["bombs", "Wigsplosionator"],
         "",
         true, 
         ["internal", "apps/bombs/"]
     ),
+    
     su: new Application(
         ["su", "Singular Upgrading"],
         "other",
@@ -187,29 +186,55 @@ const applications = {
         ["internal", "apps/su/"],
         true
     ),
+    
     breakout: new Application(
         ["breakout", "Breakout"],
         "other",
         false,
         ["internal", "apps/games/"]
     ),
+    
     sublimator: new Application(
         ["sublimator", "Sublimator"],
         "other",
         false,
         ["internal", "apps/games/"]
     ),
+    
+    hlf: new Application(
+        ["hlf", "Half-Life"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/halflife/"]
+    ),
+    
     jeff: new Application(
         ["jeff", "Super Jeff"],
         "other",
         true,
-        ["external", "https://102462-p.github.io/repo0.github.io/superjeff/"]
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/superjeff/"]
     ),
+    
+    gJeff: new Application(
+        ["gJeff", "Super Jeff 2 Galaxy Jeff"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/galaxyjeff/"]
+    ),
+    
     pHub: new Application(
         ["pHub", "PokeHub"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/PokeHub/"]
+    ),
+
+    /* INTERNAL-APPS (Repository) */
+    cmd: new Application(
+        ["cmd", "Terminal"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/WdosCMD/wingDosCMD.html"]
     )
 }
 

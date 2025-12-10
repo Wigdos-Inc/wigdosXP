@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Wigdos Save Editor</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="../../styles/apps/save-editor/save-editor.css"/>
+</head>
+<body>
+  <h1>Wigdos Save Editor</h1>
+  <div id="status">Waiting for parent...</div>
+  <div id="controls" style="display:none">
+    <button id="refreshBtn">Refresh saves from parent</button>
+    <select id="gameSelect"></select>
+    <button id="loadBtn">Load wrapped save</button>
+    <button id="downloadBtn">Download JSON</button>
+    <div id="keysWrap" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- Modal editor for editing file contents -->
+  <div id="se-modal" class="se-modal" style="display:none">
+    <div class="se-modal-backdrop"></div>
+    <div class="se-modal-panel">
+      <h2 id="se-modal-title">Edit</h2>
+      <textarea id="se-modal-textarea" spellcheck="false"></textarea>
+      <div class="se-modal-actions">
+        <button id="se-modal-save">Save Key</button>
+        <button id="se-modal-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../scripts/apps/save-editor/save-editor.js"></script>
+</body>
+</html>
