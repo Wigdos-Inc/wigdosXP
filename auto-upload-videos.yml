@@ -1,0 +1,71 @@
+name: Auto-Upload Videos to Server
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'videos/**'
+      - 'apps/wigtube/videos/**'
+
+jobs:
+  upload-videos:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Get changed video files
+        id: changed-files
+        run: |
+          echo "Getting changed files in videos folder..."
+          git diff --name-only HEAD^ HEAD | grep -E '^(videos/|apps/wigtube/videos/)' | grep -E '\.(mp4|avi|mov|wmv|flv|mkv|webm)$' > changed_videos.txt || true
+          
+          if [ -s changed_videos.txt ]; then
+            echo "has_videos=true" >> $GITHUB_OUTPUT
+            echo "Changed videos:"
+            cat changed_videos.txt
+          else
+            echo "has_videos=false" >> $GITHUB_OUTPUT
+            echo "No video files changed"
+          fi
+      
+      - name: Upload videos to server
+        if: steps.changed-files.outputs.has_videos == 'true'
+        env:
+          UPLOAD_SERVER_URL: ${{ secrets.UPLOAD_SERVER_URL }}
+        run: |
+          echo "🚀 Starting automatic video upload..."
+          
+          # Default URL if secret not set
+          SERVER_URL="${UPLOAD_SERVER_URL:-https://cuddly-dollop-pjpjr7x7j9qxf9p7q.github.dev/api/upload}"
+          
+          while IFS= read -r video_file; do
+            if [ -f "$video_file" ]; then
+              echo "📤 Uploading: $video_file"
+              
+              # Upload the video file
+              response=$(curl -X POST "$SERVER_URL" \
+                -F "video=@$video_file" \
+                -w "\n%{http_code}" \
+                -s)
+              
+              http_code=$(echo "$response" | tail -n1)
+              body=$(echo "$response" | sed '$d')
+              
+              if [ "$http_code" = "200" ]; then
+                echo "✅ Successfully uploaded: $video_file"
+                echo "$body" | jq '.' || echo "$body"
+              else
+                echo "❌ Failed to upload: $video_file (HTTP $http_code)"
+                echo "$body"
+              fi
+            else
+              echo "⚠️  File not found: $video_file"
+            fi
+          done < changed_videos.txt
+          
+          echo "🎉 All videos processed!"

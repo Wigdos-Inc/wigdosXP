@@ -25,6 +25,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 /**
  * Move uploaded file to external repository and commit
+ * Note: Push may fail in Codespaces due to token permissions
  */
 function moveToExternalRepoAndCommit(fileName) {
     try {
@@ -52,30 +53,51 @@ function moveToExternalRepoAndCommit(fileName) {
         fs.copyFileSync(sourcePath, destPath);
         console.log(`✅ File copied to: ${destPath}`);
         
-        // Git operations
+        // Git operations - commit locally (push may fail due to Codespaces permissions)
         console.log(`📝 Running git commands...`);
         
-        const gitCommands = [
+        const commitCommands = [
             `cd "${EXTERNAL_REPO_PATH}"`,
             `git add videos/${fileName}`,
-            `git commit -m "Add video: ${fileName}"`,
-            `git push origin main`
+            `git commit -m "Add video: ${fileName}"`
         ].join(' && ');
         
-        const output = execSync(gitCommands, { 
-            stdio: 'pipe',
-            encoding: 'utf8'
-        });
+        try {
+            const commitOutput = execSync(commitCommands, { 
+                stdio: 'pipe',
+                encoding: 'utf8'
+            });
+            console.log(`✅ Git commit successful:\n${commitOutput}`);
+            
+            // Try to push, but don't fail if it doesn't work
+            console.log(`📤 Attempting to push to remote...`);
+            try {
+                const pushOutput = execSync(`cd "${EXTERNAL_REPO_PATH}" && git push origin main`, {
+                    stdio: 'pipe',
+                    encoding: 'utf8',
+                    timeout: 10000
+                });
+                console.log(`✅ Push successful!`);
+                console.log(`========================================\n`);
+                
+                // Remove temp file after successful push
+                fs.unlinkSync(sourcePath);
+                console.log(`🗑️  Removed temp file: ${sourcePath}`);
+                return true;
+            } catch (pushError) {
+                console.warn(`⚠️  Push failed (Codespaces token limitation): ${pushError.message}`);
+                console.log(`📋 Manual push required:`);
+                console.log(`   cd /workspaces/Videoswigtube-EEEEEE`);
+                console.log(`   git push origin main`);
+                console.log(`========================================\n`);
+                
+                // Keep temp file since push failed
+                return false;
+            }
+        } catch (commitError) {
+            throw new Error(`Git commit failed: ${commitError.message}`);
+        }
         
-        console.log(`📤 Git output:\n${output}`);
-        console.log(`✅ Git: ${fileName} committed and pushed successfully`);
-        
-        // Remove from temp directory after successful push
-        fs.unlinkSync(sourcePath);
-        console.log(`🗑️  Removed temp file: ${sourcePath}`);
-        console.log(`========================================\n`);
-        
-        return true;
     } catch (error) {
         console.error(`\n❌❌❌ ERROR in moveToExternalRepoAndCommit ❌❌❌`);
         console.error(`File: ${fileName}`);
