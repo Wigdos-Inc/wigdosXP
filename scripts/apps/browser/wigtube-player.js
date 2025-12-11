@@ -535,10 +535,41 @@ async function initializePlayer() {
 
 async function loadVideo(videoId) {
     debugLog('loadVideo: Starting for', videoId);
-    const video = videoData[videoId];
+    let video = videoData[videoId];
+    
+    // If video not found in local data, try to fetch from WigTubeDB
+    if (!video && typeof WigTubeDB !== 'undefined') {
+        debugLog('loadVideo: Video not in local data, fetching from WigTubeDB');
+        try {
+            const dbVideo = await WigTubeDB.getVideoById(videoId);
+            if (dbVideo) {
+                // Convert DB format to player format
+                video = {
+                    title: dbVideo.title,
+                    uploader: dbVideo.uploaderName || dbVideo.uploaderId,
+                    uploadDate: typeof WigTubeDB.formatTimestamp === 'function' ? 
+                        WigTubeDB.formatTimestamp(dbVideo.uploadDate) : 'Recently',
+                    duration: dbVideo.duration,
+                    views: typeof WigTubeDB.formatViewCount === 'function' ? 
+                        WigTubeDB.formatViewCount(dbVideo.viewCount || 0) : '0 views',
+                    rating: '☆☆☆☆☆',
+                    ratingCount: 0,
+                    description: dbVideo.description || 'No description available',
+                    videoFile: dbVideo.videoUrl,
+                    thumbnail: dbVideo.thumbnail
+                };
+                debugLog('loadVideo: Video loaded from WigTubeDB', video);
+            }
+        } catch (error) {
+            console.error('Error fetching video from WigTubeDB:', error);
+            debugLog('loadVideo: ERROR fetching from WigTubeDB', error);
+        }
+    }
+    
     if (!video) {
         console.error('Video not found:', videoId);
         debugLog('loadVideo: ERROR - Video data not found for', videoId);
+        alert('Video not found! The video may have been deleted or does not exist.');
         return;
     }
     
@@ -773,6 +804,14 @@ function playVideo() {
     const playPauseBtn = document.getElementById('playPauseBtn');
     const statusText = document.getElementById('statusText');
     
+    // Check if currentVideo is loaded
+    if (!currentVideo) {
+        console.error('No video loaded');
+        debugLog('playVideo: ERROR - No current video');
+        alert('No video loaded! Please select a video to play.');
+        return;
+    }
+    
     // Hide big play button
     playButton.style.display = 'none';
     
@@ -923,6 +962,44 @@ function createVideoElement() {
     videoElement.src = currentVideo.videoFile;
     videoElement.style.cssText = 'width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 10;';
     videoElement.controls = false; // We handle controls ourselves
+    
+    // Add error handler for missing video files
+    videoElement.addEventListener('error', function(e) {
+        console.error('Video load error:', e);
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 30px;
+            border-radius: 5px;
+            text-align: center;
+            max-width: 500px;
+            font-family: Arial, sans-serif;
+            z-index: 100;
+        `;
+        
+        const fileName = currentVideo.videoFile.split('/').pop();
+        errorMsg.innerHTML = `
+            <h3 style="margin: 0 0 15px 0; color: #ff6b6b;">❌ Video File Not Found</h3>
+            <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5;">
+                The video file <strong>${fileName}</strong> hasn't been added to the repository yet.
+            </p>
+            <p style="margin: 0 0 15px 0; font-size: 12px; color: #ccc; line-height: 1.5;">
+                To make this video playable:
+            </p>
+            <ol style="text-align: left; font-size: 12px; line-height: 1.8; color: #ddd; padding-left: 20px;">
+                <li>Add the video file to: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">${currentVideo.videoFile}</code></li>
+                <li>Commit: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">git add ${currentVideo.videoFile}</code></li>
+                <li>Push: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">git push</code></li>
+            </ol>
+        `;
+        
+        videoScreen.appendChild(errorMsg);
+    });
     
     // Set initial volume from slider
     const volumeSlider = document.querySelector('.volume-slider');

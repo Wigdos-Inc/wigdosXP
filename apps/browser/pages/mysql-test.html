@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL API Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #0066cc;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e8f4f8;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.online {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.offline {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 WigTube MySQL API Test Suite</h1>
+        
+        <div id="apiStatus" class="status"></div>
+        
+        <div class="test-section">
+            <h2>1. API Health Check</h2>
+            <button onclick="testAPIHealth()">Test API Connection</button>
+            <div id="healthResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Get All Videos</h2>
+            <button onclick="testGetAllVideos()">Fetch All Videos</button>
+            <div id="videosResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. Create Test Video</h2>
+            <button onclick="testCreateVideo()">Create Test Video</button>
+            <div id="createResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. Rate Test Video</h2>
+            <button onclick="testRateVideo()">Add Test Rating</button>
+            <div id="ratingResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. WigTubeDB Integration</h2>
+            <button onclick="testWigTubeDB()">Test WigTubeDB Functions</button>
+            <div id="dbResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>6. Database Operations</h2>
+            <button onclick="runFullTest()">Run Full Test Suite</button>
+            <div id="fullTestResult" class="result"></div>
+        </div>
+    </div>
+
+    <script src="../../../scripts/apps/browser/wigtube-db-mysql.js"></script>
+    <script>
+        const API_URL = 'http://localhost:3002/api';
+        let testVideoId = null;
+        
+        // Check API status on load
+        window.addEventListener('load', async () => {
+            await checkAPIStatus();
+        });
+        
+        async function checkAPIStatus() {
+            const statusDiv = document.getElementById('apiStatus');
+            try {
+                const response = await fetch('http://localhost:3002/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.className = 'status online';
+                    statusDiv.innerHTML = `✅ API Status: <strong>ONLINE</strong> | Database: ${data.database} | Time: ${new Date(data.timestamp).toLocaleTimeString()}`;
+                } else {
+                    throw new Error('API returned non-ok status');
+                }
+            } catch (error) {
+                statusDiv.className = 'status offline';
+                statusDiv.innerHTML = `❌ API Status: <strong>OFFLINE</strong> | Error: ${error.message}`;
+            }
+        }
+        
+        async function testAPIHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:3002/health');
+                const data = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Success!</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error:</span> ${error.message}`;
+            }
+        }
+        
+        async function testGetAllVideos() {
+            const resultDiv = document.getElementById('videosResult');
+            resultDiv.textContent = 'Fetching videos...';
+            
+            try {
+                const response = await fetch(`${API_URL}/videos`);
+                const videos = await response.json();
+                resultDiv.innerHTML = `<span class="success">✅ Found ${videos.length} videos</span>\n${JSON.stringify(videos, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error:</span> ${error.message}`;
+            }
+        }
+        
+        async function testCreateVideo() {
+            const resultDiv = document.getElementById('createResult');
+            resultDiv.textContent = 'Creating test video...';
+            
+            const testVideo = {
+                title: 'Test Video ' + Date.now(),
+                description: 'This is a test video created by the MySQL API test suite',
+                uploaderId: 'testuser',
+                uploaderName: 'Test User',
+                duration: '3:45',
+                thumbnail: 'https://via.placeholder.com/320x180',
+                videoUrl: 'https://raw.githubusercontent.com/Danie-GLR/Videoswigtube-EEEEEE/main/videos/test.mp4',
+                category: 'Testing',
+                tags: ['test', 'mysql', 'api'],
+                visibility: 'public'
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/videos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testVideo)
+                });
+                const result = await response.json();
+                testVideoId = result.id;
+                resultDiv.innerHTML = `<span class="success">✅ Video created!</span>\nID: ${result.id}\n${JSON.stringify(result, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error:</span> ${error.message}`;
+            }
+        }
+        
+        async function testRateVideo() {
+            const resultDiv = document.getElementById('ratingResult');
+            
+            if (!testVideoId) {
+                resultDiv.innerHTML = '<span class="error">⚠️ Please create a test video first</span>';
+                return;
+            }
+            
+            resultDiv.textContent = 'Adding rating...';
+            
+            try {
+                const response = await fetch(`${API_URL}/videos/${testVideoId}/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: 'testuser',
+                        rating: 5
+                    })
+                });
+                const result = await response.json();
+                
+                // Fetch ratings
+                const ratingsResponse = await fetch(`${API_URL}/videos/${testVideoId}/ratings`);
+                const ratings = await ratingsResponse.json();
+                
+                resultDiv.innerHTML = `<span class="success">✅ Rating added!</span>\n${JSON.stringify(ratings, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error:</span> ${error.message}`;
+            }
+        }
+        
+        async function testWigTubeDB() {
+            const resultDiv = document.getElementById('dbResult');
+            resultDiv.textContent = 'Testing WigTubeDB integration...';
+            
+            if (typeof WigTubeDB === 'undefined') {
+                resultDiv.innerHTML = '<span class="error">❌ WigTubeDB not loaded</span>';
+                return;
+            }
+            
+            try {
+                // Test API check
+                await WigTubeDB.checkAPI();
+                const online = WigTubeDB.isOnline();
+                
+                // Test get all videos
+                const videos = await WigTubeDB.getAllVideos();
+                
+                let output = `<span class="success">✅ WigTubeDB loaded successfully</span>\n`;
+                output += `Status: ${online ? 'Online' : 'Offline'}\n`;
+                output += `Videos found: ${videos.length}\n\n`;
+                
+                if (videos.length > 0) {
+                    output += 'Sample video:\n' + JSON.stringify(videos[0], null, 2);
+                }
+                
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error:</span> ${error.message}`;
+            }
+        }
+        
+        async function runFullTest() {
+            const resultDiv = document.getElementById('fullTestResult');
+            resultDiv.innerHTML = 'Running full test suite...\n\n';
+            
+            let output = '';
+            
+            // Set a test username
+            localStorage.setItem('username', 'testuser');
+            
+            try {
+                // Test 1: Create video
+                output += '1️⃣ Creating video...\n';
+                const videoData = {
+                    title: 'Full Test Video ' + Date.now(),
+                    description: 'Created by full test suite',
+                    uploaderId: 'testuser',
+                    uploaderName: 'Test User',
+                    duration: '5:00',
+                    thumbnail: 'https://via.placeholder.com/640x360',
+                    videoUrl: 'https://example.com/test.mp4',
+                    category: 'Testing',
+                    tags: ['fulltest', 'mysql'],
+                    visibility: 'public'
+                };
+                
+                const videoId = await WigTubeDB.createVideo(videoData);
+                output += `   ✅ Video created: ${videoId}\n\n`;
+                
+                // Test 2: Fetch video
+                output += '2️⃣ Fetching video...\n';
+                const video = await WigTubeDB.getVideoById(videoId);
+                output += `   ✅ Video fetched: ${video.title}\n\n`;
+                
+                // Test 3: Add rating
+                output += '3️⃣ Adding rating...\n';
+                await WigTubeDB.addRating(videoId, 4);
+                output += `   ✅ Rating added: 4 stars\n\n`;
+                
+                // Test 4: Get rating
+                output += '4️⃣ Getting rating...\n';
+                const rating = await WigTubeDB.getUserRating(videoId);
+                output += `   ✅ User rating: ${rating}\n\n`;
+                
+                // Test 5: Increment views
+                output += '5️⃣ Incrementing views...\n';
+                await WigTubeDB.incrementViewCount(videoId);
+                await WigTubeDB.incrementViewCount(videoId);
+                output += `   ✅ View count incremented\n\n`;
+                
+                // Test 6: Get all videos
+                output += '6️⃣ Getting all videos...\n';
+                const allVideos = await WigTubeDB.getAllVideos();
+                output += `   ✅ Found ${allVideos.length} videos\n\n`;
+                
+                // Test 7: Search
+                output += '7️⃣ Searching videos...\n';
+                const searchResults = await WigTubeDB.searchVideos('test');
+                output += `   ✅ Found ${searchResults.length} results\n\n`;
+                
+                // Test 8: Delete video
+                output += '8️⃣ Deleting test video...\n';
+                await WigTubeDB.deleteVideo(videoId);
+                output += `   ✅ Video deleted\n\n`;
+                
+                output += '\n🎉 <span class="success">All tests passed!</span>';
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                output += `\n<span class="error">❌ Test failed: ${error.message}</span>`;
+                resultDiv.innerHTML = output;
+                console.error('Test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

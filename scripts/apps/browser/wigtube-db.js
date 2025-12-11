@@ -153,35 +153,25 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            debugLog('getAllVideos: Querying Firestore');
-            const { doc, getDoc } = window.firebaseAPI;
+            debugLog('getAllVideos: Querying Firestore subcollection');
+            const { collection, getDocs, query, where, orderBy } = window.firebaseAPI;
             
-            const docRef = doc(db, COLLECTION, DATA_DOC);
-            const docSnap = await getDoc(docRef);
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const q = query(videosCollectionRef, where('visibility', '==', 'public'));
+            const querySnapshot = await getDocs(q);
             
-            if (!docSnap.exists()) {
-                debugLog('getAllVideos: No data document found');
-                return [];
-            }
-            
-            const data = docSnap.data();
-            const videosMap = data.videos || {};
             const videos = [];
-            
-            // Convert map to array and filter by visibility
-            for (const [videoId, videoData] of Object.entries(videosMap)) {
-                if (videoData.visibility === 'public') {
-                    videos.push({
-                        id: videoId,
-                        ...videoData
-                    });
-                }
-            }
+            querySnapshot.forEach((doc) => {
+                videos.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
             
             // Sort by upload date
             videos.sort((a, b) => {
-                const dateA = new Date(a.uploadDate || 0);
-                const dateB = new Date(b.uploadDate || 0);
+                const dateA = a.uploadDate || 0;
+                const dateB = b.uploadDate || 0;
                 return dateB - dateA;
             });
 
@@ -197,6 +187,16 @@ window.WigTubeDB = (function() {
     }
 
     /**
+     * Get videos by uploader
+     */
+    async function getVideosByUploader(uploaderId) {
+        const allVideos = await getAllVideos();
+        return allVideos.filter(video => 
+            video.uploaderId === uploaderId || video.uploaderName === uploaderId
+        );
+    }
+
+    /**
      * Get a single video by ID
      */
     async function getVideoById(videoId) {
@@ -209,36 +209,25 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            console.debug('[WigTubeDB] getVideoById: Fetching from Firebase for:', videoId);
-            const { doc, getDoc } = window.firebaseAPI;
-            const docRef = doc(db, COLLECTION, DATA_DOC);
-            console.debug('[WigTubeDB] Reading document: wigtube/data');
-            const docSnap = await getDoc(docRef);
+            console.debug('[WigTubeDB] getVideoById: Fetching from subcollection for:', videoId);
+            const { doc, getDoc, collection } = window.firebaseAPI;
             
-            if (!docSnap.exists()) {
-                debugLog(`getVideoById: Video ${videoId} not found in Firestore, checking offline`);
-                console.debug('[WigTubeDB] Data document does not exist, checking offline');
-                console.log('Video not found in Firestore, checking offline data');
-                const offlineData = getOfflineData();
-                return offlineData.videos?.[videoId] || null;
-            }
-
-            const data = docSnap.data();
-            const videos = data.videos || {};
-            console.debug('[WigTubeDB] Data document exists, checking for video:', videoId);
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
+            const docSnap = await getDoc(videoDocRef);
             
-            if (videos[videoId]) {
+            if (docSnap.exists()) {
                 const videoData = {
                     id: videoId,
-                    ...videos[videoId]
+                    ...docSnap.data()
                 };
                 debugLog(`getVideoById: Retrieved video ${videoId} from Firestore`, videoData);
-                console.debug('[WigTubeDB] Video found:', videoId, 'viewCount:', videos[videoId].viewCount, 'rating:', videos[videoId].ratingAverage);
+                console.debug('[WigTubeDB] Video found:', videoId);
                 return videoData;
             }
             
-            debugLog(`getVideoById: Video ${videoId} not found in videos map`);
-            console.debug('[WigTubeDB] Video not found in map, checking offline');
+            debugLog(`getVideoById: Video ${videoId} not found in Firestore`);
+            console.debug('[WigTubeDB] Video document does not exist, checking offline');
             const offlineData = getOfflineData();
             return offlineData.videos?.[videoId] || null;
         } catch (error) {
@@ -260,14 +249,14 @@ window.WigTubeDB = (function() {
             description: videoData.description || '',
             uploaderId: videoData.uploaderId || 'anonymous',
             uploaderName: videoData.uploaderName || 'Anonymous User',
-            uploadDate: db ? window.firebaseAPI.serverTimestamp() : new Date().toISOString(),
+            uploadDate: Date.now(), // Use timestamp instead of serverTimestamp for nested objects
             viewCount: 0,
-            ratings: [], // Array of 1-5 star ratings
+            userRatings: {}, // Map of userId -> rating (1-5)
             likeCount: 0,
             dislikeCount: 0,
             commentCount: 0,
             duration: videoData.duration || '0:00',
-            thumbnail: videoData.thumbnail || 'assets/images/thumbnail/default.png',
+            thumbnail: videoData.thumbnail || 'assets/images/thumbnail/nothtml.png',
             videoUrl: videoData.videoUrl || '',
             category: videoData.category || 'general',
             tags: videoData.tags || [],
@@ -289,20 +278,16 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            const { doc, setDoc, getDoc } = window.firebaseAPI;
-            const docRef = doc(db, COLLECTION, DATA_DOC);
+            const { doc, setDoc, collection, addDoc } = window.firebaseAPI;
             const videoId = 'video_' + Date.now();
             
-            // Get current data
-            const docSnap = await getDoc(docRef);
-            const data = docSnap.exists() ? docSnap.data() : {};
-            const videos = data.videos || {};
+            // Store each video as a separate document in a subcollection
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
             
-            // Add new video to map
-            videos[videoId] = newVideo;
+            // Add video with its ID
+            await setDoc(videoDocRef, newVideo);
             
-            // Update document
-            await setDoc(docRef, { videos }, { merge: true });
             return { id: videoId, ...newVideo };
         } catch (error) {
             console.error('Error creating video:', error);
@@ -329,26 +314,16 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            const { doc, setDoc, getDoc } = window.firebaseAPI;
-            const docRef = doc(db, COLLECTION, DATA_DOC);
+            const { doc, getDoc, updateDoc, collection } = window.firebaseAPI;
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
             
-            // Get current data
-            const docSnap = await getDoc(docRef);
+            // Check if video exists
+            const docSnap = await getDoc(videoDocRef);
             if (!docSnap.exists()) return false;
             
-            const data = docSnap.data();
-            const videos = data.videos || {};
-            
-            if (!videos[videoId]) return false;
-            
-            // Update video in map
-            videos[videoId] = {
-                ...videos[videoId],
-                ...updates
-            };
-            
-            // Update document
-            await setDoc(docRef, { videos }, { merge: true });
+            // Update video document
+            await updateDoc(videoDocRef, updates);
             return true;
         } catch (error) {
             console.error('Error updating video:', error);
@@ -372,23 +347,16 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            const { doc, setDoc, getDoc } = window.firebaseAPI;
-            const docRef = doc(db, COLLECTION, DATA_DOC);
+            const { doc, deleteDoc, collection } = window.firebaseAPI;
             
-            // Get current data
-            const docSnap = await getDoc(docRef);
-            if (!docSnap.exists()) return false;
+            // Delete video document from subcollection
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
             
-            const data = docSnap.data();
-            const videos = data.videos || {};
+            console.log('Deleting video from Firebase subcollection:', videoId);
+            await deleteDoc(videoDocRef);
             
-            if (!videos[videoId]) return false;
-            
-            // Remove video from map
-            delete videos[videoId];
-            
-            // Update document
-            await setDoc(docRef, { videos }, { merge: true });
+            console.log('Video deleted successfully from Firebase');
             return true;
         } catch (error) {
             console.error('Error deleting video:', error);
@@ -423,38 +391,36 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            console.debug('[WigTubeDB] Accessing Firebase: wigtube/data');
-            const { doc, setDoc, getDoc } = window.firebaseAPI;
-            const dataRef = doc(db, COLLECTION, DATA_DOC);
+            console.debug('[WigTubeDB] Accessing Firebase subcollection');
+            const { doc, setDoc, getDoc, collection, updateDoc, increment } = window.firebaseAPI;
             
-            // Get current data
-            const dataSnap = await getDoc(dataRef);
-            const data = dataSnap.exists() ? dataSnap.data() : {};
-            const videos = data.videos || {};
-            console.debug('[WigTubeDB] Current videos in map:', Object.keys(videos).length);
-            console.debug('[WigTubeDB] Looking for video:', videoId, 'exists:', !!videos[videoId]);
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
+            const docSnap = await getDoc(videoDocRef);
             
-            if (!videos[videoId] && videoMetadata) {
+            if (!docSnap.exists() && videoMetadata) {
                 // Video doesn't exist, create it with metadata
                 debugLog(`incrementViewCount: Creating new video entry for ${videoId}`);
                 console.debug('[WigTubeDB] Creating new video entry with metadata');
-                videos[videoId] = {
+                await setDoc(videoDocRef, {
                     ...videoMetadata,
                     viewCount: 1
-                };
-                await setDoc(dataRef, { videos }, { merge: true });
+                });
                 debugLog(`incrementViewCount: Created entry with view count 1`);
                 console.debug('[WigTubeDB] Video created with viewCount: 1');
                 return 1;
-            } else if (videos[videoId]) {
-                // Video exists, increment view count
+            } else if (docSnap.exists()) {
+                // Video exists, increment view count atomically
                 debugLog(`incrementViewCount: Incrementing view count for existing video ${videoId}`);
-                const oldCount = videos[videoId].viewCount || 0;
-                videos[videoId].viewCount = oldCount + 1;
-                console.debug('[WigTubeDB] Incrementing view count from', oldCount, 'to', videos[videoId].viewCount);
-                await setDoc(dataRef, { videos }, { merge: true });
+                const oldCount = docSnap.data().viewCount || 0;
+                console.debug('[WigTubeDB] Incrementing view count from', oldCount);
                 
-                const newCount = videos[videoId].viewCount;
+                // Use atomic increment for better performance and concurrency
+                await updateDoc(videoDocRef, {
+                    viewCount: increment(1)
+                });
+                
+                const newCount = oldCount + 1;
                 debugLog(`incrementViewCount: New view count is ${newCount}`);
                 console.debug('[WigTubeDB] View count updated successfully to:', newCount);
                 return newCount;
@@ -530,9 +496,12 @@ window.WigTubeDB = (function() {
 
         try {
             console.debug('[WigTubeDB] addRating called:', { videoId, rating, userId });
-            const { doc, setDoc, getDoc } = window.firebaseAPI;
+            const { doc, setDoc, getDoc, collection, updateDoc } = window.firebaseAPI;
             const ratingsRef = doc(db, COLLECTION, RATINGS_DOC);
-            const dataRef = doc(db, COLLECTION, DATA_DOC);
+            
+            // Video reference in subcollection
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
             
             // Get current ratings
             console.debug('[WigTubeDB] Fetching ratings from: wigtube/user_ratings');
@@ -561,17 +530,14 @@ window.WigTubeDB = (function() {
             await setDoc(ratingsRef, { ratings }, { merge: true });
             console.debug('[WigTubeDB] Ratings document updated');
             
-            // Also update video data with averages
-            const dataSnap = await getDoc(dataRef);
-            if (dataSnap.exists()) {
-                const data = dataSnap.data();
-                const videos = data.videos || {};
-                if (videos[videoId]) {
-                    videos[videoId].ratingAverage = ratingAverage;
-                    videos[videoId].ratingCount = ratingCount;
-                    await setDoc(dataRef, { videos }, { merge: true });
-                    console.debug('[WigTubeDB] Video data updated with rating averages');
-                }
+            // Update video document with averages
+            const videoSnap = await getDoc(videoDocRef);
+            if (videoSnap.exists()) {
+                await updateDoc(videoDocRef, {
+                    ratingAverage: ratingAverage,
+                    ratingCount: ratingCount
+                });
+                console.debug('[WigTubeDB] Video document updated with rating averages');
             }
 
             debugLog(`addRating: Updated rating for ${videoId} - User ${userId} rated ${rating} stars. New average: ${ratingAverage.toFixed(2)}`);
@@ -652,17 +618,16 @@ window.WigTubeDB = (function() {
         }
 
         try {
-            const { doc, getDoc } = window.firebaseAPI;
-            const dataRef = doc(db, COLLECTION, DATA_DOC);
-            const dataSnap = await getDoc(dataRef);
+            const { doc, getDoc, collection } = window.firebaseAPI;
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
+            const videoSnap = await getDoc(videoDocRef);
             
-            if (!dataSnap.exists()) {
+            if (!videoSnap.exists()) {
                 return 0;
             }
             
-            const data = dataSnap.data();
-            const videos = data.videos || {};
-            const video = videos[videoId];
+            const video = videoSnap.data();
             return video?.ratingAverage || 0;
         } catch (error) {
             console.error('Error getting average rating:', error);
@@ -714,7 +679,7 @@ window.WigTubeDB = (function() {
         try {
             debugLog(`addComment: Saving to Firestore for ${videoId}`);
             console.debug('[WigTubeDB] addComment called for:', videoId, 'by:', commentData.author);
-            const { doc, getDoc, setDoc } = window.firebaseAPI;
+            const { doc, getDoc, setDoc, collection, updateDoc } = window.firebaseAPI;
             
             const commentsRef = doc(db, COLLECTION, COMMENTS_DOC);
             const dataRef = doc(db, COLLECTION, DATA_DOC);
@@ -746,17 +711,17 @@ window.WigTubeDB = (function() {
             
             // Update comment count in video data
             try {
-                const dataSnap = await getDoc(dataRef);
-                if (dataSnap.exists()) {
-                    const data = dataSnap.data();
-                    const videos = data.videos || {};
-                    if (videos[videoId]) {
-                        const oldCount = videos[videoId].commentCount || 0;
-                        videos[videoId].commentCount = oldCount + 1;
-                        await setDoc(dataRef, { videos }, { merge: true });
-                        debugLog(`addComment: Updated comment count for ${videoId}`);
-                        console.debug('[WigTubeDB] Comment count updated from', oldCount, 'to', videos[videoId].commentCount);
-                    }
+                const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+                const videoDocRef = doc(videosCollectionRef, videoId);
+                const videoSnap = await getDoc(videoDocRef);
+                
+                if (videoSnap.exists()) {
+                    const oldCount = videoSnap.data().commentCount || 0;
+                    await updateDoc(videoDocRef, {
+                        commentCount: oldCount + 1
+                    });
+                    debugLog(`addComment: Updated comment count for ${videoId}`);
+                    console.debug('[WigTubeDB] Comment count updated from', oldCount, 'to', oldCount + 1);
                 }
             } catch (updateError) {
                 console.warn('Could not update comment count:', updateError);
@@ -840,7 +805,7 @@ window.WigTubeDB = (function() {
 
         try {
             debugLog(`deleteComment: Deleting from Firestore`);
-            const { doc, getDoc, setDoc } = window.firebaseAPI;
+            const { doc, getDoc, setDoc, collection, updateDoc } = window.firebaseAPI;
             
             // Get comments document
             const commentsRef = doc(db, COLLECTION, COMMENTS_DOC);
@@ -867,20 +832,16 @@ window.WigTubeDB = (function() {
                 
                 // Update comment count in video data
                 try {
-                    const dataRef = doc(db, COLLECTION, DATA_DOC);
-                    const dataSnap = await getDoc(dataRef);
+                    const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+                    const videoDocRef = doc(videosCollectionRef, videoId);
+                    const videoSnap = await getDoc(videoDocRef);
                     
-                    if (dataSnap.exists()) {
-                        const data = dataSnap.data();
-                        const videos = data.videos || {};
-                        
-                        if (videos[videoId]) {
-                            const currentCount = videos[videoId].commentCount || 0;
-                            videos[videoId].commentCount = Math.max(0, currentCount - 1);
-                            
-                            await setDoc(dataRef, { videos }, { merge: true });
-                            debugLog(`deleteComment: Updated comment count for ${videoId} to ${videos[videoId].commentCount}`);
-                        }
+                    if (videoSnap.exists()) {
+                        const currentCount = videoSnap.data().commentCount || 0;
+                        await updateDoc(videoDocRef, {
+                            commentCount: Math.max(0, currentCount - 1)
+                        });
+                        debugLog(`deleteComment: Updated comment count for ${videoId} to ${Math.max(0, currentCount - 1)}`);
                     }
                 } catch (updateError) {
                     debugLog(`deleteComment: Failed to update count for ${videoId}:`, updateError);
@@ -1190,6 +1151,7 @@ window.WigTubeDB = (function() {
         // Video operations
         getAllVideos,
         getVideoById,
+        getVideosByUploader,
         createVideo,
         updateVideo,
         deleteVideo,

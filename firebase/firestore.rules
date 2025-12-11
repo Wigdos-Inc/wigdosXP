@@ -13,6 +13,14 @@ service cloud.firestore {
     match /wigtube/{document} {
       allow read: if true; // Anyone can read
       allow write: if true; // Anyone can write (for now - should be restricted later)
+      
+      // WigTube videos subcollection
+      match /videos/{videoId} {
+        allow read: if true; // Anyone can read videos
+        allow create: if true; // Anyone can create videos (for now)
+        allow update: if true; // Anyone can update (for views/ratings)
+        allow delete: if true; // Anyone can delete (should be restricted to owner)
+      }
     }
 
     // User achievements collection

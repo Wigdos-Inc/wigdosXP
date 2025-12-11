@@ -23,6 +23,7 @@
             const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
             const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, serverTimestamp, limit: firestoreLimit } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
             const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js");
+            const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js");
 
             const firebaseConfig = {
                 apiKey: "AIzaSyDqDU6p8BH1hTqox7f5Sj1ySTWifIP2818",
@@ -48,10 +49,12 @@
             
             const db = getFirestore(app);
             const auth = getAuth(app);
+            const storage = getStorage(app);
 
             window.firebaseAPI = { 
                 db, 
-                auth, 
+                auth,
+                storage,
                 setDoc, 
                 getDoc, 
                 doc, 
@@ -68,7 +71,10 @@
                 increment,
                 arrayUnion,
                 serverTimestamp,
-                limit: firestoreLimit
+                limit: firestoreLimit,
+                storageRef,
+                uploadBytes,
+                getDownloadURL
             };
             window.firebaseOnline = true;
             console.debug("Firebase initialized successfully");
@@ -87,6 +93,7 @@
         return {
             db: null,
             auth: null,
+            storage: null,
             setDoc: async () => { 
                 console.debug("Mock setDoc called - data will be stored locally only");
                 return Promise.resolve();
@@ -125,7 +132,16 @@
             increment: (n) => n,
             arrayUnion: (...args) => args,
             serverTimestamp: () => new Date().toISOString(),
-            limit: (n) => null
+            limit: (n) => null,
+            storageRef: () => null,
+            uploadBytes: async () => {
+                console.log("Mock uploadBytes called - file upload requires internet connection");
+                throw new Error("File upload requires internet connection");
+            },
+            getDownloadURL: async () => {
+                console.log("Mock getDownloadURL called - requires internet connection");
+                throw new Error("Getting download URL requires internet connection");
+            }
         };
     }
 
