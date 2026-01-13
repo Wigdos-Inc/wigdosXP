@@ -1,0 +1,38 @@
+{
+  "name": "WigdosXP Development",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "forwardPorts": [3000, 3001, 3002, 5000, 8080],
+  "portsAttributes": {
+    "3000": {
+      "label": "WigTube App",
+      "onAutoForward": "notify"
+    },
+    "3001": {
+      "label": "Upload Server",
+      "onAutoForward": "silent"
+    },
+    "3002": {
+      "label": "MySQL API",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postStartCommand": "bash /workspaces/wigdosXP/scripts/api/start-servers.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  }
+}
