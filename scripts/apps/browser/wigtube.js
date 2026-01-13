@@ -17,6 +17,12 @@ function debugLog(...args) {
 async function uploadFileToGitHub(file, path, commitMessage) {
     try {
         const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+        
+        // Check file size before uploading
+        if (file.size > MAX_FILE_SIZE) {
+            throw new Error(`File too large: ${Math.round(file.size / 1024 / 1024)}MB. Maximum size is 500MB.`);
+        }
         
         // External repository configuration
         const VIDEO_REPO_OWNER = 'Danie-GLR';
@@ -26,9 +32,13 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         
         // Detect upload server URL (works in Codespaces and local dev)
         let uploadServerUrl;
+        console.log('Current hostname:', window.location.hostname);
+        console.log('Current protocol:', window.location.protocol);
+        
         if (window.location.hostname.includes('.app.github.dev') || window.location.hostname.includes('.github.dev')) {
             // GitHub Codespaces - replace port in hostname
             const match = window.location.hostname.match(/^(.+)-(\d+)\.(.+)$/);
+            console.log('Hostname match:', match);
             if (match) {
                 uploadServerUrl = `${window.location.protocol}//${match[1]}-3001.${match[3]}/upload`;
             } else {
@@ -39,6 +49,24 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         }
         
         console.log('Upload server URL:', uploadServerUrl);
+        console.log('File size:', Math.round(file.size / 1024 / 1024 * 100) / 100, 'MB');
+        
+        // Test if server is accessible first
+        try {
+            console.log('Testing upload server connectivity...');
+            const healthCheck = await fetch(uploadServerUrl.replace('/upload', '/health'), {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'omit'
+            });
+            if (!healthCheck.ok) {
+                throw new Error(`Upload server health check failed: ${healthCheck.status}`);
+            }
+            console.log('✅ Upload server is accessible');
+        } catch (healthError) {
+            console.error('❌ Upload server not accessible:', healthError);
+            throw new Error(`Upload server not accessible at ${uploadServerUrl}. Make sure port 3001 is forwarded in your Codespace.`);
+        }
         
         console.log('Uploading to external video repository:', fileName);
         
@@ -47,13 +75,23 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         formData.append('path', `${VIDEO_FOLDER}/${fileName}`);
         formData.append('repository', `${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}`);
         
+        console.log('Sending upload request...');
+        
         const response = await fetch(uploadServerUrl, {
             method: 'POST',
+            mode: 'cors',
+            credentials: 'omit',
             body: formData
         });
         
+        console.log('Response status:', response.status, response.statusText);
+        
         if (!response.ok) {
-            throw new Error(`Upload failed: ${response.status}`);
+            let errorMsg = `Upload failed: ${response.status}`;
+            if (response.status === 413) {
+                errorMsg = `File too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is 500MB.`;
+            }
+            throw new Error(errorMsg);
         }
         
         const result = await response.json();
@@ -1596,20 +1634,32 @@ async function handleVideoUpload(event) {
         return;
     }
     
-    updateStatus('Uploading video to external repository...');
-    
     try {
         const videoFileData = videoFile.files[0];
         const fileName = videoFileData.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // Sanitize filename
         const filePath = `videos/${fileName}`; // Path in external repo
+        const fileSizeMB = Math.round(videoFileData.size / 1024 / 1024 * 100) / 100;
         
         console.log('Uploading video file:', fileName, videoFileData.size, 'bytes');
+        
+        updateStatus(`Uploading video (${fileSizeMB} MB) to external repository... Please wait, this may take a while.`);
+        
+        // Show progress popup
+        await showPopup(
+            `Uploading video: ${fileName}\n` +
+            `Size: ${fileSizeMB} MB\n\n` +
+            `⏳ Please wait... This may take 1-2 minutes for large files.\n\n` +
+            `The video will be automatically uploaded to GitHub.`,
+            'Upload in Progress',
+            'info'
+        );
         
         // Upload file to external GitHub repository - returns the GitHub raw URL
         const videoUrl = await uploadFileToGitHub(videoFileData, filePath, `Add video: ${fileName}`);
         
         if (!videoUrl) {
             updateStatus('Upload failed');
+            await showPopup('Upload failed. Please check the console for errors.', 'Error', 'error');
             return;
         }
         

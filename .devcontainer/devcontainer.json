@@ -13,15 +13,23 @@
   "portsAttributes": {
     "3000": {
       "label": "WigTube App",
-      "onAutoForward": "notify"
+      "onAutoForward": "notify",
+      "visibility": "public"
     },
     "3001": {
       "label": "Upload Server",
-      "onAutoForward": "silent"
+      "onAutoForward": "notify",
+      "visibility": "public"
     },
     "3002": {
       "label": "MySQL API",
-      "onAutoForward": "silent"
+      "onAutoForward": "silent",
+      "visibility": "public"
+    },
+    "5000": {
+      "label": "Web Server",
+      "onAutoForward": "notify",
+      "visibility": "public"
     }
   },
 
