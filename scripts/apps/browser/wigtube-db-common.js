@@ -7,6 +7,12 @@
 const STORAGE_KEY = 'wigtube_offline_data';
 
 /**
+ * Rating constants
+ */
+const MIN_RATING = 0;
+const MAX_RATING = 5;
+
+/**
  * Get offline data from localStorage
  * @returns {Object} Parsed offline data or default empty structure
  */
@@ -90,11 +96,11 @@ function calculateStarRating(ratings) {
     
     const sum = values.reduce((acc, r) => acc + r, 0);
     const avg = sum / values.length;
-    // Clamp rating between 0 and 5
-    const roundedAvg = Math.max(0, Math.min(5, Math.round(avg)));
+    // Clamp rating between MIN_RATING and MAX_RATING
+    const roundedAvg = Math.max(MIN_RATING, Math.min(MAX_RATING, Math.round(avg)));
     
     const fullStars = '★'.repeat(roundedAvg);
-    const emptyStars = '☆'.repeat(5 - roundedAvg);
+    const emptyStars = '☆'.repeat(MAX_RATING - roundedAvg);
     
     return fullStars + emptyStars;
 }

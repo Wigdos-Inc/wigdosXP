@@ -24,10 +24,20 @@ window.WigTubeDB = (function() {
     const WigTubeDBCommon = window.WigTubeDBCommon || {};
     const getOfflineData = WigTubeDBCommon.getOfflineData || function() { 
         console.warn('WigTubeDBCommon not loaded, using fallback');
-        return {}; 
+        try {
+            const data = localStorage.getItem('wigtube_offline_data');
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
     };
-    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function() { 
+    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function(data) { 
         console.warn('WigTubeDBCommon not loaded, using fallback');
+        try {
+            localStorage.setItem('wigtube_offline_data', JSON.stringify(data));
+        } catch (e) {
+            console.error('Error saving offline data:', e);
+        }
     };
     const formatTimestamp = WigTubeDBCommon.formatTimestamp || function(timestamp) { 
         return timestamp ? new Date(timestamp).toLocaleDateString() : 'Unknown'; 
