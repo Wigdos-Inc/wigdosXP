@@ -1,15 +1,7 @@
 // WigTube Video Player JavaScript - 2003 YouTube Style
 
-// Debug mode - check URL parameter
-if (typeof window.WIGTUBE_DEBUG === 'undefined') {
-    window.WIGTUBE_DEBUG = new URLSearchParams(window.location.search).has('debug');
-}
-
-function debugLog(...args) {
-    if (window.WIGTUBE_DEBUG) {
-        console.log('[WigTube Player]', ...args);
-    }
-}
+// Use shared debug utility
+const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTube Player') : (...args) => {};
 
 // ============================================
 // Centralized WigTube Data Management

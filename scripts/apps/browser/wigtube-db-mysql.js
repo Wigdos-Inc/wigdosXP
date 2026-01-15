@@ -1,16 +1,8 @@
 // WigTube Database Integration - MySQL API Backend
 // Manages video data, views, ratings, and comments
 
-// Debug mode - check URL parameter
-if (typeof window.WIGTUBE_DEBUG === 'undefined') {
-    window.WIGTUBE_DEBUG = new URLSearchParams(window.location.search).has('debug');
-}
-
-function debugLog(...args) {
-    if (window.WIGTUBE_DEBUG) {
-        console.log('[WigTubeDB-MySQL]', ...args);
-    }
-}
+// Use shared debug utility
+const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTubeDB-MySQL') : (...args) => {};
 
 /**
  * WigTube Database API - MySQL Backend
@@ -21,8 +13,10 @@ window.WigTubeDB = (function() {
     'use strict';
 
     const API_URL = 'http://localhost:3002/api';
-    const STORAGE_KEY = 'wigtube_offline_data';
     let apiAvailable = null; // null = not checked, true/false after check
+    
+    // Use shared storage key and utilities
+    const { getOfflineData, saveOfflineData, formatTimestamp, formatViewCount, calculateStarRating } = window.WigTubeDBCommon || {};
     
     /**
      * Check if API is available
@@ -50,83 +44,11 @@ window.WigTubeDB = (function() {
     }
 
     // ============================================
-    // Helper Functions
+    // Helper Functions (using shared utilities)
     // ============================================
-
-    /**
-     * Get offline data from localStorage
-     */
-    function getOfflineData() {
-        try {
-            const data = localStorage.getItem(STORAGE_KEY);
-            const parsed = data ? JSON.parse(data) : { videos: [], ratings: {}, comments: {} };
-            debugLog('Retrieved offline data:', Object.keys(parsed));
-            return parsed;
-        } catch (e) {
-            console.error('Error reading offline data:', e);
-            return { videos: [], ratings: {}, comments: {} };
-        }
-    }
-
-    /**
-     * Save offline data to localStorage
-     */
-    function saveOfflineData(data) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            debugLog('Saved offline data:', Object.keys(data));
-        } catch (e) {
-            console.error('Error saving offline data:', e);
-        }
-    }
-
-    /**
-     * Format timestamp to readable string
-     */
-    function formatTimestamp(timestamp) {
-        if (!timestamp) return 'Just now';
-        
-        const date = new Date(typeof timestamp === 'number' ? timestamp : timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-        return `${Math.floor(diffDays / 365)} years ago`;
-    }
-
-    /**
-     * Format view count to readable string
-     */
-    function formatViewCount(count) {
-        if (count === 0) return '0 views';
-        if (count === 1) return '1 view';
-        if (count < 1000) return `${count} views`;
-        if (count < 1000000) return `${(count / 1000).toFixed(1)}K views`;
-        if (count < 1000000000) return `${(count / 1000000).toFixed(1)}M views`;
-        return `${(count / 1000000000).toFixed(1)}B views`;
-    }
-
-    /**
-     * Calculate average rating and return star string
-     */
-    function calculateStarRating(ratings) {
-        if (!ratings || Object.keys(ratings).length === 0) return '☆☆☆☆☆';
-        
-        const values = Object.values(ratings);
-        const sum = values.reduce((acc, r) => acc + r, 0);
-        const avg = sum / values.length;
-        const roundedAvg = Math.round(avg);
-        
-        const fullStars = '★'.repeat(roundedAvg);
-        const emptyStars = '☆'.repeat(5 - roundedAvg);
-        
-        return fullStars + emptyStars;
-    }
+    // getOfflineData, saveOfflineData, formatTimestamp, 
+    // formatViewCount, and calculateStarRating are now imported
+    // from window.WigTubeDBCommon
 
     // ============================================
     // Video CRUD Operations

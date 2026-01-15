@@ -1,15 +1,7 @@
 // WigTube JavaScript - XP Era Style
 
-// Debug mode - check URL parameter
-if (typeof window.WIGTUBE_DEBUG === 'undefined') {
-    window.WIGTUBE_DEBUG = new URLSearchParams(window.location.search).has('debug');
-}
-
-function debugLog(...args) {
-    if (window.WIGTUBE_DEBUG) {
-        console.log('[WigTube]', ...args);
-    }
-}
+// Use shared debug utility
+const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTube') : (...args) => {};
 
 /**
  * Upload file to external video repository

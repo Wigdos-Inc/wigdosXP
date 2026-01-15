@@ -185,17 +185,11 @@ function setup() {
     tint(255, 255);
     
 
-    // Background stars setup
-    starData = [];
-    for (let i = 0; i < 500; i++) {
-        starData.push({
-            size   : [rng(2, false)+1, rng(4, false)+2][game.size[2]],
-            x_pos  : rng(width, false),
-            y_pos  : rng(height, false),
-            colour : color(rng(100, true)+150, rng(100, true)+150, rng(100, true)+150),
-            opacity: rng(50, true) 
-        });
-    }
+    // Background stars setup - using shared utility
+    starData = window.GameUtils ? 
+        window.GameUtils.initializeBackgroundStars(500, width, height, game.size[2], rng, color) :
+        [];
+
 
 
     // Grid Squares Prep
