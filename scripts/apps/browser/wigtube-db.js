@@ -20,8 +20,24 @@ window.WigTubeDB = (function() {
     const COMMENTS_DOC = 'wigtube_comments';
     const RATINGS_DOC = 'user_ratings';
     
-    // Use shared storage key and utilities
-    const { getOfflineData, saveOfflineData, formatTimestamp, formatViewCount, calculateStarRating } = window.WigTubeDBCommon || {};
+    // Use shared storage key and utilities with fallbacks
+    const WigTubeDBCommon = window.WigTubeDBCommon || {};
+    const getOfflineData = WigTubeDBCommon.getOfflineData || function() { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+        return {}; 
+    };
+    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function() { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+    };
+    const formatTimestamp = WigTubeDBCommon.formatTimestamp || function(timestamp) { 
+        return timestamp ? new Date(timestamp).toLocaleDateString() : 'Unknown'; 
+    };
+    const formatViewCount = WigTubeDBCommon.formatViewCount || function(count) { 
+        return count + ' views'; 
+    };
+    const calculateStarRating = WigTubeDBCommon.calculateStarRating || function() { 
+        return '☆☆☆☆☆'; 
+    };
     
     /**
      * Get Firestore database instance (lazy initialization)

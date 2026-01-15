@@ -15,8 +15,24 @@ window.WigTubeDB = (function() {
     const API_URL = 'http://localhost:3002/api';
     let apiAvailable = null; // null = not checked, true/false after check
     
-    // Use shared storage key and utilities
-    const { getOfflineData, saveOfflineData, formatTimestamp, formatViewCount, calculateStarRating } = window.WigTubeDBCommon || {};
+    // Use shared storage key and utilities with fallbacks
+    const WigTubeDBCommon = window.WigTubeDBCommon || {};
+    const getOfflineData = WigTubeDBCommon.getOfflineData || function() { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+        return { videos: [], ratings: {}, comments: {} }; 
+    };
+    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function() { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+    };
+    const formatTimestamp = WigTubeDBCommon.formatTimestamp || function(timestamp) { 
+        return timestamp ? new Date(timestamp).toLocaleDateString() : 'Unknown'; 
+    };
+    const formatViewCount = WigTubeDBCommon.formatViewCount || function(count) { 
+        return count + ' views'; 
+    };
+    const calculateStarRating = WigTubeDBCommon.calculateStarRating || function() { 
+        return '☆☆☆☆☆'; 
+    };
     
     /**
      * Check if API is available
