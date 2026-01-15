@@ -496,7 +496,21 @@ dkGridArray.forEach(row => row.forEach(box => {
             const cTime = Date.now();
             const pTime = prevClick[box.id];
             
-            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text && event.target === prevBox) startApp(box.app);
+            if (pTime && (cTime - pTime) < 500 && event.target !== box.content.text && event.target === prevBox) {
+                // Check if this is a folder shortcut
+                if (box.app.isFolder && box.app.folderPath) {
+                    console.debug('[Desktop] Opening folder shortcut:', box.app.name.d, 'path:', box.app.folderPath);
+                    // Open file explorer and navigate to the folder path
+                    const filesApp = window.applications && window.applications['files'];
+                    if (filesApp) {
+                        // Store the target folder path in window for file explorer to read
+                        window.fileExplorerStartPath = box.app.folderPath;
+                        startApp(filesApp);
+                    }
+                } else {
+                    startApp(box.app);
+                }
+            }
         
             // Update the last click time
             prevClick[box.id] = cTime;
@@ -567,29 +581,40 @@ document.addEventListener("mouseup", () => {
 
 // Detach Box from User and handle drop zones
 document.addEventListener("mouseup", (event) => {
-    // Check if dragging from desktop (userBox.filled) or Start Menu/Taskbar (userBox.app with source)
-    const isDragging = window.userBox && (window.userBox.filled || (window.userBox.app && (window.userBox.source === 'startMenu' || window.userBox.source === 'taskbarPinned')));
-    if (isDragging) console.debug('[Desktop] mousemove isDragging:', (window.userBox && window.userBox.source) || 'unknown', 'app:', (window.userBox && window.userBox.app && window.userBox.app.name && window.userBox.app.name.s) || 'unknown');
+    console.debug('[Desktop] mouseup event, userBox:', window.userBox);
+    // Check if dragging from desktop (userBox.filled) or Start Menu/Taskbar/File Explorer (userBox.app/folder with source)
+    const isDragging = window.userBox && (window.userBox.filled || window.userBox.app || window.userBox.folder);
+    console.debug('[Desktop] isDragging:', isDragging);
+    if (isDragging) console.debug('[Desktop] ✅ mouseup isDragging:', (window.userBox && window.userBox.source) || 'unknown', 'app:', (window.userBox && window.userBox.app && window.userBox.app.name && window.userBox.app.name.s) || 'unknown', 'folder:', (window.userBox && window.userBox.folderName) || 'none');
     const app = window.userBox && (window.userBox.app || (window.userBox.filled ? window.userBox.app : null));
+    const folder = window.userBox && window.userBox.folder;
     if (isDragging) console.debug('[Desktop] mouseup isDragging, app:', (app && app.name && app.name.s) ? app.name.s : app && app.name || 'unknown', 'coords:', event.clientX, event.clientY);
     
-    if (isDragging && app) {
+    if (isDragging && (app || folder)) {
+        console.debug('[Desktop] Processing drop, app:', app ? app.name.d : 'none', 'folder:', folder ? window.userBox.folderName : 'none');
         // Check if dropping on Start Menu (if open) first
         const startMenu = document.getElementById('smBox');
         if (startMenu) {
             const smRect = startMenu.getBoundingClientRect();
-            if (event.clientX >= smRect.left && event.clientX <= smRect.right &&
-                event.clientY >= smRect.top && event.clientY <= smRect.bottom) {
+            const overStartMenu = event.clientX >= smRect.left && event.clientX <= smRect.right &&
+                event.clientY >= smRect.top && event.clientY <= smRect.bottom;
+            console.debug('[Desktop] Over Start Menu:', overStartMenu);
+            if (overStartMenu) {
                 // Pin to Start Menu
-                console.debug(`[Desktop] Pinning ${app.name.d} to Start Menu`);
-                if (window.setStartMenuPinned && window.getStartMenuPinned) {
-                    const pinned = window.getStartMenuPinned();
-                    if (!pinned.includes(app.name.s)) {
-                        pinned.push(app.name.s);
-                        window.setStartMenuPinned(pinned);
-                        console.debug(`[Desktop] Successfully pinned ${app.name.d} to Start Menu`);
+                if (app) {
+                    console.debug(`[Desktop] 📌 Pinning ${app.name.d} to Start Menu`);
+                    if (window.setStartMenuPinned && window.getStartMenuPinned) {
+                        const pinned = window.getStartMenuPinned();
+                        if (!pinned.includes(app.name.s)) {
+                            pinned.push(app.name.s);
+                            window.setStartMenuPinned(pinned);
+                            console.debug(`[Desktop] ✅ Successfully pinned ${app.name.d} to Start Menu`);
+                        } else {
+                            console.debug(`[Desktop] Already pinned to Start Menu`);
+                        }
                     }
                 }
+                // Folders can't be pinned to start menu (would need special handling)
                 window.userBox = undefined;
                 if (dropIndicator) {
                     dropIndicator.remove();
@@ -614,17 +639,24 @@ document.addEventListener("mouseup", (event) => {
                 const smBtnRect = smBtnEl.getBoundingClientRect();
                 overStartBtn = event.clientX >= smBtnRect.left && event.clientX <= smBtnRect.right && event.clientY >= smBtnRect.top && event.clientY <= smBtnRect.bottom;
             }
-            if (overFooter && !overStartBtn) {
+            const overTaskbar = overFooter && !overStartBtn;
+            console.debug('[Desktop] Over Taskbar:', overTaskbar, '(footer:', overFooter, 'startBtn:', overStartBtn, ')');
+            if (overTaskbar) {
                 // Pin to taskbar
-                console.debug(`[Desktop] Pinning ${app.name.d} to taskbar (footer)`);
-                if (window.setPinnedApps && window.getPinnedApps) {
-                    const pinned = window.getPinnedApps();
-                    if (!pinned.includes(app.name.s)) {
-                        pinned.push(app.name.s);
-                        window.setPinnedApps(pinned);
-                        console.debug(`[Desktop] Successfully pinned ${app.name.d} to taskbar`);
+                if (app) {
+                    console.debug(`[Desktop] 📌 Pinning ${app.name.d} to taskbar`);
+                    if (window.setPinnedApps && window.getPinnedApps) {
+                        const pinned = window.getPinnedApps();
+                        if (!pinned.includes(app.name.s)) {
+                            pinned.push(app.name.s);
+                            window.setPinnedApps(pinned);
+                            console.debug(`[Desktop] ✅ Successfully pinned ${app.name.d} to taskbar`);
+                        } else {
+                            console.debug(`[Desktop] Already pinned to taskbar`);
+                        }
                     }
                 }
+                // Folders can't be pinned to taskbar (would need special handling)
                 window.userBox = undefined;
                 if (dropIndicator) {
                     dropIndicator.remove();
@@ -638,14 +670,48 @@ document.addEventListener("mouseup", (event) => {
             }
         }
         
-        // If dragging from Start Menu or Taskbar and not dropping on taskbar/Start Menu, add to desktop
-        if (window.userBox && (window.userBox.source === 'startMenu' || window.userBox.source === 'taskbarPinned')) {
-            console.debug(`[Desktop] Adding ${app.name.d} from ${window.userBox.source} to desktop`);
-            if (window.addAppToDesktop && typeof window.addAppToDesktop === 'function') {
-                window.addAppToDesktop(app);
-                console.debug(`[Desktop] Successfully added ${app.name.d} to desktop`);
+        // If dragging from Start Menu/Taskbar/File Explorer and not dropping on taskbar/Start Menu, add to desktop
+        console.debug('[Desktop] Checking if should add to desktop, source:', window.userBox.source);
+        if (window.userBox && (window.userBox.source === 'startMenu' || window.userBox.source === 'taskbarPinned' || window.userBox.source === 'fileExplorer')) {
+            if (app) {
+                console.debug(`[Desktop] 🖥️ Adding ${app.name.d} from ${window.userBox.source} to desktop`);
+                if (window.addAppToDesktop && typeof window.addAppToDesktop === 'function') {
+                    window.addAppToDesktop(app);
+                    console.debug(`[Desktop] ✅ Successfully added ${app.name.d} to desktop`);
+                } else {
+                    console.error('[Desktop] ❌ addAppToDesktop function not found!');
+                }
+            } else if (folder) {
+                console.debug(`[Desktop] 📁 Adding folder ${window.userBox.folderName} from ${window.userBox.source} to desktop`);
+                // Create a folder shortcut - this opens file explorer to that path
+                // We need to create a pseudo-app that opens the file explorer with a specific path
+                const folderShortcut = {
+                    name: {
+                        s: 'folder_' + window.userBox.folderName,
+                        d: window.userBox.folderName,
+                        m: window.userBox.folderName,
+                        l: window.userBox.folderName
+                    },
+                    icon: {
+                        s: 'assets/images/icons/16x/files.png',
+                        m: 'assets/images/icons/32x/files.png',
+                        l: 'assets/images/icons/48x/files.png'
+                    },
+                    isFolder: true,
+                    folderPath: window.userBox.folderPath
+                };
+                if (window.addAppToDesktop && typeof window.addAppToDesktop === 'function') {
+                    window.addAppToDesktop(folderShortcut);
+                    console.debug(`[Desktop] ✅ Successfully added folder ${window.userBox.folderName} to desktop`);
+                } else {
+                    console.error('[Desktop] ❌ addAppToDesktop function not found!');
+                }
             }
+        } else {
+            console.debug('[Desktop] Not adding to desktop - source:', window.userBox ? window.userBox.source : 'none');
         }
+    } else {
+        console.debug('[Desktop] Not processing drop - no app or folder');
     }
     
     window.userBox = undefined;
@@ -659,11 +725,18 @@ let desktopDragPreview = null;
 let dropIndicator = null;
 
 document.addEventListener("mousemove", (event) => {
-    // Check if dragging from desktop (userBox.filled) or Start Menu/Taskbar (userBox.app with source)
-    const isDragging = window.userBox && (window.userBox.filled || (window.userBox.app && (window.userBox.source === 'startMenu' || window.userBox.source === 'taskbarPinned')));
+    // Check if dragging from desktop (userBox.filled) or Start Menu/Taskbar/File Explorer (userBox.app/folder with source)
+    const isDragging = window.userBox && (window.userBox.filled || window.userBox.app || window.userBox.folder);
     
     if (isDragging) {
+        if (!desktopDragPreview) {
+            console.debug('[Desktop] Starting drag preview for:', window.userBox);
+        }
         const app = window.userBox.app || (window.userBox.filled ? window.userBox.app : null);
+        const folder = window.userBox.folder;
+        const displayName = app ? app.name.d : (folder ? window.userBox.folderName : 'Unknown');
+        const iconSrc = app ? app.icon.l : (folder ? 'assets/images/icons/48x/files.png' : '');
+        
         // Create or update drag preview
         if (!desktopDragPreview) {
             desktopDragPreview = document.createElement('div');
@@ -680,7 +753,7 @@ document.addEventListener("mousemove", (event) => {
             
             // Add icon
             const icon = document.createElement('img');
-            icon.src = app.icon.l;
+            icon.src = iconSrc;
             icon.style.width = '48px';
             icon.style.height = '48px';
             icon.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
@@ -688,7 +761,7 @@ document.addEventListener("mousemove", (event) => {
             
             // Add label
             const label = document.createElement('div');
-            label.textContent = app.name.d;
+            label.textContent = displayName;
             label.style.fontSize = '11px';
             label.style.color = 'white';
             label.style.textAlign = 'center';

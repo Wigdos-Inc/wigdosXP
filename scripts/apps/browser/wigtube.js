@@ -1,7 +1,6 @@
 // WigTube JavaScript - XP Era Style
 
-// Use shared debug utility
-const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTube') : (...args) => {};
+// debugLog is provided by wigtube-db.js which loads first
 
 /**
  * Upload file to external video repository

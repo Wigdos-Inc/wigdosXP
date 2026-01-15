@@ -1,84 +1,123 @@
 contentBox = document.getElementById("appMain");
 
+// Get applications from parent window if available
+function getApplications() {
+    // Check parent window first (if opened in iframe/window)
+    if (window.parent && window.parent !== window && window.parent.applications) {
+        return window.parent.applications;
+    }
+    // Check opener window (if opened as popup)
+    if (window.opener && window.opener.applications) {
+        return window.opener.applications;
+    }
+    // Check current window
+    if (window.applications) {
+        return window.applications;
+    }
+    return null;
+}
+
+// Navigation history
+let navHistory = [];
+let navHistoryIndex = -1;
+
+// Search state
+let searchQuery = '';
+
 // File system structure
 const fileSystem = {
     'Desktop': {
         type: 'folder',
         icon: 'assets/images/icons/32x/files.png',
         children: () => {
-            // Show all apps that can be on desktop
+            // Show actual apps currently on desktop
             const apps = {};
-            if (window.applications) {
-                Object.keys(window.applications).forEach(key => {
-                    const app = window.applications[key];
-                    apps[app.name.d] = {
-                        type: 'app',
-                        icon: app.icon.s,
-                        appKey: key,
-                        app: app
-                    };
+            const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+            
+            console.debug('[Files] Getting desktop icons from:', targetWindow.dkGridArray ? 'parent window' : 'current window');
+            
+            if (targetWindow.dkGridArray) {
+                targetWindow.dkGridArray.forEach(row => {
+                    row.forEach(box => {
+                        if (box.filled && box.app) {
+                            const app = box.app;
+                            const name = app.name.d;
+                            console.debug('[Files] Found desktop app:', name);
+                            apps[name] = {
+                                type: 'app',
+                                icon: app.icon.s,
+                                appKey: app.name.s,
+                                app: app
+                            };
+                        }
+                    });
                 });
             }
+            console.debug('[Files] Desktop folder has', Object.keys(apps).length, 'items');
             return apps;
         }
     },
     'Programs': {
         type: 'folder',
         icon: 'assets/images/icons/32x/files.png',
-        children: {
-            'Browsers': {
-                type: 'folder',
-                icon: 'assets/images/icons/32x/files.png',
-                children: {
-                    'WiggleSearch': { type: 'app', appKey: 'rBrowser' },
-                    'WigleFari': { type: 'app', appKey: 'fBrowser' }
+        children: () => {
+            // Dynamically build programs folder from applications object
+            const applications = getApplications();
+            console.debug('[Files] Building Programs folder, found applications:', applications ? Object.keys(applications).length : 0);
+            
+            if (!applications) return {};
+            
+            const folders = {
+                'All Programs': {
+                    type: 'folder',
+                    icon: 'assets/images/icons/32x/files.png',
+                    children: () => {
+                        const allApps = {};
+                        Object.keys(applications).forEach(key => {
+                            const app = applications[key];
+                            allApps[app.name.d] = {
+                                type: 'app',
+                                icon: app.icon.s,
+                                appKey: key,
+                                app: app
+                            };
+                        });
+                        return allApps;
+                    }
                 }
-            },
-            'Games': {
-                type: 'folder',
-                icon: 'assets/images/icons/32x/files.png',
-                children: {
-                    'FNAF': {
-                        type: 'folder',
-                        icon: 'assets/images/icons/32x/files.png',
-                        children: {
-                            'FNAF 1': { type: 'app', appKey: 'feddy1' },
-                            'FNAF 2': { type: 'app', appKey: 'feddy2' },
-                            'FNAF 3': { type: 'app', appKey: 'feddy3' },
-                            'FNAF 4': { type: 'app', appKey: 'feddy4' },
-                            'FNAF World': { type: 'app', appKey: 'feddyWorld' },
-                            'FNAF PS': { type: 'app', appKey: 'feddyPS' },
-                            'FNAF UCN': { type: 'app', appKey: 'feddyUCN' }
-                        }
-                    },
-                    'Other Games': {
-                        type: 'folder',
-                        icon: 'assets/images/icons/32x/files.png',
-                        children: {
-                            'Undertale': { type: 'app', appKey: 'ut' },
-                            'Deltarune': { type: 'app', appKey: 'dt' },
-                            'Super Mario 64': { type: 'app', appKey: 'sm64' },
-                            'Half-Life': { type: 'app', appKey: 'hlf' },
-                            'Super Jeff': { type: 'app', appKey: 'jeff' },
-                            'PokeHub': { type: 'app', appKey: 'pHub' },
-                            'Breakout': { type: 'app', appKey: 'breakout' },
-                            'Sublimator': { type: 'app', appKey: 'sublimator' }
-                        }
-                    },
-                    'Wigsplosionator': { type: 'app', appKey: 'bombs' },
-                    'Singular Upgrading': { type: 'app', appKey: 'su' }
+            };
+            
+            // Organize by series/category
+            const categorized = {};
+            Object.keys(applications).forEach(key => {
+                const app = applications[key];
+                if (app.series) {
+                    if (!categorized[app.series]) {
+                        categorized[app.series] = [];
+                    }
+                    categorized[app.series].push({ key, app });
                 }
-            },
-            'Built-in': {
-                type: 'folder',
-                icon: 'assets/images/icons/32x/files.png',
-                children: {
-                    'Notepad': { type: 'app', appKey: 'notes' },
-                    'Recycling Bin': { type: 'app', appKey: 'bin' },
-                    'File Explorer': { type: 'app', appKey: 'files' },
-                    'GameSpot': { type: 'app', appKey: 'gspot' }
-                }
-            }
+            });
+            
+            // Add categorized folders
+            Object.keys(categorized).forEach(series => {
+                const seriesApps = {};
+                categorized[series].forEach(({ key, app }) => {
+                    seriesApps[app.name.d] = {
+                        type: 'app',
+                        icon: app.icon.s,
+                        appKey: key,
+                        app: app
+                    };
+                });
+                folders[series] = {
+                    type: 'folder',
+                    icon: 'assets/images/icons/32x/files.png',
+                    children: seriesApps
+                };
+            });
+            
+            return folders;
         }
     }
 };
@@ -88,7 +127,7 @@ let currentPath = [];
 let currentFolder = fileSystem;
 
 // Navigation and rendering
-function renderFiles() {
+function renderFiles(addToHistory = true) {
     contentBox.innerHTML = '';
     filesItems = [];
     
@@ -109,39 +148,79 @@ function renderFiles() {
         });
     }
     
-    // Render folder contents
+    // Render folder contents (with search filter)
     Object.keys(contents).forEach(name => {
         const item = contents[name];
+        
+        // Filter by search query
+        if (searchQuery && !name.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return;
+        }
         
         if (item.type === 'folder') {
             createFileItem({
                 name: name,
                 icon: item.icon || 'assets/images/icons/32x/files.png',
-                action: () => navigateInto(name, item)
+                action: () => navigateInto(name, item),
+                isFolder: true,
+                folder: item
             });
         } else if (item.type === 'app') {
-            const app = item.app || (window.applications && window.applications[item.appKey]);
+            const applications = getApplications();
+            const app = item.app || (applications && applications[item.appKey]);
             if (app) {
                 createFileItem({
                     name: name,
                     icon: item.icon || app.icon.s,
                     action: () => {
                         console.log(`[Files] Opening app: ${app.name.s}`);
-                        startApp(app);
+                        // Use parent window's startApp if available
+                        if (window.parent && window.parent !== window && window.parent.startApp) {
+                            window.parent.startApp(app);
+                        } else if (window.opener && window.opener.startApp) {
+                            window.opener.startApp(app);
+                        } else if (window.startApp) {
+                            startApp(app);
+                        } else {
+                            console.error('[Files] startApp function not found');
+                        }
                     },
                     isApp: true,
                     app: app
+                });
+            } else {
+                // App not loaded yet, show placeholder
+                console.warn(`[Files] App not found: ${item.appKey}`);
+                createFileItem({
+                    name: name,
+                    icon: item.icon || 'assets/images/icons/32x/files.png',
+                    action: () => {
+                        console.error(`[Files] Cannot open app: ${item.appKey} not loaded`);
+                    },
+                    isApp: false,
+                    app: null
                 });
             }
         }
     });
     
     updateAddressBar();
+    updateStatusBar();
+    
+    // Add to navigation history
+    if (addToHistory) {
+        navHistory = navHistory.slice(0, navHistoryIndex + 1);
+        navHistory.push({ path: [...currentPath], folder: currentFolder });
+        navHistoryIndex = navHistory.length - 1;
+        updateNavigationButtons();
+    }
 }
 
 function navigateInto(name, folder) {
     currentPath.push({ name: name, folder: currentFolder });
     currentFolder = folder;
+    searchQuery = ''; // Clear search when navigating
+    updateSearchInput();
     renderFiles();
 }
 
@@ -149,14 +228,134 @@ function navigateUp() {
     if (currentPath.length > 0) {
         const prev = currentPath.pop();
         currentFolder = prev.folder;
+        searchQuery = ''; // Clear search when navigating
+        updateSearchInput();
         renderFiles();
     }
 }
 
+function navigateBack() {
+    if (navHistoryIndex > 0) {
+        navHistoryIndex--;
+        const state = navHistory[navHistoryIndex];
+        currentPath = [...state.path];
+        currentFolder = state.folder;
+        searchQuery = '';
+        updateSearchInput();
+        renderFiles(false);
+        updateNavigationButtons();
+    }
+}
+
+function navigateForward() {
+    if (navHistoryIndex < navHistory.length - 1) {
+        navHistoryIndex++;
+        const state = navHistory[navHistoryIndex];
+        currentPath = [...state.path];
+        currentFolder = state.folder;
+        searchQuery = '';
+        updateSearchInput();
+        renderFiles(false);
+        updateNavigationButtons();
+    }
+}
+
+function navigateToPath(index) {
+    if (index < 0) {
+        // Navigate to root
+        currentPath = [];
+        currentFolder = fileSystem;
+    } else if (index < currentPath.length) {
+        // Navigate to specific path segment
+        currentPath = currentPath.slice(0, index + 1);
+        currentFolder = currentPath[index].folder;
+        // Navigate into the folder
+        const folder = currentPath.pop();
+        currentFolder = folder.folder;
+        const target = currentPath.length === 0 ? fileSystem : currentPath[currentPath.length - 1].folder;
+        let contents = typeof target.children === 'function' ? target.children() : target.children;
+        if (folder.name && contents[folder.name]) {
+            navigateInto(folder.name, contents[folder.name]);
+            return;
+        }
+    }
+    searchQuery = '';
+    updateSearchInput();
+    renderFiles();
+}
+
 function updateAddressBar() {
     const topBar = document.getElementById('topBar');
-    const path = currentPath.length === 0 ? 'My Computer' : 'My Computer\\' + currentPath.map(p => p.name).join('\\');
-    topBar.innerHTML = `<div style="padding: 5px; background-color: #fff; border-bottom: 1px solid #ccc; font-family: 'Tahoma', sans-serif; font-size: 11px;">📁 ${path}</div>`;
+    topBar.innerHTML = `
+        <div class="files-toolbar">
+            <div class="files-nav-buttons">
+                <button id="backBtn" class="nav-btn" title="Back">◄</button>
+                <button id="forwardBtn" class="nav-btn" title="Forward">►</button>
+                <button id="upBtn" class="nav-btn" title="Up">▲</button>
+            </div>
+            <div class="files-breadcrumb" id="breadcrumb"></div>
+            <div class="files-search">
+                <input type="text" id="searchInput" placeholder="Search..." value="${searchQuery}">
+            </div>
+        </div>
+    `;
+    
+    // Update breadcrumb
+    updateBreadcrumb();
+    
+    // Add event listeners
+    document.getElementById('backBtn').addEventListener('click', navigateBack);
+    document.getElementById('forwardBtn').addEventListener('click', navigateForward);
+    document.getElementById('upBtn').addEventListener('click', navigateUp);
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderFiles(false);
+    });
+    
+    updateNavigationButtons();
+}
+
+function updateBreadcrumb() {
+    const breadcrumb = document.getElementById('breadcrumb');
+    let crumbs = '<span class="crumb" data-index="-1">My Computer</span>';
+    
+    currentPath.forEach((p, index) => {
+        crumbs += ` <span class="crumb-separator">›</span> <span class="crumb" data-index="${index}">${p.name}</span>`;
+    });
+    
+    breadcrumb.innerHTML = crumbs;
+    
+    // Add click handlers to breadcrumbs
+    document.querySelectorAll('.crumb').forEach(crumb => {
+        crumb.addEventListener('click', () => {
+            const index = parseInt(crumb.dataset.index);
+            navigateToPath(index);
+        });
+    });
+}
+
+function updateNavigationButtons() {
+    const backBtn = document.getElementById('backBtn');
+    const forwardBtn = document.getElementById('forwardBtn');
+    const upBtn = document.getElementById('upBtn');
+    
+    if (backBtn) backBtn.disabled = navHistoryIndex <= 0;
+    if (forwardBtn) forwardBtn.disabled = navHistoryIndex >= navHistory.length - 1;
+    if (upBtn) upBtn.disabled = currentPath.length === 0;
+}
+
+function updateSearchInput() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = searchQuery;
+    }
+}
+
+function updateStatusBar() {
+    const bottomBar = document.getElementById('bottomBar');
+    const itemCount = filesItems.length - (currentPath.length > 0 ? 1 : 0); // Exclude back button
+    const itemText = itemCount === 1 ? 'item' : 'items';
+    bottomBar.innerHTML = `<div class="files-status">${itemCount} ${itemText}${searchQuery ? ' (filtered)' : ''}</div>`;
 }
 
 function createFileItem(config) {
@@ -266,28 +465,49 @@ function createFileItem(config) {
         if (event.key === "Enter") item.change(false);
     });
 
-    // Add drag functionality for apps
+    // Add drag functionality - use EXACT same system as desktop/start menu
     if (config.isApp && config.app) {
-        filesItem.addEventListener('dragstart', (event) => {
-            event.dataTransfer.effectAllowed = 'copy';
-            event.dataTransfer.setData('text/plain', config.app.name.s);
-            event.dataTransfer.setData('wigdos/app', JSON.stringify({
-                appKey: config.app.name.s,
-                appName: config.app.name.d,
-                source: 'fileExplorer'
-            }));
-            
-            // Create drag preview
-            if (window.createDragPreview) {
-                window.createDragPreview(config.app, event);
+        console.debug('[Files] Setting up drag for app:', config.app.name.d);
+        // Use desktop's custom mouse drag (no setTimeout, immediate on mousedown)
+        filesItem.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click only
+                console.debug('[Files] Mousedown on app:', config.app.name.d);
+                // Store start position for drag detection
+                dragStartPos = { x: e.clientX, y: e.clientY };
+                isDragging = false;
+                
+                // Access parent window's userBox (same as start menu does)
+                const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+                console.debug('[Files] Setting userBox on:', targetWindow === window ? 'current window' : 'parent window');
+                targetWindow.userBox = {
+                    app: config.app,
+                    source: 'fileExplorer'
+                };
+                console.debug('[Files] ✅ Set userBox for app', config.app.name.d);
+                e.preventDefault();
+                e.stopPropagation();
             }
-            
-            console.log(`[Files] Started dragging: ${config.app.name.d}`);
         });
-
-        filesItem.addEventListener('dragend', (event) => {
-            if (window.removeDragPreview) {
-                window.removeDragPreview();
+    } else if (config.isFolder) {
+        console.debug('[Files] Setting up drag for folder:', config.name);
+        // Folders can be dragged to create shortcuts
+        filesItem.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                console.debug('[Files] Mousedown on folder:', config.name);
+                dragStartPos = { x: e.clientX, y: e.clientY };
+                isDragging = false;
+                
+                const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+                console.debug('[Files] Setting userBox on:', targetWindow === window ? 'current window' : 'parent window');
+                targetWindow.userBox = {
+                    folder: config.folder,
+                    folderName: config.name,
+                    folderPath: [...currentPath, { name: config.name }],
+                    source: 'fileExplorer'
+                };
+                console.debug('[Files] ✅ Set userBox for folder', config.name);
+                e.preventDefault();
+                e.stopPropagation();
             }
         });
     }
@@ -298,6 +518,158 @@ function createFileItem(config) {
 // Global variables
 let filesItems = [];
 let prevItem;
+let selectedIndex = -1;
+let dragStartPos = null;
+let isDragging = false;
+
+// Bridge mousemove events to parent window for drag preview
+document.addEventListener('mousemove', (event) => {
+    const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+    
+    // Check if we should start dragging (mouse moved more than 5px)
+    if (dragStartPos && !isDragging) {
+        const dx = event.clientX - dragStartPos.x;
+        const dy = event.clientY - dragStartPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 5) {
+            isDragging = true;
+            console.debug('[Files] Drag motion detected, distance:', distance);
+        }
+    }
+    
+    // If there's an active drag from file explorer, trigger parent's mousemove
+    if (targetWindow.userBox && targetWindow.userBox.source === 'fileExplorer' && isDragging) {
+        // Calculate absolute coordinates relative to parent window
+        const rect = window.frameElement ? window.frameElement.getBoundingClientRect() : { left: 0, top: 0 };
+        const parentEvent = new MouseEvent('mousemove', {
+            clientX: rect.left + event.clientX,
+            clientY: rect.top + event.clientY,
+            bubbles: true,
+            cancelable: true
+        });
+        targetWindow.document.dispatchEvent(parentEvent);
+    }
+});
+
+// Bridge mouseup events to parent window
+document.addEventListener('mouseup', (event) => {
+    const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+    
+    // Only process if we were actually dragging (not just clicking)
+    if (targetWindow.userBox && targetWindow.userBox.source === 'fileExplorer' && isDragging) {
+        console.debug('[Files] Drag ended, forwarding mouseup to parent');
+        // Calculate absolute coordinates relative to parent window
+        const rect = window.frameElement ? window.frameElement.getBoundingClientRect() : { left: 0, top: 0 };
+        const parentEvent = new MouseEvent('mouseup', {
+            clientX: rect.left + event.clientX,
+            clientY: rect.top + event.clientY,
+            bubbles: true,
+            cancelable: true
+        });
+        targetWindow.document.dispatchEvent(parentEvent);
+    } else if (targetWindow.userBox && targetWindow.userBox.source === 'fileExplorer' && !isDragging) {
+        // Was just a click, not a drag - clear userBox
+        console.debug('[Files] Click without drag, clearing userBox');
+        targetWindow.userBox = undefined;
+    }
+    
+    // Reset drag state
+    dragStartPos = null;
+    isDragging = false;
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', (event) => {
+    // Don't handle keyboard if typing in search
+    if (event.target.id === 'searchInput') return;
+    
+    const itemCount = filesItems.length;
+    if (itemCount === 0) return;
+    
+    switch(event.key) {
+        case 'ArrowUp':
+            event.preventDefault();
+            selectedIndex = selectedIndex <= 0 ? itemCount - 1 : selectedIndex - 1;
+            selectItemByIndex(selectedIndex);
+            break;
+        case 'ArrowDown':
+            event.preventDefault();
+            selectedIndex = selectedIndex >= itemCount - 1 ? 0 : selectedIndex + 1;
+            selectItemByIndex(selectedIndex);
+            break;
+        case 'ArrowLeft':
+            if (selectedIndex >= 5) {
+                selectedIndex -= 5;
+                selectItemByIndex(selectedIndex);
+            }
+            break;
+        case 'ArrowRight':
+            if (selectedIndex < itemCount - 5) {
+                selectedIndex += 5;
+                selectItemByIndex(selectedIndex);
+            }
+            break;
+        case 'Enter':
+            event.preventDefault();
+            if (selectedIndex >= 0 && filesItems[selectedIndex]) {
+                filesItems[selectedIndex].action();
+            }
+            break;
+        case 'Backspace':
+            event.preventDefault();
+            if (currentPath.length > 0) {
+                navigateUp();
+            }
+            break;
+    }
+});
+
+function selectItemByIndex(index) {
+    if (prevItem) {
+        prevItem.parent.classList.remove('filesItemSelected');
+    }
+    if (index >= 0 && index < filesItems.length) {
+        const item = filesItems[index];
+        item.parent.classList.add('filesItemSelected');
+        item.parent.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        prevItem = item;
+        selectedIndex = index;
+    }
+}
 
 // Initialize file explorer
-renderFiles();
+function initializeFileExplorer() {
+    // Check if we should navigate to a specific path
+    const targetWindow = window.parent && window.parent !== window ? window.parent : window;
+    const startPath = targetWindow.fileExplorerStartPath;
+    
+    if (startPath && startPath.length > 0) {
+        console.debug('[Files] Navigating to start path:', startPath);
+        // Clear the start path so it doesn't affect future opens
+        targetWindow.fileExplorerStartPath = null;
+        
+        // Navigate through the path
+        startPath.forEach(pathSegment => {
+            const folderName = pathSegment.name;
+            // Get current folder contents
+            let contents = currentFolder;
+            if (typeof currentFolder.children === 'function') {
+                contents = currentFolder.children();
+            } else if (currentFolder.children) {
+                contents = currentFolder.children;
+            }
+            
+            // Find and navigate into the folder
+            if (contents[folderName]) {
+                console.debug('[Files] Navigating into:', folderName);
+                navigateInto(folderName, contents[folderName]);
+            }
+        });
+    } else {
+        // Normal initialization
+        renderFiles();
+    }
+}
+
+initializeFileExplorer();

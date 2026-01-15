@@ -1,7 +1,6 @@
 // WigTube Video Player JavaScript - 2003 YouTube Style
 
-// Use shared debug utility
-const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTube Player') : (...args) => {};
+// debugLog is provided by wigtube-db.js which loads first
 
 // ============================================
 // Centralized WigTube Data Management
