@@ -1,16 +1,8 @@
 // WigTube Database Integration - Firestore & localStorage fallback
 // Manages video data, views, ratings, and comments
 
-// Debug mode - check URL parameter
-if (typeof window.WIGTUBE_DEBUG === 'undefined') {
-    window.WIGTUBE_DEBUG = new URLSearchParams(window.location.search).has('debug');
-}
-
-function debugLog(...args) {
-    if (window.WIGTUBE_DEBUG) {
-        console.log('[WigTubeDB]', ...args);
-    }
-}
+// Use shared debug utility
+const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTubeDB') : (...args) => {};
 
 /**
  * WigTube Database API
@@ -27,7 +19,35 @@ window.WigTubeDB = (function() {
     const DATA_DOC = 'data';
     const COMMENTS_DOC = 'wigtube_comments';
     const RATINGS_DOC = 'user_ratings';
-    const STORAGE_KEY = 'wigtube_offline_data';
+    
+    // Use shared storage key and utilities with fallbacks
+    const WigTubeDBCommon = window.WigTubeDBCommon || {};
+    const getOfflineData = WigTubeDBCommon.getOfflineData || function() { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+        try {
+            const data = localStorage.getItem('wigtube_offline_data');
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
+    };
+    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function(data) { 
+        console.warn('WigTubeDBCommon not loaded, using fallback');
+        try {
+            localStorage.setItem('wigtube_offline_data', JSON.stringify(data));
+        } catch (e) {
+            console.error('Error saving offline data:', e);
+        }
+    };
+    const formatTimestamp = WigTubeDBCommon.formatTimestamp || function(timestamp) { 
+        return timestamp ? new Date(timestamp).toLocaleDateString() : 'Unknown'; 
+    };
+    const formatViewCount = WigTubeDBCommon.formatViewCount || function(count) { 
+        return count + ' views'; 
+    };
+    const calculateStarRating = WigTubeDBCommon.calculateStarRating || function() { 
+        return '☆☆☆☆☆'; 
+    };
     
     /**
      * Get Firestore database instance (lazy initialization)
@@ -59,82 +79,11 @@ window.WigTubeDB = (function() {
     }
 
     // ============================================
-    // Helper Functions
+    // Helper Functions (using shared utilities)
     // ============================================
-
-    /**
-     * Get offline data from localStorage
-     */
-    function getOfflineData() {
-        try {
-            const data = localStorage.getItem(STORAGE_KEY);
-            const parsed = data ? JSON.parse(data) : {};
-            debugLog('Retrieved offline data:', Object.keys(parsed));
-            return parsed;
-        } catch (e) {
-            console.error('Error reading offline data:', e);
-            return {};
-        }
-    }
-
-    /**
-     * Save offline data to localStorage
-     */
-    function saveOfflineData(data) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            debugLog('Saved offline data:', Object.keys(data));
-        } catch (e) {
-            console.error('Error saving offline data:', e);
-        }
-    }
-
-    /**
-     * Format Firestore timestamp to readable string
-     */
-    function formatTimestamp(timestamp) {
-        if (!timestamp) return 'Just now';
-        
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-        return `${Math.floor(diffDays / 365)} years ago`;
-    }
-
-    /**
-     * Format view count to readable string
-     */
-    function formatViewCount(count) {
-        if (count === 0) return '0 views';
-        if (count === 1) return '1 view';
-        if (count < 1000) return `${count} views`;
-        if (count < 1000000) return `${(count / 1000).toFixed(1)}K views`;
-        if (count < 1000000000) return `${(count / 1000000).toFixed(1)}M views`;
-        return `${(count / 1000000000).toFixed(1)}B views`;
-    }
-
-    /**
-     * Calculate average rating and return star string
-     */
-    function calculateStarRating(ratings) {
-        if (!ratings || ratings.length === 0) return '☆☆☆☆☆';
-        
-        const sum = ratings.reduce((acc, r) => acc + r, 0);
-        const avg = sum / ratings.length;
-        const roundedAvg = Math.round(avg);
-        
-        const fullStars = '★'.repeat(roundedAvg);
-        const emptyStars = '☆'.repeat(5 - roundedAvg);
-        
-        return fullStars + emptyStars;
-    }
+    // getOfflineData, saveOfflineData, formatTimestamp, 
+    // formatViewCount, and calculateStarRating are now imported
+    // from window.WigTubeDBCommon
 
     // ============================================
     // Video CRUD Operations
