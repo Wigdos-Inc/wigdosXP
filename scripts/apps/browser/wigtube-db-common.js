@@ -90,7 +90,8 @@ function calculateStarRating(ratings) {
     
     const sum = values.reduce((acc, r) => acc + r, 0);
     const avg = sum / values.length;
-    const roundedAvg = Math.round(avg);
+    // Clamp rating between 0 and 5
+    const roundedAvg = Math.max(0, Math.min(5, Math.round(avg)));
     
     const fullStars = '★'.repeat(roundedAvg);
     const emptyStars = '☆'.repeat(5 - roundedAvg);
