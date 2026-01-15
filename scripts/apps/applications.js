@@ -235,6 +235,13 @@ const applications = {
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/WdosCMD/wingDosCMD.html"]
+    ),
+
+    wigshell: new Application(
+        ["wigshell", "WigShell"],
+        "other",
+        false,
+        ["internal", "/apps/"]
     )
 }
 

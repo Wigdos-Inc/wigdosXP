@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigShell</title>
+
+    <base href="../">
+    <link rel="stylesheet" href="styles/global/main.css">
+    <link rel="stylesheet" href="styles/apps/appContent.css">
+    <link rel="stylesheet" href="styles/apps/wigshell.css">
+</head>
+<body>
+    <div id="topBar"></div>
+
+    <div id="appMain">
+        <div id="shellContainer">
+            <div id="shellOutput"></div>
+            <div id="shellInputLine">
+                <span id="shellPrompt">PS C:\WigdosXP&gt;</span>
+                <input type="text" id="shellInput" autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+    </div>
+
+    <div id="bottomBar"></div>
+    
+    <script src="scripts/global/global.js"></script>
+    <script src="scripts/apps/appContent.js"></script>
+    <script src="scripts/apps/wigshell.js"></script>
+</body>
+</html>

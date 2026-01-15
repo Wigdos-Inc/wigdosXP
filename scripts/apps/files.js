@@ -24,8 +24,73 @@ let navHistoryIndex = -1;
 // Search state
 let searchQuery = '';
 
+// Helper function to build file tree from flat structure
+function buildFileTree(filesData) {
+    const tree = {};
+    
+    for (const [path, data] of Object.entries(filesData)) {
+        const parts = path.split('/');
+        const fileName = parts[parts.length - 1];
+        
+        if (data.type === 'folder') {
+            tree[fileName] = {
+                type: 'folder',
+                icon: 'assets/images/icons/32x/files.png',
+                path: path,
+                children: {}
+            };
+        } else if (data.type === 'file') {
+            tree[fileName] = {
+                type: 'file',
+                icon: 'assets/images/icons/32x/files.png',
+                path: path,
+                content: data.content || '',
+                size: data.size || 0,
+                created: data.created || Date.now(),
+                modified: data.modified || Date.now()
+            };
+        }
+    }
+    
+    return tree;
+}
+
 // File system structure
 const fileSystem = {
+    'My Files': {
+        type: 'folder',
+        icon: 'assets/images/icons/32x/files.png',
+        children: async () => {
+            // Load user files from Firebase
+            const username = (typeof user !== 'undefined' && user.username) ? user.username : localStorage.getItem('username') || 'guest';
+            
+            if (window.firebaseAPI && window.firebaseOnline) {
+                try {
+                    const { db, doc, getDoc } = window.firebaseAPI;
+                    const userDocRef = doc(db, 'users', username);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists() && userDoc.data().files) {
+                        return buildFileTree(userDoc.data().files);
+                    }
+                } catch (error) {
+                    console.error('[Files] Error loading user files:', error);
+                }
+            }
+            
+            // Load from localStorage as fallback
+            const localFiles = localStorage.getItem(`userFiles_${username}`);
+            if (localFiles) {
+                try {
+                    return buildFileTree(JSON.parse(localFiles));
+                } catch (e) {
+                    console.error('[Files] Error parsing local files:', e);
+                }
+            }
+            
+            return {};
+        }
+    },
     'Desktop': {
         type: 'folder',
         icon: 'assets/images/icons/32x/files.png',
@@ -134,6 +199,35 @@ function renderFiles(addToHistory = true) {
     // Get current folder contents
     let contents = currentFolder;
     if (typeof currentFolder.children === 'function') {
+        // Handle async folder loading
+        const promise = currentFolder.children();
+        if (promise instanceof Promise) {
+            contentBox.innerHTML = '<div style="padding: 20px; text-align: center;">Loading files...</div>';
+            promise.then(resolvedContents => {
+                currentFolder = { ...currentFolder, children: resolvedContents };
+                renderFilesSync(addToHistory);
+            }).catch(error => {
+                console.error('[Files] Error loading folder:', error);
+                contentBox.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Error loading files</div>';
+            });
+            return;
+        } else {
+            contents = promise;
+        }
+    } else if (currentFolder.children) {
+        contents = currentFolder.children;
+    }
+    
+    renderFilesSync(addToHistory);
+}
+
+function renderFilesSync(addToHistory = true) {
+    contentBox.innerHTML = '';
+    filesItems = [];
+    
+    // Get current folder contents
+    let contents = currentFolder;
+    if (typeof currentFolder.children === 'function') {
         contents = currentFolder.children();
     } else if (currentFolder.children) {
         contents = currentFolder.children;
@@ -164,6 +258,17 @@ function renderFiles(addToHistory = true) {
                 action: () => navigateInto(name, item),
                 isFolder: true,
                 folder: item
+            });
+        } else if (item.type === 'file') {
+            createFileItem({
+                name: name,
+                icon: item.icon || 'assets/images/icons/32x/files.png',
+                action: () => {
+                    // Show file info
+                    alert(`File: ${name}\nSize: ${item.size || 0} bytes\nContent: ${item.content || '[Empty]'}`);
+                },
+                isFile: true,
+                file: item
             });
         } else if (item.type === 'app') {
             const applications = getApplications();
@@ -221,7 +326,16 @@ function navigateInto(name, folder) {
     currentFolder = folder;
     searchQuery = ''; // Clear search when navigating
     updateSearchInput();
-    renderFiles();
+    
+    // If navigating into My Files, force refresh from Firebase
+    if (name === 'My Files' && typeof folder.children === 'function') {
+        folder.children().then(contents => {
+            currentFolder = { ...folder, children: contents };
+            renderFiles();
+        });
+    } else {
+        renderFiles();
+    }
 }
 
 function navigateUp() {

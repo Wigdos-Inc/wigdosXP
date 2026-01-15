@@ -1,0 +1,146 @@
+/* WigShell - PowerShell-like Terminal Styling */
+
+#shellContainer {
+    width: 100%;
+    height: 100%;
+    background: #012456;
+    font-family: monospace;
+    font-size: 13px;
+    color: #f0f0f0;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#shellOutput {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 10px;
+    word-wrap: break-word;
+}
+
+#shellOutput::-webkit-scrollbar {
+    width: 12px;
+}
+
+#shellOutput::-webkit-scrollbar-track {
+    background: #001838;
+}
+
+#shellOutput::-webkit-scrollbar-thumb {
+    background: #1e5bb8;
+    border-radius: 6px;
+}
+
+#shellOutput::-webkit-scrollbar-thumb:hover {
+    background: #2d7ce0;
+}
+
+#shellInputLine {
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
+}
+
+#shellPrompt {
+    color: #eee;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+#shellInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #f0f0f0;
+    font-family: monospace;
+    font-size: 13px;
+    padding: 0;
+}
+
+/* Output Styling */
+.output-line {
+    margin: 2px 0;
+    line-height: 1.4;
+}
+
+.output-command {
+    color: #ffeb3b;
+    margin-bottom: 5px;
+}
+
+.output-success {
+    color: #4caf50;
+}
+
+.output-error {
+    color: #f44336;
+}
+
+.output-warning {
+    color: #ff9800;
+}
+
+.output-info {
+    color: #2196f3;
+}
+
+.output-text {
+    color: #f0f0f0;
+}
+
+.output-property {
+    color: #00d9ff;
+}
+
+.output-value {
+    color: #90ee90;
+}
+
+.output-header {
+    color: #ffeb3b;
+    font-weight: bold;
+    text-decoration: underline;
+    margin: 10px 0 5px 0;
+}
+
+.output-table {
+    display: table;
+    margin: 5px 0;
+    border-collapse: collapse;
+}
+
+.output-table-row {
+    display: table-row;
+}
+
+.output-table-cell {
+    display: table-cell;
+    padding: 3px 15px 3px 0;
+}
+
+.output-table-header {
+    color: #ffeb3b;
+    font-weight: bold;
+}
+
+/* Welcome Message */
+.welcome-banner {
+    color: #4caf50;
+    margin-bottom: 15px;
+}
+
+.welcome-banner .title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #00d9ff;
+}
+
+.welcome-banner .version {
+    color: #90ee90;
+    font-size: 12px;
+}
