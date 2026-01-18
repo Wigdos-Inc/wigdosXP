@@ -1,6 +1,6 @@
 class Application {
 
-    constructor(name, series, full, path, save) {
+    constructor(name, series, full, path, save = false) {
 
         this.name = {
             s: name[0],
@@ -95,6 +95,13 @@ const applications = {
         ["internal", "apps/save-editor/"],
     ),
 
+    wigshell: new Application(
+        ["wigshell", "WigShell"],
+        "other",
+        false,
+        ["internal", "/apps/"]
+    ),
+
     /* EXTERNAL */
     feddy1: new Application(
         ["feddy1", "FNAF 1", "Five Nights at Freddy's"],
@@ -169,6 +176,13 @@ const applications = {
         true
     ),
 
+    carl2D: new Application(
+        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carl2D/"],
+    ),
+
 
 
     /* INTERNAL-GAMES (Repository) */
@@ -229,19 +243,13 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/PokeHub/"]
     ),
 
+
     /* INTERNAL-APPS (Repository) */
     cmd: new Application(
         ["cmd", "Terminal"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/WdosCMD/wingDosCMD.html"]
-    ),
-
-    wigshell: new Application(
-        ["wigshell", "WigShell"],
-        "other",
-        false,
-        ["internal", "/apps/"]
     )
 }
 
