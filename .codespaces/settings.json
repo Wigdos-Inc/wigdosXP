@@ -1,0 +1,37 @@
+# GitHub Codespaces Configuration
+# This file ensures ports are PUBLIC by default for all Codespaces created from this repository
+
+# Port forwarding rules (applied BEFORE Codespace fully starts)
+ports:
+  - port: 3001
+    visibility: public
+    name: "WigTube Upload Server"
+    protocol: https
+    onAutoForward: notify
+  
+  - port: 3002
+    visibility: public
+    name: "WigTube MySQL API"
+    protocol: https
+    onAutoForward: silent
+  
+  - port: 3000
+    visibility: public
+    name: "WigTube App"
+    protocol: https
+    onAutoForward: openBrowserOnce
+  
+  - port: 5520
+    visibility: public
+    name: "Live Server"
+    protocol: https
+    onAutoForward: notify
+
+# Secret permissions
+secrets:
+  - GITHUB_TOKEN
+
+# Automatically set ports to public on creation
+settings:
+  autoForwardPorts: true
+  portsVisibility: public

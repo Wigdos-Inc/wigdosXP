@@ -9,38 +9,120 @@
     "ghcr.io/devcontainers/features/git:1": {}
   },
 
-  "forwardPorts": [3000, 3001, 3002, 5000, 8080],
+  // Pre-configure ports to be automatically forwarded and public from Codespace creation
+  "forwardPorts": [3001, 3002, 3000, 3003, 3004, 3005, 5000, 5520, 8080],
+  
+  // Port attributes ensure ports are PUBLIC by default (no manual configuration needed)
   "portsAttributes": {
-    "3000": {
-      "label": "WigTube App",
-      "onAutoForward": "notify",
-      "visibility": "public"
-    },
     "3001": {
-      "label": "Upload Server",
+      "label": "🚀 WigTube Upload Server",
       "onAutoForward": "notify",
-      "visibility": "public"
+      "visibility": "public",
+      "protocol": "https",
+      "requireLocalPort": false,
+      "elevateIfNeeded": true
     },
     "3002": {
-      "label": "MySQL API",
+      "label": "📊 WigTube MySQL API",
       "onAutoForward": "silent",
-      "visibility": "public"
+      "visibility": "public",
+      "protocol": "https",
+      "requireLocalPort": false,
+      "elevateIfNeeded": true
+    },
+    "3000": {
+      "label": "🌐 WigTube App",
+      "onAutoForward": "openBrowserOnce",
+      "visibility": "public",
+      "protocol": "https"
+    },
+    "3003": {
+      "label": "Upload Server (Alt #1)",
+      "onAutoForward": "silent",
+      "visibility": "public",
+      "protocol": "https"
+    },
+    "3004": {
+      "label": "Upload Server (Alt #2)",
+      "onAutoForward": "silent",
+      "visibility": "public",
+      "protocol": "https"
+    },
+    "3005": {
+      "label": "Upload Server (Alt #3)",
+      "onAutoForward": "silent",
+      "visibility": "public",
+      "protocol": "https"
     },
     "5000": {
       "label": "Web Server",
       "onAutoForward": "notify",
-      "visibility": "public"
+      "visibility": "public",
+      "protocol": "https"
+    },
+    "5520": {
+      "label": "Live Server",
+      "onAutoForward": "notify",
+      "visibility": "public",
+      "protocol": "https"
+    },
+    "8080": {
+      "label": "Development Server",
+      "onAutoForward": "silent",
+      "visibility": "public",
+      "protocol": "https"
     }
   },
 
+  "postCreateCommand": "bash /workspaces/wigdosXP/scripts/api/init-ports-early.sh",
+  
   "postStartCommand": "bash /workspaces/wigdosXP/scripts/api/start-servers.sh",
+  
+  "postAttachCommand": "echo '✅ WigTube servers are starting in background...' && bash /workspaces/wigdosXP/scripts/api/ensure-servers-running.sh",
 
   "customizations": {
     "vscode": {
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode"
-      ]
+      ],
+      "settings": {
+        // Enforce public visibility for critical ports at VS Code level
+        "remote.portsAttributes": {
+          "3001": {
+            "label": "🚀 WigTube Upload Server",
+            "onAutoForward": "notify",
+            "protocol": "https",
+            "visibility": "public"
+          },
+          "3002": {
+            "label": "📊 WigTube MySQL API",
+            "onAutoForward": "silent",
+            "protocol": "https",
+            "visibility": "public"
+          },
+          "3000": {
+            "label": "🌐 WigTube App",
+            "onAutoForward": "openBrowserOnce",
+            "protocol": "https",
+            "visibility": "public"
+          }
+        },
+        // Auto-forward ports as soon as they're detected
+        "remote.autoForwardPorts": true,
+        "remote.autoForwardPortsSource": "process"
+      }
+    },
+    "codespaces": {
+      "repositories": {
+        "Wigdos-Inc/wigdosXP": {
+          "permissions": {
+            "codespace": {
+              "machines": "write"
+            }
+          }
+        }
+      }
     }
   }
 }

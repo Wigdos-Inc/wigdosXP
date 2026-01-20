@@ -1,0 +1,21 @@
+{
+  "prebuild": {
+    "tasks": [
+      "npm install --prefix scripts/api"
+    ]
+  },
+  "ports": {
+    "3001": {
+      "visibility": "public",
+      "label": "WigTube Upload Server"
+    },
+    "3002": {
+      "visibility": "public",
+      "label": "WigTube MySQL API"
+    },
+    "3000": {
+      "visibility": "public",
+      "label": "WigTube App"
+    }
+  }
+}
