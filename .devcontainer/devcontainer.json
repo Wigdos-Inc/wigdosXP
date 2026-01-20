@@ -7,7 +7,7 @@
   },
 
   // Pre-configure ports to be automatically forwarded and public from Codespace creation
-  "forwardPorts": [3001, 3002, 3000, 3003, 3004, 3005, 5000, 5520, 8080],
+  "forwardPorts": [3001, 5520],
   
   // Port attributes ensure ports are PUBLIC by default (no manual configuration needed)
   "portsAttributes": {
@@ -19,53 +19,9 @@
       "requireLocalPort": false,
       "elevateIfNeeded": true
     },
-    "3002": {
-      "label": "📊 WigTube MySQL API",
-      "onAutoForward": "silent",
-      "visibility": "public",
-      "protocol": "https",
-      "requireLocalPort": false,
-      "elevateIfNeeded": true
-    },
-    "3000": {
-      "label": "🌐 WigTube App",
-      "onAutoForward": "openBrowserOnce",
-      "visibility": "public",
-      "protocol": "https"
-    },
-    "3003": {
-      "label": "Upload Server (Alt #1)",
-      "onAutoForward": "silent",
-      "visibility": "public",
-      "protocol": "https"
-    },
-    "3004": {
-      "label": "Upload Server (Alt #2)",
-      "onAutoForward": "silent",
-      "visibility": "public",
-      "protocol": "https"
-    },
-    "3005": {
-      "label": "Upload Server (Alt #3)",
-      "onAutoForward": "silent",
-      "visibility": "public",
-      "protocol": "https"
-    },
-    "5000": {
-      "label": "Web Server",
-      "onAutoForward": "notify",
-      "visibility": "public",
-      "protocol": "https"
-    },
     "5520": {
-      "label": "Live Server",
-      "onAutoForward": "notify",
-      "visibility": "public",
-      "protocol": "https"
-    },
-    "8080": {
-      "label": "Development Server",
-      "onAutoForward": "silent",
+      "label": "🌐 Live Server",
+      "onAutoForward": "openBrowserOnce",
       "visibility": "public",
       "protocol": "https"
     }
@@ -130,14 +86,8 @@
             "protocol": "https",
             "visibility": "public"
           },
-          "3002": {
-            "label": "📊 WigTube MySQL API",
-            "onAutoForward": "silent",
-            "protocol": "https",
-            "visibility": "public"
-          },
-          "3000": {
-            "label": "🌐 WigTube App",
+          "5520": {
+            "label": "🌐 Live Server",
             "onAutoForward": "openBrowserOnce",
             "protocol": "https",
             "visibility": "public"
