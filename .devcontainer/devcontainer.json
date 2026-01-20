@@ -7,13 +7,21 @@
   },
 
   // Pre-configure ports to be automatically forwarded and public from Codespace creation
-  "forwardPorts": [3001, 5520],
+  "forwardPorts": [3001, 3002, 5520],
   
   // Port attributes ensure ports are PUBLIC by default (no manual configuration needed)
   "portsAttributes": {
     "3001": {
       "label": "🚀 WigTube Upload Server",
       "onAutoForward": "notify",
+      "visibility": "public",
+      "protocol": "https",
+      "requireLocalPort": false,
+      "elevateIfNeeded": true
+    },
+    "3002": {
+      "label": "📊 WigTube MySQL API",
+      "onAutoForward": "silent",
       "visibility": "public",
       "protocol": "https",
       "requireLocalPort": false,
@@ -83,6 +91,12 @@
           "3001": {
             "label": "🚀 WigTube Upload Server",
             "onAutoForward": "notify",
+            "protocol": "https",
+            "visibility": "public"
+          },
+          "3002": {
+            "label": "📊 WigTube MySQL API",
+            "onAutoForward": "silent",
             "protocol": "https",
             "visibility": "public"
           },
