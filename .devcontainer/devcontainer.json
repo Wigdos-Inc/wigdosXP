@@ -1,11 +1,8 @@
 {
   "name": "WigdosXP Development",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
   
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
-    },
     "ghcr.io/devcontainers/features/git:1": {}
   },
 
