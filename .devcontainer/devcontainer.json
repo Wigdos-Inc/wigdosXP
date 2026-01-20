@@ -26,12 +26,6 @@
       "protocol": "https",
       "requireLocalPort": false,
       "elevateIfNeeded": true
-    },
-    "5520": {
-      "label": "🌐 Live Server",
-      "onAutoForward": "openBrowserOnce",
-      "visibility": "public",
-      "protocol": "https"
     }
   },
 
@@ -97,12 +91,6 @@
           "3002": {
             "label": "📊 WigTube MySQL API",
             "onAutoForward": "silent",
-            "protocol": "https",
-            "visibility": "public"
-          },
-          "5520": {
-            "label": "🌐 Live Server",
-            "onAutoForward": "openBrowserOnce",
             "protocol": "https",
             "visibility": "public"
           }
