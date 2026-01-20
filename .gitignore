@@ -67,3 +67,20 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Video files - should be in external repository only
+assets/videos/*.mp4
+assets/videos/*.avi
+assets/videos/*.mov
+assets/videos/*.wmv
+assets/videos/*.flv
+assets/videos/*.mkv
+assets/videos/*.webm
+apps/wigtube/videos/*.mp4
+apps/wigtube/videos/*.avi
+apps/wigtube/videos/*.mov
+apps/wigtube/videos/*.wmv
+apps/wigtube/videos/*.flv
+apps/wigtube/videos/*.mkv
+apps/wigtube/videos/*.webm
+temp-uploads/*

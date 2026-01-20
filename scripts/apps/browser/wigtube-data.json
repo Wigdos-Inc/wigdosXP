@@ -316,9 +316,24 @@
     }
   ],
   "albums": {
-    "schlaubum": ["schlaubum1", "schlaubum2", "schlaubum3", "schlaubum4", "schlaubum5"],
-    "c418": ["c418", "c4182", "c4183", "c4184", "c4185"],
-    "fnaf-collection": ["fredrick-fazbear-touches-youtubers-dingalings", "fnaf-squid-games-real"]
+    "schlaubum": [
+      "schlaubum1",
+      "schlaubum2",
+      "schlaubum3",
+      "schlaubum4",
+      "schlaubum5"
+    ],
+    "c418": [
+      "c418",
+      "c4182",
+      "c4183",
+      "c4184",
+      "c4185"
+    ],
+    "fnaf-collection": [
+      "fredrick-fazbear-touches-youtubers-dingalings",
+      "fnaf-squid-games-real"
+    ]
   },
   "albumMetadata": [
     {

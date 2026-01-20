@@ -1,5 +1,13 @@
 {
-    "liveServer.settings.port": 5517,
+    "liveServer.settings.port": 5520,
     "python-envs.defaultEnvManager": "ms-python.python:system",
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "chat.mcp.serverSampling": {
+        "wigdosXP/.vscode/mcp.json: microsoft/playwright-mcp": {
+            "allowedModels": [
+                "copilot/auto",
+                "copilot/claude-opus-4.5"
+            ]
+        }
+    }
 }

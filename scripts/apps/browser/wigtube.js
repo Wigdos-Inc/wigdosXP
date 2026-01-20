@@ -1,64 +1,136 @@
 // WigTube JavaScript - XP Era Style
+// Note: Shared utilities (debugLog, getVideoRepoConfig, generateVideoUrl, getUploadServerUrl) 
+// are loaded from wigtube-shared.js
 
 // debugLog is provided by wigtube-db.js which loads first
 
 /**
- * Upload file to external video repository
+ * Show upload progress in status bar
+ */
+function showUploadProgress(message, percentage) {
+    const statusEl = document.getElementById('status');
+    if (statusEl) {
+        if (percentage !== undefined) {
+            statusEl.textContent = `${message} ${percentage}%`;
+        } else {
+            statusEl.textContent = message;
+        }
+    }
+}
+
+/**
+ * Upload file to external video repository with real-time progress
  */
 async function uploadFileToGitHub(file, path, commitMessage) {
     try {
-        const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+        const originalFileName = file.name;
+        // Sanitize filename - keep spaces and common chars, just remove dangerous ones for path traversal
+        const fileName = originalFileName.replace(/[\\/:*?\"<>|]/g, '_');
+        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (GitHub Codespaces limit)
         
         // Check file size before uploading
         if (file.size > MAX_FILE_SIZE) {
-            throw new Error(`File too large: ${Math.round(file.size / 1024 / 1024)}MB. Maximum size is 500MB.`);
+            throw new Error(
+                `File too large: ${Math.round(file.size / 1024 / 1024)}MB\n\n` +
+                `Maximum file size: 100MB (GitHub Codespaces port forwarding limit)\n\n` +
+                `Tips to reduce file size:\n` +
+                `• Compress the video with HandBrake or ffmpeg\n` +
+                `• Use a lower resolution (720p instead of 1080p)\n` +
+                `• Reduce video quality/bitrate\n` +
+                `• Trim unnecessary parts`
+            );
         }
         
         // External repository configuration
-        const VIDEO_REPO_OWNER = 'Danie-GLR';
-        const VIDEO_REPO_NAME = 'Videoswigtube-EEEEEE';
-        const VIDEO_REPO_BRANCH = 'main';
-        const VIDEO_FOLDER = 'videos';
+        const { owner: VIDEO_REPO_OWNER, name: VIDEO_REPO_NAME, branch: VIDEO_REPO_BRANCH, folder: VIDEO_FOLDER } = getVideoRepoConfig();
+        
+        showUploadProgress('🔍 Detecting upload server...', 10);
         
         // Detect upload server URL (works in Codespaces and local dev)
-        let uploadServerUrl;
+        const uploadServerUrl = getUploadServerUrl('/upload');
         console.log('Current hostname:', window.location.hostname);
         console.log('Current protocol:', window.location.protocol);
-        
-        if (window.location.hostname.includes('.app.github.dev') || window.location.hostname.includes('.github.dev')) {
-            // GitHub Codespaces - replace port in hostname
-            const match = window.location.hostname.match(/^(.+)-(\d+)\.(.+)$/);
-            console.log('Hostname match:', match);
-            if (match) {
-                uploadServerUrl = `${window.location.protocol}//${match[1]}-3001.${match[3]}/upload`;
-            } else {
-                uploadServerUrl = `${window.location.protocol}//${window.location.hostname.replace(/\./, '-3001.')}/upload`;
-            }
-        } else {
-            uploadServerUrl = 'http://localhost:3001/upload';
-        }
-        
         console.log('Upload server URL:', uploadServerUrl);
         console.log('File size:', Math.round(file.size / 1024 / 1024 * 100) / 100, 'MB');
         
+        showUploadProgress('🔗 Testing server connection...', 20);
+        
         // Test if server is accessible first
+        const uploadPort = localStorage.getItem('wigtubeUploadPort') || '3001';
+        const healthUrl = getUploadServerUrl('/health');
+        
         try {
             console.log('Testing upload server connectivity...');
-            const healthCheck = await fetch(uploadServerUrl.replace('/upload', '/health'), {
+            console.log('Health check URL:', healthUrl);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            const healthCheck = await fetch(healthUrl, {
                 method: 'GET',
                 mode: 'cors',
-                credentials: 'omit'
+                credentials: 'omit',
+                redirect: 'error', // Fail on redirects (GitHub auth page)
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            
             if (!healthCheck.ok) {
-                throw new Error(`Upload server health check failed: ${healthCheck.status}`);
+                throw new Error(`Upload server returned status ${healthCheck.status}`);
             }
             console.log('✅ Upload server is accessible');
         } catch (healthError) {
             console.error('❌ Upload server not accessible:', healthError);
-            throw new Error(`Upload server not accessible at ${uploadServerUrl}. Make sure port 3001 is forwarded in your Codespace.`);
+            
+            // Build detailed error message
+            let errorMessage = `Upload server not accessible at port ${uploadPort}\n\n`;
+            
+            // Check error type and provide specific guidance
+            if (healthError.name === 'AbortError') {
+                errorMessage += `⏱️ Connection timeout - server not responding\n\n`;
+                errorMessage += `🔧 TO FIX:\n`;
+                errorMessage += `1. Start the upload server:\n`;
+                errorMessage += `   cd scripts/api && ./start-upload-server-codespaces.sh\n`;
+                errorMessage += `2. Check logs: tail -f /tmp/upload-server.log\n\n`;
+            } else if (healthError.message.includes('redirect') || healthError.message.includes('302')) {
+                errorMessage += `🔒 Port is PRIVATE (redirecting to GitHub auth)\n\n`;
+                errorMessage += `🔧 TO FIX (REQUIRED):\n`;
+                errorMessage += `1. Click PORTS tab (bottom panel)\n`;
+                errorMessage += `2. Find port ${uploadPort}\n`;
+                errorMessage += `3. Right-click → Port Visibility → Public\n`;
+                errorMessage += `4. Wait 5-10 seconds for change to apply\n`;
+                errorMessage += `5. Try uploading again\n\n`;
+            } else if (healthError.message.includes('Failed to fetch') || healthError.message.includes('NetworkError') || healthError.message.includes('404')) {
+                errorMessage += `🔌 Cannot connect to server (404/Network Error)\n\n`;
+                errorMessage += `Most likely: Port ${uploadPort} is not PUBLIC\n\n`;
+                errorMessage += `🔧 TO FIX:\n\n`;
+                errorMessage += `STEP 1: Make port PUBLIC\n`;
+                errorMessage += `  • Click PORTS tab (bottom panel)\n`;
+                errorMessage += `  • Find port ${uploadPort}\n`;
+                errorMessage += `  • Right-click → Port Visibility → Public\n`;
+                errorMessage += `  • Verify it says "Public" in Visibility column\n\n`;
+                errorMessage += `STEP 2: Ensure server is running\n`;
+                errorMessage += `  • Run: pgrep -f "upload-server"\n`;
+                errorMessage += `  • If no output, start server:\n`;
+                errorMessage += `    cd scripts/api && ./start-upload-server-codespaces.sh\n\n`;
+                errorMessage += `STEP 3: Test connection\n`;
+                errorMessage += `  • Open in browser: ${healthUrl}\n`;
+                errorMessage += `  • Should show: {"status":"ok"}\n\n`;
+            } else {
+                errorMessage += `Error: ${healthError.message}\n\n`;
+                errorMessage += `🔧 TO FIX:\n`;
+                errorMessage += `1. Check PORTS tab (bottom panel)\n`;
+                errorMessage += `2. Make port ${uploadPort} PUBLIC\n`;
+                errorMessage += `3. Ensure server is running: pgrep -f "upload-server"\n\n`;
+            }
+            
+            errorMessage += `💡 Test URL: ${healthUrl}`;
+            
+            throw new Error(errorMessage);
         }
         
+        showUploadProgress('📤 Uploading video to external repository...', 30);
         console.log('Uploading to external video repository:', fileName);
         
         const formData = new FormData();
@@ -67,20 +139,78 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         formData.append('repository', `${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}`);
         
         console.log('Sending upload request...');
+        showUploadProgress('⬆️ Transferring file... Please wait', 50);
         
-        const response = await fetch(uploadServerUrl, {
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'omit',
-            body: formData
-        });
+        let response;
+        try {
+            response = await fetch(uploadServerUrl, {
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'omit',
+                redirect: 'error', // fail fast if port is PRIVATE (302 to auth)
+                cache: 'no-store',
+                body: formData,
+                signal: AbortSignal.timeout(300000) // 5 minute timeout
+            });
+        } catch (fetchError) {
+            console.error('Fetch error details:', {
+                name: fetchError.name,
+                message: fetchError.message,
+                code: fetchError.code,
+                uploadServerUrl
+            });
+            
+            let detailedError = `Failed to upload file\n\n`;
+            detailedError += `URL: ${uploadServerUrl}\n`;
+            detailedError += `Error: ${fetchError.message}\n\n`;
+            
+            if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
+                detailedError += `⏱️ Request timed out after 5 minutes\n\n`;
+                detailedError += `This usually means:\n`;
+                detailedError += `• Upload server is not responding\n`;
+                detailedError += `• Port 3001 is not public\n`;
+                detailedError += `• Network connection is unstable\n`;
+            } else if (fetchError.message.includes('redirect')) {
+                detailedError += `🔒 Port is PRIVATE (redirecting to GitHub auth)\n\n`;
+                detailedError += `To fix:\n`;
+                detailedError += `• Open PORTS tab and set port 3001 to Public\n`;
+                detailedError += `• Or run start script to auto-set visibility\n`;
+            } else if (fetchError.name === 'TypeError') {
+                detailedError += `🔌 Cannot connect to upload server\n\n`;
+                detailedError += `This could be:\n`;
+                detailedError += `• Port 3001 not public in PORTS tab\n`;
+                detailedError += `• Upload server crashed (check: pgrep -f upload-server)\n`;
+                detailedError += `• CORS blocked the request\n`;
+            } else {
+                detailedError += `Network error: ${fetchError.name}\n`;
+            }
+            
+            throw new Error(detailedError);
+        }
         
         console.log('Response status:', response.status, response.statusText);
+        showUploadProgress('📡 Processing response...', 70);
         
         if (!response.ok) {
-            let errorMsg = `Upload failed: ${response.status}`;
+            let errorMsg = `Upload failed: ${response.status} ${response.statusText}`;
             if (response.status === 413) {
-                errorMsg = `File too large (${Math.round(file.size / 1024 / 1024)}MB). Maximum size is 500MB.`;
+                errorMsg = (
+                    `File too large: ${Math.round(file.size / 1024 / 1024)}MB\n\n` +
+                    `Maximum size: 100MB (GitHub Codespaces limit)\n\n` +
+                    `To reduce file size:\n` +
+                    `• Use ffmpeg: ffmpeg -i input.mp4 -vcodec libx264 -crf 28 output.mp4\n` +
+                    `• Use HandBrake (GUI tool)\n` +
+                    `• Compress with: ffmpeg -i input.mp4 -c:v libx265 -crf 28 -c:a aac -b:a 128k output.mp4`
+                );
+            } else if (response.status === 502 || response.status === 503) {
+                errorMsg = `Upload server is unavailable (${response.status})\n\nTry again in a moment`;
+            } else if (response.status === 500) {
+                try {
+                    const errorBody = await response.json();
+                    errorMsg = `Server error: ${errorBody.error || response.statusText}`;
+                } catch (e) {
+                    errorMsg = `Server error (500)`;
+                }
             }
             throw new Error(errorMsg);
         }
@@ -89,26 +219,23 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         
         if (result.success) {
             console.log('✅ File uploaded to video repository:', result.fileName);
+            if (result.renamed) {
+                console.log('📝 File was renamed from:', result.originalFileName);
+            }
+            showUploadProgress('✅ Upload complete! Committing to GitHub...', 90);
             
-            // Construct GitHub raw content URL
-            const videoUrl = `https://raw.githubusercontent.com/${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}/${VIDEO_REPO_BRANCH}/${VIDEO_FOLDER}/${fileName}`;
+            // Wait for git operations to complete (they happen async on server)
+            await new Promise(resolve => setTimeout(resolve, 3000));
             
-            await showPopup(
-                `Video uploaded successfully!\n\n` +
-                `File: ${result.fileName}\n` +
-                `Size: ${Math.round(result.size / 1024 / 1024 * 100) / 100} MB\n\n` +
-                `📦 The video is being automatically committed and pushed to:\n` +
-                `${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}\n\n` +
-                `⏱️ This may take a few seconds to complete.\n` +
-                `The server will automatically:\n` +
-                `1. Move file to repository\n` +
-                `2. git add ${VIDEO_FOLDER}/${fileName}\n` +
-                `3. git commit -m "Add video: ${fileName}"\n` +
-                `4. git push origin main\n\n` +
-                `Video URL (will be available shortly):\n${videoUrl}`,
-                'Upload Complete',
-                'info'
-            );
+            // Use the actual filename returned from server (may be renamed if duplicate)
+            const finalFileName = result.fileName;
+            
+            // Construct GitHub raw content URL using the final filename
+            const videoUrl = `https://raw.githubusercontent.com/${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}/${VIDEO_REPO_BRANCH}/${VIDEO_FOLDER}/${finalFileName}`;
+            
+            showUploadProgress('✅ Video uploaded and committed to GitHub!', 100);
+            
+            console.log('Video URL:', videoUrl);
             
             // Return the external URL instead of local path
             return videoUrl;
@@ -126,8 +253,8 @@ async function uploadFileToGitHub(file, path, commitMessage) {
             `Automatic upload failed: ${error.message}\n\n` +
             `The file will download to your computer.\n\n` +
             `Please manually add it to:\n` +
-            `https://github.com/Danie-GLR/Videoswigtube-EEEEEE\n` +
-            `in the "videos" folder`,
+            `https://github.com/${getVideoRepoConfig().owner || '<owner>'}/${getVideoRepoConfig().name || '<repo>'}\n` +
+            `in the "${getVideoRepoConfig().folder || 'videos'}" folder`,
             'Upload Server Not Available',
             'error'
         );
@@ -145,12 +272,62 @@ async function uploadFileToGitHub(file, path, commitMessage) {
         URL.revokeObjectURL(url);
         
         // Return the GitHub raw URL anyway (user will push manually)
-        const VIDEO_REPO_OWNER = 'Danie-GLR';
-        const VIDEO_REPO_NAME = 'Videoswigtube-EEEEEE';
-        const VIDEO_REPO_BRANCH = 'main';
-        const VIDEO_FOLDER = 'videos';
+        const { owner: F_OWNER, name: F_NAME, branch: F_BRANCH, folder: F_FOLDER } = getVideoRepoConfig();
+        return (F_OWNER && F_NAME)
+            ? `https://raw.githubusercontent.com/${F_OWNER}/${F_NAME}/${F_BRANCH}/${F_FOLDER}/${fileName}`
+            : '';
+    }
+}
+
+/**
+ * Delete video file from external repository
+ */
+async function deleteVideoFileFromRepo(videoUrl) {
+    try {
+        // Extract filename from video URL
+        let fileName = '';
         
-        return `https://raw.githubusercontent.com/${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}/${VIDEO_REPO_BRANCH}/${VIDEO_FOLDER}/${fileName}`;
+        if (videoUrl.includes('github')) {
+            // Extract from GitHub URL
+            fileName = videoUrl.split('/').pop();
+        } else if (videoUrl.includes('/')) {
+            // Extract from path
+            fileName = videoUrl.split('/').pop();
+        } else {
+            // Already just a filename
+            fileName = videoUrl;
+        }
+        
+        if (!fileName) {
+            console.warn('Could not extract filename from:', videoUrl);
+            return { success: false, error: 'Invalid video URL' };
+        }
+        
+        console.log('Attempting to delete video file:', fileName);
+        
+        // Use shared function to get upload server URL
+        const uploadServerUrl = getUploadServerUrl(`/delete/${encodeURIComponent(fileName)}`);
+        console.log('Delete URL:', uploadServerUrl);
+        
+        // Call delete endpoint
+        const response = await fetch(uploadServerUrl, {
+            method: 'DELETE',
+            mode: 'cors',
+            credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Delete request failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Delete result:', result);
+        
+        return { success: true, fileName, result };
+        
+    } catch (error) {
+        console.error('Error deleting video file from repo:', error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -436,6 +613,43 @@ const videoIdMap = {
 
 document.addEventListener('DOMContentLoaded', async function() {
     
+    // Store upload state globally so we can track it
+    window.wigtubeUploadInProgress = false;
+    
+    // Add detection for page unload to debug
+    window.addEventListener('unload', function() {
+        console.error('🔴🔴🔴 PAGE IS UNLOADING! 🔴🔴🔴');
+        console.trace('Unload stack trace:');
+    });
+    
+    window.addEventListener('pagehide', function() {
+        console.error('🔴🔴🔴 PAGE IS HIDING! 🔴🔴🔴');
+        console.trace('Pagehide stack trace:');
+    });
+    
+    // Add global handler to detect unwanted page navigation during upload
+    window.addEventListener('beforeunload', function(e) {
+        console.warn('⚠️ beforeunload event fired, upload in progress:', window.wigtubeUploadInProgress);
+        if (window.wigtubeUploadInProgress) {
+            console.error('🔴🔴🔴 PAGE IS TRYING TO NAVIGATE/RELOAD DURING UPLOAD! 🔴🔴🔴');
+            const message = 'Upload in progress! Are you sure you want to leave?';
+            e.preventDefault();
+            e.returnValue = message;
+            return message;
+        }
+    });
+    
+    // Block ALL form submissions during upload
+    document.addEventListener('submit', function(e) {
+        console.error('🟡🟡🟡 Document-level submit event detected! 🟡🟡🟡');
+        console.trace('Submit event stack trace:');
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.error('🔴 Submit event blocked at document level');
+        return false;
+    }, true);
+    
     // Load video data from JSON first
     const jsonLoaded = await loadVideoDataFromJSON();
     if (!jsonLoaded) {
@@ -448,6 +662,23 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Try to load videos from database first
     await loadVideosWithStats();
+    
+    // Check if we should navigate to a specific channel (from URL parameter)
+    const urlParams = new URLSearchParams(window.location.search);
+    const channelParam = urlParams.get('channel');
+    if (channelParam) {
+        // Clear the URL parameter
+        window.history.replaceState({}, '', window.location.pathname);
+        // Check if it's the current user's channel
+        const currentUsername = localStorage.getItem('username');
+        if (currentUsername && decodeURIComponent(channelParam) === currentUsername) {
+            // Show own channel with customization options
+            await showMyChannel();
+        } else {
+            // Show other user's channel
+            await showChannel(decodeURIComponent(channelParam));
+        }
+    }
     
     updateStatus('WigTube loaded successfully');
     
@@ -575,12 +806,16 @@ async function loadVideosWithStats() {
     if (typeof WigTubeDB !== 'undefined') {
         debugLog('loadVideosWithStats: WigTubeDB available');
         try {
-            // Get all video IDs from local videoData
-            const videoIds = videoData.map(v => v.id);
-            debugLog('loadVideosWithStats: Fetching stats for', videoIds.length, 'videos');
+            // Load all videos from database (user-uploaded videos)
+            const dbVideos = await WigTubeDB.getAllVideos();
+            debugLog('loadVideosWithStats: Loaded', dbVideos.length, 'videos from database');
             
-            // Fetch stats for each video from Firestore
-            const videosWithStats = await Promise.all(videoData.map(async (video) => {
+            // Get all video IDs from local videoData (JSON file videos)
+            const videoIds = videoData.map(v => v.id);
+            debugLog('loadVideosWithStats: Fetching stats for', videoIds.length, 'JSON videos');
+            
+            // Fetch stats for each JSON video from Firestore
+            const jsonVideosWithStats = await Promise.all(videoData.map(async (video) => {
                 try {
                     debugLog('loadVideosWithStats: Fetching', video.id);
                     const dbVideo = await WigTubeDB.getVideoById(video.id);
@@ -606,8 +841,30 @@ async function loadVideosWithStats() {
                 };
             }));
             
-            debugLog('loadVideosWithStats: Rendering', videosWithStats.length, 'videos');
-            renderVideos(videosWithStats);
+            // Format database videos to match video card format
+            const formattedDbVideos = dbVideos.map(dbVideo => {
+                const userRatings = dbVideo.userRatings ? Object.values(dbVideo.userRatings) : [];
+                return {
+                    id: dbVideo.id,
+                    title: dbVideo.title,
+                    author: dbVideo.uploaderName || dbVideo.uploaderId || 'Unknown',
+                    uploaderName: dbVideo.uploaderName || dbVideo.uploaderId,
+                    uploaderId: dbVideo.uploaderId,
+                    uploadDate: dbVideo.uploadDate || 'Unknown',
+                    duration: dbVideo.duration || '0:00',
+                    views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                    rating: WigTubeDB.calculateStarRating(userRatings),
+                    thumbnail: dbVideo.thumbnail || 'assets/images/thumbnail/default.png',
+                    category: dbVideo.category || 'other',
+                    videoUrl: dbVideo.videoUrl
+                };
+            });
+            
+            // Merge database videos with JSON videos (database videos first for better visibility)
+            const allVideos = [...formattedDbVideos, ...jsonVideosWithStats];
+            
+            debugLog('loadVideosWithStats: Rendering', allVideos.length, 'videos total');
+            renderVideos(allVideos);
             return;
         } catch (error) {
             console.error('Error loading videos from database:', error);
@@ -647,6 +904,10 @@ function createVideoCard(video) {
     card.className = 'video-card';
     card.setAttribute('data-video-id', video.id);
     
+    // Get uploader username - could be from author, uploaderName, or uploaderId
+    const uploaderName = video.uploaderName || video.author || video.uploaderId || 'Unknown';
+    const uploaderId = video.uploaderId || video.uploaderName || video.author;
+    
     card.innerHTML = `
         <div class="video-thumbnail">
             <img src="${video.thumbnail}" alt="${video.title}" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #c0c0c0 25%, transparent 25%)'; this.parentElement.style.backgroundSize='20px 20px';">
@@ -655,7 +916,7 @@ function createVideoCard(video) {
         <div class="video-info">
             <h3>${video.title}</h3>
             <div class="video-meta">
-                by ${video.author}<br>
+                by <span class="channel-link" data-channel="${uploaderId}" style="color: #0000ff; text-decoration: underline; cursor: pointer;">${uploaderName}</span><br>
                 Added: ${video.uploadDate}
             </div>
             <div class="video-stats">
@@ -670,7 +931,17 @@ function createVideoCard(video) {
 
 function attachVideoCardEvents() {
     document.querySelectorAll('.video-card').forEach(card => {
-        card.addEventListener('click', function() {
+        card.addEventListener('click', function(e) {
+            // Check if clicked on channel link
+            if (e.target.classList.contains('channel-link')) {
+                e.stopPropagation(); // Prevent video card click
+                const channelName = e.target.getAttribute('data-channel');
+                if (channelName) {
+                    showChannel(channelName);
+                }
+                return;
+            }
+            
             const videoId = this.getAttribute('data-video-id');
             const videoTitle = this.querySelector('h3').textContent;
             
@@ -1001,6 +1272,7 @@ async function showHomePage() {
     const content = document.querySelector('.content');
     const featuredBox = document.querySelector('.featured-box');
     const mainContainer = document.querySelector('.main-container');
+    const videoGrid = document.querySelector('.video-grid');
     
     // Restore all hidden elements
     if (sidebar) sidebar.style.display = '';
@@ -1015,9 +1287,21 @@ async function showHomePage() {
         content.style.width = '';
         content.style.maxWidth = '';
         content.style.padding = '';
+        content.style.margin = '';
     }
     if (mainContainer) {
         mainContainer.style.display = 'flex';
+        mainContainer.style.width = '';
+    }
+    
+    // Reset video-grid styles to default
+    if (videoGrid) {
+        videoGrid.style.display = '';
+        videoGrid.style.width = '';
+        videoGrid.style.maxWidth = '';
+        videoGrid.style.margin = '';
+        videoGrid.style.padding = '';
+        videoGrid.style.gridTemplateColumns = '';
     }
     
     // Reset to "All Videos" category
@@ -1375,6 +1659,7 @@ window.addEventListener('pageshow', async function(event) {
  * Show upload video dialog
  */
 function showUploadVideoDialog() {
+    console.log('📋 showUploadVideoDialog called');
     const currentUsername = localStorage.getItem('username');
     if (!currentUsername || currentUsername.toLowerCase() === 'guest') {
         updateStatus('Please log in to upload videos');
@@ -1386,7 +1671,12 @@ function showUploadVideoDialog() {
     const contentHeader = document.querySelector('.content-header');
     const categoryButtons = document.querySelector('.video-categories');
     
-    if (!videoGrid || !contentHeader) return;
+    if (!videoGrid || !contentHeader) {
+        console.error('❌ videoGrid or contentHeader not found');
+        return;
+    }
+    
+    console.log('📋 Creating upload form...');
     
     // Hide category buttons
     if (categoryButtons) {
@@ -1400,7 +1690,7 @@ function showUploadVideoDialog() {
     videoGrid.innerHTML = `
         <div style="max-width: 600px; margin: 0 auto; background: white; padding: 20px; border: 2px outset #ddd;">
             <div style="margin-bottom: 15px;">
-                <button onclick="showHomePage()" style="
+                <button type="button" id="backToHomeButton" style="
                     padding: 6px 12px;
                     background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
                     border: 2px outset #d4d0c8;
@@ -1412,10 +1702,12 @@ function showUploadVideoDialog() {
             
             <h2 style="font-size: 16px; margin-bottom: 15px; color: #316ac5;">Upload New Video</h2>
             
-            <form id="uploadVideoForm" style="display: flex; flex-direction: column; gap: 15px;">
+            <div id="uploadFormReady" style="display: none; color: green; margin-bottom: 10px; font-weight: bold;">✅ Form ready - you can now upload</div>
+            
+            <form id="uploadVideoForm" action="javascript:void(0);" method="post" novalidate onsubmit="event.preventDefault(); event.stopPropagation(); console.log('INLINE: Form submit blocked'); return false;" style="display: flex; flex-direction: column; gap: 15px;">
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Title *</label>
-                    <input type="text" id="videoTitle" required style="
+                    <input type="text" id="videoTitle" style="
                         width: 100%;
                         padding: 4px;
                         border: 2px inset #d4d0c8;
@@ -1437,14 +1729,14 @@ function showUploadVideoDialog() {
                 
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">Video File *</label>
-                    <input type="file" id="videoFile" accept="video/*" required style="
+                    <input type="file" id="videoFile" accept="video/*" style="
                         width: 100%;
                         padding: 4px;
                         border: 2px inset #d4d0c8;
                         font-size: 11px;
                         font-family: 'MS Sans Serif', sans-serif;
                     ">
-                    <small style="color: #666;">Select a video file - it will be uploaded to the repository</small>
+                    <small id="videoFileStatus" style="color: #666;">Select a video file - it will be uploaded to the repository</small>
                 </div>
                 
                 <div>
@@ -1486,7 +1778,7 @@ function showUploadVideoDialog() {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
                         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category *</label>
-                        <select id="videoCategory" required style="
+                        <select id="videoCategory" style="
                             width: 100%;
                             padding: 4px;
                             border: 2px inset #d4d0c8;
@@ -1506,14 +1798,15 @@ function showUploadVideoDialog() {
                     
                     <div>
                         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Duration *</label>
-                        <input type="text" id="videoDuration" required placeholder="3:45" pattern="[0-9]{1,2}:[0-9]{2}" style="
+                        <input type="text" id="videoDuration" placeholder="Auto-detected" readonly style="
                             width: 100%;
                             padding: 4px;
                             border: 2px inset #d4d0c8;
                             font-size: 11px;
                             font-family: 'MS Sans Serif', sans-serif;
+                            background-color: #f0f0f0;
                         ">
-                        <small style="color: #666;">Format: M:SS</small>
+                        <small style="color: #666;">Auto-detected when video is selected</small>
                     </div>
                 </div>
                 
@@ -1530,7 +1823,7 @@ function showUploadVideoDialog() {
                 </div>
                 
                 <div style="margin-top: 10px; display: flex; gap: 10px;">
-                    <button type="submit" style="
+                    <button type="button" id="uploadVideoButton" style="
                         flex: 1;
                         padding: 8px;
                         background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
@@ -1541,7 +1834,7 @@ function showUploadVideoDialog() {
                         font-family: 'MS Sans Serif', sans-serif;
                     ">📤 Upload Video</button>
                     
-                    <button type="button" onclick="showHomePage()" style="
+                    <button type="button" id="cancelUploadButton" style="
                         padding: 8px 16px;
                         background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
                         border: 2px outset #d4d0c8;
@@ -1554,10 +1847,156 @@ function showUploadVideoDialog() {
         </div>
     `;
     
-    // Attach form submission handler
-    const form = document.getElementById('uploadVideoForm');
-    if (form) {
-        form.addEventListener('submit', handleVideoUpload);
+    // Prevent form submission at form level - CRITICAL to prevent page refresh!
+    const uploadForm = document.getElementById('uploadVideoForm');
+    if (uploadForm) {
+        console.log('🟢 Upload form found, attaching nuclear prevention');
+        
+        // Set action to javascript void to prevent any navigation
+        uploadForm.action = 'javascript:void(0);';
+        uploadForm.method = 'post';
+        uploadForm.removeAttribute('target');
+        
+        // Only stop submit events from propagating, not all events
+        uploadForm.addEventListener('submit', (e) => {
+            console.log('🟡 Form submit event - stopping propagation to parent');
+            e.stopPropagation();
+        }, true);
+        
+        // Multiple layers of prevention to stop form submission
+        const preventSubmit = (e) => {
+            console.error('🔴🔴🔴 FORM SUBMIT EVENT FIRED - BLOCKING! 🔴🔴🔴');
+            console.trace('Form submit stack trace:');
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+            return false;
+        };
+        
+        // Attach to both capture and bubble phases
+        uploadForm.addEventListener('submit', preventSubmit, true);
+        uploadForm.addEventListener('submit', preventSubmit, false);
+        
+        // Set onsubmit directly as last resort
+        uploadForm.onsubmit = (e) => {
+            console.log('🔴 onsubmit triggered - BLOCKING!');
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+            return false;
+        };
+        
+        // Prevent Enter key from submitting the form in ANY input except textarea
+        uploadForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                console.log('🔴 Enter key pressed in form - BLOCKING!');
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+        
+        // Also prevent on keypress and keyup to be extra safe
+        uploadForm.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true);
+        
+        console.log('✅ Form submit prevention handlers attached');
+    } else {
+        console.error('❌ Upload form not found!');
+    }
+    
+    // Attach button click handler instead of form submission
+    const uploadButton = document.getElementById('uploadVideoButton');
+    if (uploadButton) {
+        // Remove any type="submit" if accidentally set
+        uploadButton.setAttribute('type', 'button');
+        
+        // Remove the inline onclick and replace with our handler
+        uploadButton.onclick = null;
+        
+        uploadButton.addEventListener('click', async (e) => {
+            console.log('🔵 ==================== UPLOAD BUTTON CLICKED ====================');
+            console.log('🔵 Event type:', e.type);
+            console.log('🔵 Event target:', e.target);
+            console.log('🔵 Current target:', e.currentTarget);
+            console.log('🔵 Event phase:', e.eventPhase);
+            console.log('🔵 Default prevented:', e.defaultPrevented);
+            console.trace('Upload button click stack trace:');
+            
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+            
+            console.log('🔵 After preventDefault - defaultPrevented:', e.defaultPrevented);
+            
+            // Disable button during upload to prevent double-clicks
+            uploadButton.disabled = true;
+            uploadButton.textContent = '⏳ Uploading...';
+            uploadButton.style.opacity = '0.6';
+            
+            console.log('🔵 Calling handleVideoUpload...');
+            
+            try {
+                const result = await handleVideoUpload(e);
+                console.log('🔵 handleVideoUpload completed successfully, result:', result);
+                
+                // Clear the form only if user chose to stay on upload page
+                if (result === 'stay') {
+                    const form = document.getElementById('uploadVideoForm');
+                    if (form) {
+                        form.reset();
+                        console.log('🔵 Form cleared for next upload');
+                    }
+                }
+            } catch (error) {
+                console.error('🔴 Error in upload button handler:', error);
+                alert('Upload error: ' + error.message);
+            } finally {
+                // Re-enable button
+                uploadButton.disabled = false;
+                uploadButton.textContent = '📤 Upload Video';
+                uploadButton.style.opacity = '1';
+            }
+            return false;
+        }, true);
+        
+        console.log('✅ Upload button handler attached successfully');
+    } else {
+        console.error('❌ Upload button not found!');
+    }
+    
+    // Attach cancel button handler
+    const cancelButton = document.getElementById('cancelUploadButton');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showHomePage();
+        });
+        console.log('✅ Cancel button handler attached successfully');
+    }
+    
+    // Attach back button handler
+    const backToHomeButton = document.getElementById('backToHomeButton');
+    if (backToHomeButton) {
+        backToHomeButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showHomePage();
+        });
+        console.log('✅ Back to Home button handler attached successfully');
     }
     
     // Add thumbnail source type switcher
@@ -1581,138 +2020,595 @@ function showUploadVideoDialog() {
         });
     }
     
+    // Add automatic video duration detection
+    const videoFileInput = document.getElementById('videoFile');
+    const videoDurationInput = document.getElementById('videoDuration');
+    const videoFileStatus = document.getElementById('videoFileStatus');
+    
+    if (videoFileInput && videoDurationInput) {
+        videoFileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file && file.type.startsWith('video/')) {
+                if (videoFileStatus) {
+                    videoFileStatus.textContent = '⏳ Detecting duration...';
+                    videoFileStatus.style.color = '#666';
+                }
+                
+                // Create a video element to read metadata
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                
+                video.onloadedmetadata = function() {
+                    window.URL.revokeObjectURL(video.src);
+                    const duration = Math.floor(video.duration);
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = duration % 60;
+                    const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    videoDurationInput.value = formattedDuration;
+                    console.log('✅ Video duration detected:', formattedDuration);
+                    
+                    if (videoFileStatus) {
+                        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                        videoFileStatus.textContent = `✅ ${file.name} (${fileSizeMB} MB, ${formattedDuration})`;
+                        videoFileStatus.style.color = '#008000';
+                    }
+                };
+                
+                video.onerror = function() {
+                    console.warn('⚠️ Could not detect video duration');
+                    if (videoFileStatus) {
+                        videoFileStatus.textContent = '⚠️ Could not detect duration - please enter manually';
+                        videoFileStatus.style.color = '#ff6600';
+                    }
+                    // Make field editable if auto-detection fails
+                    videoDurationInput.removeAttribute('readonly');
+                    videoDurationInput.style.backgroundColor = '#ffffff';
+                    videoDurationInput.placeholder = '3:45';
+                };
+                
+                video.src = URL.createObjectURL(file);
+            }
+        });
+    }
+    
     updateStatus('Ready to upload video');
+    
+    // Use setTimeout to ensure handlers are attached AFTER the DOM is fully ready
+    setTimeout(() => {
+        const readyIndicator = document.getElementById('uploadFormReady');
+        if (readyIndicator) {
+            readyIndicator.style.display = 'block';
+            setTimeout(() => {
+                readyIndicator.style.display = 'none';
+            }, 2000);
+        }
+        console.log('✅✅✅ Upload form is fully initialized and ready ✅✅✅');
+    }, 100);
 }
 
 /**
  * Handle video upload
  */
 async function handleVideoUpload(event) {
-    event.preventDefault();
+    console.log('🟢 ==================== UPLOAD START ====================');
+    console.log('🟢 handleVideoUpload called');
     
-    const currentUsername = localStorage.getItem('username');
-    if (!currentUsername || currentUsername.toLowerCase() === 'guest') {
-        alert('You must be logged in to upload videos!');
-        return;
-    }
+    // Set global upload flag
+    window.wigtubeUploadInProgress = true;
     
-    // Check if WigTubeDB is available
-    if (typeof WigTubeDB === 'undefined') {
-        alert('Upload feature is currently unavailable. Please try again later.');
-        return;
-    }
-    
-    // Get form values
-    const title = document.getElementById('videoTitle').value.trim();
-    const description = document.getElementById('videoDescription').value.trim();
-    const videoFile = document.getElementById('videoFile');
-    const thumbnailSourceType = document.getElementById('thumbnailSourceType').value;
-    const thumbnailFile = document.getElementById('thumbnailFile');
-    const thumbnailUrlInput = document.getElementById('videoThumbnail').value.trim();
-    const category = document.getElementById('videoCategory').value;
-    const duration = document.getElementById('videoDuration').value.trim();
-    const tagsInput = document.getElementById('videoTags').value.trim();
-    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : [];
-    
-    // Validate required fields
-    if (!videoFile || !videoFile.files || !videoFile.files[0]) {
-        await showPopup('Please select a video file!', 'Error', 'error');
-        return;
-    }
-    
-    if (!title || !duration) {
-        await showPopup('Please fill in all required fields!', 'Error', 'error');
-        return;
+    // CRITICAL: Prevent any and all form submission or navigation
+    if (event) {
+        try {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            console.log('🟢 Event prevented successfully');
+        } catch (preventError) {
+            console.error('🔴 Error preventing event:', preventError);
+        }
     }
     
     try {
+        console.log('🟢 Starting upload process...');
+        const currentUsername = localStorage.getItem('username');
+        if (!currentUsername || currentUsername.toLowerCase() === 'guest') {
+            console.log('🔴 Not logged in');
+            window.wigtubeUploadInProgress = false;
+            alert('You must be logged in to upload videos!');
+            return false;
+        }
+        
+        console.log('🟢 User logged in as:', currentUsername);
+        
+        // Check if WigTubeDB is available
+        if (typeof WigTubeDB === 'undefined') {
+            console.log('🔴 WigTubeDB not available');
+            alert('Upload feature is currently unavailable. Please try again later.');
+            return false;
+        }
+        
+        console.log('🟢 Getting form elements...');
+        // Get form values
+        const title = document.getElementById('videoTitle');
+        const description = document.getElementById('videoDescription');
+        const videoFile = document.getElementById('videoFile');
+        const thumbnailSourceType = document.getElementById('thumbnailSourceType');
+        const thumbnailFile = document.getElementById('thumbnailFile');
+        const thumbnailUrlInput = document.getElementById('videoThumbnail');
+        const category = document.getElementById('videoCategory');
+        const duration = document.getElementById('videoDuration');
+        const tagsInput = document.getElementById('videoTags');
+        
+        console.log('🟢 Form elements retrieved');
+        
+        // Check if elements exist
+        if (!title || !videoFile || !duration || !category) {
+            console.error('🔴 Upload form elements not found');
+            alert('Upload form is not properly initialized. Please try again.');
+            return false;
+        }
+        
+        const titleValue = title.value.trim();
+        const descriptionValue = description ? description.value.trim() : '';
+        const thumbnailSourceTypeValue = thumbnailSourceType ? thumbnailSourceType.value : 'none';
+        const thumbnailUrlInputValue = thumbnailUrlInput ? thumbnailUrlInput.value.trim() : '';
+        const categoryValue = category.value;
+        const durationValue = duration.value.trim();
+        const tagsValue = tagsInput ? tagsInput.value.trim() : '';
+        const tags = tagsValue ? tagsValue.split(',').map(t => t.trim()) : [];
+        
+        // Validate required fields
+        if (!videoFile || !videoFile.files || !videoFile.files[0]) {
+            alert('Please select a video file!');
+            return false;
+        }
+        
+        if (!titleValue || !durationValue) {
+            alert('Please fill in all required fields!');
+            return false;
+        }
+        
         const videoFileData = videoFile.files[0];
-        const fileName = videoFileData.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // Sanitize filename
+        const originalFileName = videoFileData.name;
+        // Sanitize filename - keep spaces and common chars, just remove dangerous path characters
+        const fileName = originalFileName.replace(/[\\/:*?\"<>|]/g, '_');
         const filePath = `videos/${fileName}`; // Path in external repo
         const fileSizeMB = Math.round(videoFileData.size / 1024 / 1024 * 100) / 100;
         
         console.log('Uploading video file:', fileName, videoFileData.size, 'bytes');
         
-        updateStatus(`Uploading video (${fileSizeMB} MB) to external repository... Please wait, this may take a while.`);
-        
-        // Show progress popup
-        await showPopup(
-            `Uploading video: ${fileName}\n` +
-            `Size: ${fileSizeMB} MB\n\n` +
-            `⏳ Please wait... This may take 1-2 minutes for large files.\n\n` +
-            `The video will be automatically uploaded to GitHub.`,
-            'Upload in Progress',
-            'info'
-        );
+        updateStatus(`⏳ Preparing to upload ${fileSizeMB} MB...`);
         
         // Upload file to external GitHub repository - returns the GitHub raw URL
         const videoUrl = await uploadFileToGitHub(videoFileData, filePath, `Add video: ${fileName}`);
         
         if (!videoUrl) {
             updateStatus('Upload failed');
-            await showPopup('Upload failed. Please check the console for errors.', 'Error', 'error');
-            return;
+            alert('Upload failed. Please check the console for errors.');
+            return false;
         }
         
         console.log('Video URL:', videoUrl);
         
         // Handle thumbnail
         let thumbnail = '';
-        if (thumbnailSourceType === 'file' && thumbnailFile.files.length > 0) {
-            updateStatus('Processing thumbnail...');
+        if (thumbnailSourceTypeValue === 'file' && thumbnailFile && thumbnailFile.files.length > 0) {
+            updateStatus('Uploading thumbnail...');
             const thumbnailFileData = thumbnailFile.files[0];
+            const originalThumbnailName = thumbnailFileData.name;
+            const thumbnailFileName = originalThumbnailName.replace(/[\\/:*?\"<>|]/g, '_');
+            const thumbnailPath = `thumbnails/${thumbnailFileName}`; // Separate folder for thumbnails
             
-            // Convert thumbnail to base64 (thumbnails are usually small)
-            thumbnail = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = (e) => reject(e);
-                reader.readAsDataURL(thumbnailFileData);
-            });
-            console.log('Thumbnail converted to base64');
-        } else if (thumbnailSourceType === 'url' && thumbnailUrlInput) {
-            thumbnail = thumbnailUrlInput;
+            console.log('Uploading thumbnail:', thumbnailFileName);
+            
+            try {
+                // Upload thumbnail to external repository (thumbnails folder)
+                const { owner: VIDEO_REPO_OWNER, name: VIDEO_REPO_NAME, branch: VIDEO_REPO_BRANCH } = getVideoRepoConfig();
+                const thumbnailUploadResult = await uploadFileToGitHub(thumbnailFileData, thumbnailPath, `Add thumbnail: ${thumbnailFileName}`);
+                
+                // Use the actual filename returned from server (may be renamed if duplicate)
+                if (typeof thumbnailUploadResult === 'string') {
+                    thumbnail = thumbnailUploadResult;
+                } else if (thumbnailUploadResult && thumbnailUploadResult.fileName) {
+                    // If server returns object with fileName, construct proper URL
+                    const finalThumbnailName = thumbnailUploadResult.fileName;
+                    thumbnail = `https://raw.githubusercontent.com/${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}/${VIDEO_REPO_BRANCH}/thumbnails/${finalThumbnailName}`;
+                    if (thumbnailUploadResult.renamed) {
+                        console.log('📝 Thumbnail was renamed from:', thumbnailUploadResult.originalFileName);
+                    }
+                } else {
+                    thumbnail = thumbnailUploadResult;
+                }
+                console.log('Thumbnail uploaded to:', thumbnail);
+            } catch (thumbnailError) {
+                console.error('Thumbnail upload failed:', thumbnailError);
+                // Fallback to base64 if thumbnail upload fails
+                thumbnail = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(e);
+                    reader.readAsDataURL(thumbnailFileData);
+                });
+                console.log('Thumbnail converted to base64 as fallback');
+            }
+        } else if (thumbnailSourceTypeValue === 'url' && thumbnailUrlInputValue) {
+            thumbnail = thumbnailUrlInputValue;
         } else {
             thumbnail = 'assets/images/thumbnail/default.png';
         }
         
         updateStatus('Saving to database...');
+        console.log('🟢 About to save to database...');
         
         // Create video object
         const videoData = {
-            title,
-            description,
+            title: titleValue,
+            description: descriptionValue,
             videoUrl,
             thumbnail,
-            category,
-            duration,
+            category: categoryValue,
+            duration: durationValue,
             tags,
             uploaderId: currentUsername,
             uploaderName: currentUsername,
             visibility: 'public'
         };
         
+        console.log('🟢 Video data:', JSON.stringify(videoData, null, 2));
+        
         // Upload to database
-        const result = await WigTubeDB.createVideo(videoData);
+        let result;
+        try {
+            result = await WigTubeDB.createVideo(videoData);
+            console.log('🟢 Database save successful!');
+            console.log('🟢 Result:', result);
+        } catch (dbError) {
+            console.error('🔴 Database save error:', dbError);
+            throw new Error(`Failed to save to database: ${dbError.message}`);
+        }
         
-        console.log('Video uploaded successfully:', result);
+        console.log('Video uploaded successfully to database');
         
-        // Show success message
-        alert(`✅ Video "${title}" uploaded successfully!\\n\\nYou can view it on your channel or in the ${category} category.`);
+        // Show success message with options
+        console.log('🟢 Showing success confirmation dialog...');
+        const viewChannel = confirm(`✅ Video "${titleValue}" uploaded successfully!\n\nYou can view it on your channel or in the ${categoryValue} category.\n\nWould you like to go to your channel now?\n\nClick OK to view channel, or Cancel to stay on upload page.`);
         
-        // Redirect to channel
-        await showMyChannel();
+        // Only redirect if user chooses to
+        if (viewChannel) {
+            console.log('🔵 User chose to view channel');
+            window.wigtubeUploadInProgress = false;
+            await showMyChannel();
+            console.log('🟢 ==================== UPLOAD END (channel) ====================');
+            return 'channel';
+        } else {
+            console.log('🔵 User chose to stay on upload page');
+            window.wigtubeUploadInProgress = false;
+            updateStatus('Video uploaded successfully! Ready for next upload.');
+            console.log('🟢 ==================== UPLOAD END (stay) ====================');
+            return 'stay';
+        }
         
     } catch (error) {
-        console.error('Error uploading video:', error);
-        alert('Failed to upload video. Please try again.');
+        console.error('🔴 ==================== UPLOAD ERROR ====================');
+        console.error('🔴 Error uploading video:', error);
+        console.error('🔴 Error stack:', error.stack);
+        window.wigtubeUploadInProgress = false;
+        alert('Failed to upload video: ' + error.message);
         updateStatus('Upload failed');
+        console.error('🔴 ==================== UPLOAD END (error) ====================');
+        return false; // Prevent any form submission
+    } finally {
+        // Ensure we never navigate away accidentally
+        window.wigtubeUploadInProgress = false;
+        console.log('🟢 ==================== UPLOAD FINALLY ====================');
     }
 }
 
 // ============================================
 // My Channel Functions (YouTube 2009 Style)
 // ============================================
+
+/**
+ * Show any user's channel page in YouTube 2009 style
+ */
+async function showChannel(channelName) {
+    if (!channelName) {
+        updateStatus('Invalid channel name');
+        return;
+    }
+
+    const videoGrid = document.querySelector('.video-grid');
+    const contentHeader = document.querySelector('.content-header');
+    const categoryButtons = document.querySelector('.video-categories');
+    const sidebar = document.querySelector('.sidebar');
+    const content = document.querySelector('.content');
+    const featuredBox = document.querySelector('.featured-box');
+    const mainContainer = document.querySelector('.main-container');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Hide sidebar, category buttons, featured box, and header
+    if (sidebar) sidebar.style.display = 'none';
+    if (categoryButtons) categoryButtons.style.display = 'none';
+    if (featuredBox) featuredBox.style.display = 'none';
+    if (contentHeader) contentHeader.style.display = 'none';
+    
+    // Expand content to full width
+    if (content) {
+        content.style.flex = 'none';
+        content.style.width = '100%';
+        content.style.maxWidth = 'none';
+        content.style.padding = '0';
+        content.style.margin = '0';
+    }
+    if (mainContainer) {
+        mainContainer.style.display = 'block';
+        mainContainer.style.width = '100%';
+    }
+    
+    // Override video-grid styling for full width
+    videoGrid.style.display = 'block';
+    videoGrid.style.width = '100%';
+    videoGrid.style.maxWidth = 'none';
+    videoGrid.style.margin = '0';
+    videoGrid.style.padding = '0';
+    videoGrid.style.gridTemplateColumns = 'none';
+    
+    updateStatus(`Loading ${channelName}'s channel...`);
+    showLoadingProgress();
+    
+    try {
+        // Get all videos and filter by specified user
+        const allVideos = typeof WigTubeDB !== 'undefined' ? await WigTubeDB.getAllVideos() : [];
+        const channelVideos = allVideos.filter(video => video.uploaderId === channelName || video.uploaderName === channelName);
+        
+        // Calculate channel stats
+        const totalVideos = channelVideos.length;
+        const totalViews = channelVideos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
+        const totalSubscribers = 0;
+        
+        // Get user customizations from localStorage
+        const channelBanner = localStorage.getItem(`channel_banner_${channelName}`) || '';
+        const channelDescription = localStorage.getItem(`channel_description_${channelName}`) || '';
+        
+        // Load profile picture
+        let profilePic = null;
+        if (typeof getUserProfilePicture !== 'undefined') {
+            profilePic = getUserProfilePicture(channelName);
+        }
+        if (!profilePic && typeof loadUserProfilePicture !== 'undefined') {
+            profilePic = await loadUserProfilePicture(channelName);
+        }
+        
+        // Update header
+        contentHeader.innerHTML = `📺 ${channelName}'s Channel`;
+        
+        // Create Windows XP styled channel page
+        videoGrid.innerHTML = `
+            <!-- Channel Container -->
+            <div style="width: 100%; background: #f0f0f0; margin: 0; padding: 0;">
+                <!-- Channel Banner -->
+                <div id="channelBanner" style="
+                    width: 100%;
+                    height: 200px;
+                    background: ${channelBanner ? `url('${channelBanner}')` : 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)'};
+                    background-size: cover;
+                    background-position: center;
+                    position: relative;
+                    border-bottom: 2px solid #000080;
+                ">
+                </div>
+                
+                <!-- Channel Header -->
+                <div style="background: #e0e0e0; border-bottom: 1px solid #808080;">
+                    <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
+                            <!-- Avatar -->
+                            <div style="
+                                width: 80px;
+                                height: 80px;
+                                background: ${profilePic ? `url('${profilePic}')` : 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)'};
+                                background-size: cover;
+                                background-position: center;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 36px;
+                                color: white;
+                                font-weight: bold;
+                                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                                flex-shrink: 0;
+                                border: 2px outset #d4d0c8;
+                            ">${!profilePic ? channelName.charAt(0).toUpperCase() : ''}</div>
+                            
+                            <!-- Channel Info -->
+                            <div style="flex: 1;">
+                                <h1 style="
+                                    font-size: 20px;
+                                    color: #000080;
+                                    margin: 0 0 8px 0;
+                                    font-weight: bold;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                ">${channelName}</h1>
+                                
+                                <div style="
+                                    color: #000;
+                                    font-size: 11px;
+                                    margin-bottom: 12px;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                ">
+                                    @${channelName.toLowerCase()} • 
+                                    ${totalSubscribers} subscribers • 
+                                    ${totalVideos} video${totalVideos !== 1 ? 's' : ''}
+                                </div>
+                                
+                                ${channelDescription ? `
+                                <div style="
+                                    color: #000;
+                                    font-size: 12px;
+                                    margin-bottom: 12px;
+                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                    line-height: 1.6;
+                                    font-size: 11px;
+                                    margin-bottom: 12px;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                    line-height: 1.4;
+                                ">${channelDescription}</div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Tabs -->
+                    <div style="max-width: 1200px; margin: 0 auto;">
+                        <div style="
+                            display: flex;
+                            gap: 2px;
+                            padding: 0 20px;
+                            background: #d4d0c8;
+                            border-top: 1px solid #808080;
+                        ">
+                            <a href="javascript:void(0)" onclick="showChannel('${channelName}'); return false;" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #f0f0f0;
+                                border: 2px outset #d4d0c8;
+                                border-bottom: none;
+                            ">HOME</a>
+                            <a href="javascript:void(0)" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">VIDEOS</a>
+                            <a href="javascript:void(0)" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">PLAYLISTS</a>
+                            <a href="javascript:void(0)" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">ABOUT</a>
+                            <div style="flex: 1;"></div>
+                            <button type="button" onclick="showHomePage()" style="
+                                padding: 4px 10px;
+                                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                                color: #000;
+                                border: 2px outset #d4d0c8;
+                                cursor: pointer;
+                                font-size: 11px;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                align-self: center;
+                                margin: 4px 0;
+                            ">← Back to Home</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Main Content Area -->
+                <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+                    <!-- Uploads Section -->
+                    ${channelVideos.length > 0 ? `
+                    <div style="margin-bottom: 24px;">
+                        <div style="
+                            background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                            padding: 6px 12px;
+                            margin-bottom: 12px;
+                            border: 2px outset #d4d0c8;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        ">
+                            <h2 style="
+                                font-size: 11px;
+                                font-weight: bold;
+                                color: #fff;
+                                margin: 0;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+                            ">Uploads</h2>
+                            <span style="
+                                font-size: 11px;
+                                color: #e0e0e0;
+                                font-family: 'MS Sans Serif', sans-serif;
+                            ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
+                        </div>
+                        
+                        <div id="channelVideosGrid" style="
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                            gap: 12px;
+                        ">
+                        </div>
+                    </div>
+                    ` : `
+                    <div style="
+                        background: #f0f0f0;
+                        padding: 40px;
+                        text-align: center;
+                        margin-bottom: 20px;
+                        border: 2px inset #d4d0c8;
+                    ">
+                        <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📹</div>
+                        <div style="font-size: 11px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No videos uploaded yet</div>
+                        <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">This channel hasn't uploaded any videos</div>
+                    </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        // Add video cards if there are any
+        if (channelVideos.length > 0) {
+            const channelVideosGrid = document.getElementById('channelVideosGrid');
+            
+            for (const video of channelVideos) {
+                const videoCard = createChannelVideoCard(video, false);
+                channelVideosGrid.appendChild(videoCard);
+            }
+        }
+        
+        updateStatus(`Showing ${channelName}'s channel with ${totalVideos} video(s)`);
+        
+    } catch (error) {
+        console.error('Error loading channel:', error);
+        updateStatus('Error loading channel');
+        
+        videoGrid.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                <div style="font-size: 14px; color: #666;">Failed to load channel</div>
+                <button onclick="showHomePage()" style="
+                    margin-top: 20px;
+                    padding: 8px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Back to Home</button>
+            </div>
+        `;
+    }
+}
 
 /**
  * Show user's channel page in YouTube 2009 style
@@ -1743,14 +2639,24 @@ async function showMyChannel() {
     
     // Expand content to full width
     if (content) {
-        content.style.flex = '1';
+        content.style.flex = 'none';
         content.style.width = '100%';
-        content.style.maxWidth = '100%';
-        content.style.padding = '20px';
+        content.style.maxWidth = 'none';
+        content.style.padding = '0';
+        content.style.margin = '0';
     }
     if (mainContainer) {
         mainContainer.style.display = 'block';
+        mainContainer.style.width = '100%';
     }
+    
+    // Override video-grid styling for full width
+    videoGrid.style.display = 'block';
+    videoGrid.style.width = '100%';
+    videoGrid.style.maxWidth = 'none';
+    videoGrid.style.margin = '0';
+    videoGrid.style.padding = '0';
+    videoGrid.style.gridTemplateColumns = 'none';
     
     updateStatus('Loading your channel...');
     showLoadingProgress();
@@ -1763,217 +2669,286 @@ async function showMyChannel() {
         // Calculate channel stats
         const totalVideos = myVideos.length;
         const totalViews = myVideos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
-        const channelAge = 'Member since 2009'; // You could store join date in user profile
+        const totalSubscribers = 0; // You could store subscribers in user profile
         
-        // Get user profile picture
-        const profilePic = typeof getUserProfilePicture !== 'undefined' ? getUserProfilePicture(currentUsername) : null;
+        // Get user customizations from localStorage
+        const channelBanner = localStorage.getItem(`channel_banner_${currentUsername}`) || '';
+        const channelDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
+        
+        // Load profile picture - try to get it from cache or load from Firebase
+        let profilePic = null;
+        if (typeof getUserProfilePicture !== 'undefined') {
+            profilePic = getUserProfilePicture(currentUsername);
+        }
+        if (!profilePic && typeof loadUserProfilePicture !== 'undefined') {
+            profilePic = await loadUserProfilePicture(currentUsername);
+        }
         
         // Update header
         contentHeader.innerHTML = `📺 ${currentUsername}'s Channel`;
         
-        // Create YouTube 2009 styled channel page
+        // Create YouTube-style channel page with customizable banner
         videoGrid.innerHTML = `
             <!-- Channel Container -->
-            <div style="max-width: 980px; margin: 0 auto;">
+            <div style="width: 100%; background: #f0f0f0; margin: 0; padding: 0;">
+                <!-- Channel Banner (Customizable) -->
+                <div id="channelBanner" style="
+                    width: 100%;
+                    height: 200px;
+                    background: ${channelBanner ? `url('${channelBanner}')` : 'linear-gradient(to bottom, #4e8bc7 0%, #2a5a8a 100%)'};
+                    background-size: cover;
+                    background-position: center;
+                    position: relative;
+                    border-bottom: 1px solid #003366;
+                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 5px rgba(0,0,0,0.3);
+                ">
+                    <!-- Edit Banner Button -->
+                    <button type="button" onclick="showBannerCustomization()" style="
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                        padding: 4px 10px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">✏️ Customize Banner</button>
+                </div>
+                
                 <!-- Channel Header -->
-                <div style="background: #fff; border: 1px solid #ccc; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <!-- Navigation Tabs -->
-                    <div style="
-                        background: linear-gradient(to bottom, #fafafa 0%, #e8e8e8 100%);
-                        border-bottom: 1px solid #ccc;
-                        padding: 0;
-                        display: flex;
-                        gap: 0;
-                    ">
-                        <a href="#" onclick="showMyChannel(); return false;" style="
-                            color: #333;
-                            text-decoration: none;
-                            padding: 12px 24px;
-                            font-size: 13px;
-                            font-weight: bold;
-                            background: #fff;
-                            border-right: 1px solid #ccc;
-                            border-bottom: 2px solid #cc181e;
-                        ">Videos</a>
-                        <a href="#" style="
-                            color: #0033cc;
-                            text-decoration: none;
-                            padding: 12px 24px;
-                            font-size: 13px;
-                            border-right: 1px solid #ccc;
-                        ">Playlists</a>
-                        <a href="#" style="
-                            color: #0033cc;
-                            text-decoration: none;
-                            padding: 12px 24px;
-                            font-size: 13px;
-                            border-right: 1px solid #ccc;
-                        ">Favorites</a>
-                        <a href="#" style="
-                            color: #0033cc;
-                            text-decoration: none;
-                            padding: 12px 24px;
-                            font-size: 13px;
-                        ">About</a>
-                        <div style="flex: 1;"></div>
-                        <button onclick="showHomePage()" style="
-                            margin: 6px 10px;
-                            padding: 6px 16px;
-                            background: #f8f8f8;
-                            border: 1px solid #d3d3d3;
-                            border-radius: 2px;
-                            cursor: pointer;
-                            font-size: 11px;
-                            font-family: Arial, sans-serif;
-                            color: #333;
-                        ">← Back to Home</button>
-                    </div>
-                    
-                    <!-- Channel Header Section -->
-                    <div style="padding: 30px; background: #fff;">
-                        <div style="display: flex; gap: 30px; align-items: flex-start;">
+                <div style="background: linear-gradient(to bottom, #ffffff 0%, #e8e8e8 100%); border-bottom: 1px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
                             <!-- Avatar -->
                             <div style="
-                                width: 100px;
-                                height: 100px;
-                                ${profilePic ? `background-image: url('${profilePic}'); background-size: cover; background-position: center;` : `background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);`}
-                                border-radius: 50%;
+                                width: 80px;
+                                height: 80px;
+                                background: ${profilePic ? `url('${profilePic}')` : 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)'};
+                                background-size: cover;
+                                background-position: center;
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 42px;
+                                font-size: 36px;
                                 color: white;
                                 font-weight: bold;
-                                text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+                                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
                                 flex-shrink: 0;
-                                border: 3px solid #e0e0e0;
-                            ">${profilePic ? '' : currentUsername.charAt(0).toUpperCase()}</div>
+                                border: 2px outset #d4d0c8;
+                            ">${!profilePic ? currentUsername.charAt(0).toUpperCase() : ''}</div>
                             
                             <!-- Channel Info -->
                             <div style="flex: 1;">
                                 <h1 style="
-                                    font-size: 28px;
-                                    color: #333;
+                                    font-size: 20px;
+                                    color: #000080;
                                     margin: 0 0 8px 0;
-                                    font-weight: normal;
-                                    font-family: Arial, sans-serif;
+                                    font-weight: bold;
+                                    font-family: 'MS Sans Serif', sans-serif;
                                 ">${currentUsername}</h1>
                                 
                                 <div style="
-                                    color: #666;
-                                    font-size: 12px;
-                                    margin-bottom: 20px;
-                                    font-family: Arial, sans-serif;
+                                    color: #000;
+                                    font-size: 11px;
+                                    margin-bottom: 12px;
+                                    font-family: 'MS Sans Serif', sans-serif;
                                 ">
-                                    <span style="margin-right: 15px;">
-                                        <strong>${totalVideos}</strong> video${totalVideos !== 1 ? 's' : ''}
-                                    </span>
-                                    <span style="margin-right: 15px;">
-                                        <strong>${totalViews.toLocaleString()}</strong> total upload views
-                                    </span>
-                                    <span>
-                                        Joined ${channelAge}
-                                    </span>
+                                    @${currentUsername.toLowerCase()} • 
+                                    ${totalSubscribers} subscribers • 
+                                    ${totalVideos} video${totalVideos !== 1 ? 's' : ''}
                                 </div>
+                                
+                                ${channelDescription ? `
+                                <div style="
+                                    color: #000;
+                                    font-size: 11px;
+                                    margin-bottom: 12px;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                    line-height: 1.4;
+                                ">${channelDescription}</div>
+                                ` : ''}
+                                
+                                <button type="button" onclick="showChannelSettings()" style="
+                                    padding: 4px 12px;
+                                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                                    color: #000;
+                                    border: 2px outset #d4d0c8;
+                                    cursor: pointer;
+                                    font-size: 11px;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                ">Customize channel</button>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Upload Prompt Section -->
-                <div style="
-                    background: #fff;
-                    border: 1px solid #ccc;
-                    padding: 40px;
-                    text-align: center;
-                    margin-bottom: 20px;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                ">
-                    <div style="
-                        display: inline-flex;
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 20px;
-                        max-width: 500px;
-                    ">
-                        <!-- Upload Icon -->
+                    
+                    <!-- Navigation Tabs -->
+                    <div style="max-width: 1200px; margin: 0 auto;">
                         <div style="
-                            width: 100px;
-                            height: 100px;
-                            background: linear-gradient(135deg, #cc181e 0%, #990000 100%);
-                            border-radius: 8px;
                             display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                            gap: 2px;
+                            padding: 0 20px;
+                            background: linear-gradient(to bottom, #e8e8e8 0%, #d0d0d0 100%);
+                            border-top: 1px solid #bbb;
                         ">
-                            <div style="
-                                width: 0;
-                                height: 0;
-                                border-left: 25px solid transparent;
-                                border-right: 25px solid transparent;
-                                border-bottom: 35px solid white;
-                            "></div>
-                        </div>
-                        
-                        <div>
-                            <h2 style="
-                                margin: 0 0 10px 0;
-                                font-size: 20px;
-                                color: #333;
-                                font-family: Arial, sans-serif;
-                                font-weight: normal;
-                            ">Want to upload a new video?</h2>
-                            
-                            <p style="
-                                margin: 0 0 20px 0;
-                                font-size: 13px;
-                                color: #666;
-                                font-family: Arial, sans-serif;
-                                line-height: 1.6;
-                            ">
-                                Share your videos with the world. Upload and manage your content to start building your channel.
-                            </p>
-                            
-                            <button onclick="showUploadVideoDialog()" style="
-                                padding: 12px 32px;
-                                background: linear-gradient(to bottom, #ffd700 0%, #f5a623 100%);
-                                border: 1px solid #d39e00;
+                            <a href="javascript:void(0)" onclick="showMyChannelTab('home'); return false;" id="channelTabHome" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #f0f0f0;
+                                border: 2px outset #d4d0c8;
+                                border-bottom: none;
+                            ">HOME</a>
+                            <a href="javascript:void(0)" onclick="showMyChannelTab('videos'); return false;" id="channelTabVideos" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">VIDEOS</a>
+                            <a href="javascript:void(0)" onclick="showMyChannelTab('playlists'); return false;" id="channelTabPlaylists" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">PLAYLISTS</a>
+                            <a href="javascript:void(0)" onclick="showMyChannelTab('about'); return false;" id="channelTabAbout" style="
+                                color: #000;
+                                text-decoration: none;
+                                padding: 6px 16px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                background: #c0c0c0;
+                            ">ABOUT</a>
+                            <div style="flex: 1;"></div>
+                            <button type="button" onclick="showHomePage()" style="
+                                padding: 6px 12px;
+                                background: linear-gradient(to bottom, #f8f8f8 0%, #d8d8d8 100%);
+                                color: #000;
+                                border: 1px solid #999;
                                 border-radius: 3px;
                                 cursor: pointer;
-                                font-size: 14px;
-                                font-weight: bold;
-                                font-family: Arial, sans-serif;
-                                color: #000;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                            ">Upload New Video</button>
+                                font-size: 11px;
+                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                align-self: center;
+                                margin: 4px 0;
+                                box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.8);
+                            ">← Back to Home</button>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Videos Grid -->
-                ${myVideos.length > 0 ? `
-                <div style="background: #fff; border: 1px solid #ccc; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <!-- Main Content Area -->
+                <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+                    
+                    <!-- Upload Section -->
                     <div style="
-                        border-bottom: 1px solid #e8e8e8;
-                        padding-bottom: 12px;
+                        background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 100%);
+                        padding: 30px;
+                        text-align: center;
                         margin-bottom: 20px;
-                        font-size: 15px;
-                        font-weight: bold;
-                        color: #333;
-                        font-family: Arial, sans-serif;
+                        border-radius: 4px;
+                        border: 1px solid #ccc;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
                     ">
-                        Uploaded Videos (${totalVideos})
+                        <div style="
+                            display: inline-flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 12px;
+                            max-width: 500px;
+                        ">
+                            <!-- Upload Icon -->
+                            <svg width="100" height="100" viewBox="0 0 120 120" style="opacity: 0.5;">
+                                <circle cx="60" cy="60" r="58" fill="none" stroke="#999" stroke-width="2"/>
+                                <path d="M60 30 L60 70 M40 50 L60 30 L80 50" stroke="#666" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="40" y="75" width="40" height="15" rx="2" fill="#666"/>
+                            </svg>
+                            
+                            <div>
+                                <h2 style="
+                                    margin: 0 0 6px 0;
+                                    font-size: 16px;
+                                    color: #003366;
+                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                    font-weight: 600;
+                                ">Upload a video to get started</h2>
+                                
+                                <p style="
+                                    margin: 0 0 16px 0;
+                                    font-size: 12px;
+                                    color: #555;
+                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                    line-height: 1.6;
+                                ">
+                                    Share your videos with your subscribers and the world
+                                </p>
+                                
+                                <button type="button" onclick="showUploadVideoDialog()" style="
+                                    padding: 8px 16px;
+                                    background: linear-gradient(to bottom, #ffd700 0%, #f5a623 100%);
+                                    color: #000;
+                                    border: 1px solid #d39e00;
+                                    border-radius: 3px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                    text-transform: uppercase;
+                                    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+                                ">Upload video</button>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div id="channelVideosGrid" style="
-                        display: grid;
-                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-                        gap: 20px;
-                    ">
+                    <!-- Uploads Section -->
+                    ${myVideos.length > 0 ? `
+                    <div style="margin-bottom: 24px;">
+                        <div style="
+                            background: linear-gradient(to bottom, #4e8bc7 0%, #2a5a8a 100%);
+                            padding: 8px 12px;
+                            margin-bottom: 12px;
+                            border-radius: 3px;
+                            border: 1px solid #003366;
+                            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.2);
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        ">
+                            <h2 style="
+                                font-size: 14px;
+                                font-weight: 600;
+                                color: #fff;
+                                margin: 0;
+                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                            ">Uploads</h2>
+                            <span style="
+                                font-size: 11px;
+                                color: #e0e0e0;
+                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+                            ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
+                        </div>
+                        
+                        <div id="channelVideosGrid" style="
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                            gap: 12px;
+                        ">
+                        </div>
                     </div>
+                    ` : ''}
                 </div>
-                ` : ''}
             </div>
         `;
         
@@ -1982,64 +2957,15 @@ async function showMyChannel() {
             const channelVideosGrid = document.getElementById('channelVideosGrid');
             
             for (const video of myVideos) {
-                const videoCard = createVideoCard({
-                    id: video.id,
-                    title: video.title,
-                    thumbnail: video.thumbnail,
-                    duration: video.duration,
-                    author: video.uploaderName || video.uploaderId,
-                    views: WigTubeDB.formatViewCount(video.viewCount || 0),
-                    rating: WigTubeDB.calculateStarRating(Object.values(video.userRatings || {})),
-                    uploadDate: WigTubeDB.formatTimestamp(video.uploadDate)
-                });
-                
-                // Add special styling for channel videos
-                videoCard.style.border = '2px solid #d0d8ff';
-                videoCard.style.position = 'relative';
-                
-                // Add delete button to the card
-                const deleteBtn = document.createElement('button');
-                deleteBtn.innerHTML = '🗑️ Delete';
-                deleteBtn.style.cssText = `
-                    position: absolute;
-                    top: 8px;
-                    right: 8px;
-                    padding: 4px 8px;
-                    background: rgba(220, 53, 69, 0.9);
-                    color: white;
-                    border: 1px solid #c82333;
-                    border-radius: 3px;
-                    cursor: pointer;
-                    font-size: 10px;
-                    font-weight: bold;
-                    font-family: Arial, sans-serif;
-                    z-index: 10;
-                    display: none;
-                `;
-                
-                // Show delete button on hover
-                videoCard.addEventListener('mouseenter', () => {
-                    deleteBtn.style.display = 'block';
-                });
-                videoCard.addEventListener('mouseleave', () => {
-                    deleteBtn.style.display = 'none';
-                });
-                
-                // Handle delete click
-                deleteBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation(); // Prevent video from playing
-                    await deleteVideo(video.id, video.title);
-                });
-                
-                videoCard.appendChild(deleteBtn);
+                const videoCard = createChannelVideoCard(video, true);
                 channelVideosGrid.appendChild(videoCard);
             }
-            
-            // Re-attach click events
-            attachVideoCardEvents();
         }
         
         updateStatus(`Showing ${currentUsername}'s channel with ${totalVideos} video(s)`);
+        
+        // Show the HOME tab by default
+        await showMyChannelTab('home');
         
     } catch (error) {
         console.error('Error loading channel:', error);
@@ -2049,7 +2975,7 @@ async function showMyChannel() {
             <div style="padding: 40px 20px; text-align: center;">
                 <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
                 <div style="font-size: 14px; color: #666;">Failed to load channel</div>
-                <button onclick="showHomePage()" style="
+                <button type="button" onclick="showHomePage()" style="
                     margin-top: 20px;
                     padding: 8px 16px;
                     background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
@@ -2260,6 +3186,15 @@ async function deleteVideo(videoId, videoTitle) {
         
         console.log('Attempting to delete video:', videoId);
         
+        // Get video data to extract file URL before deletion
+        let videoData = null;
+        try {
+            videoData = await WigTubeDB.getVideoById(videoId);
+            console.log('Retrieved video data:', videoData);
+        } catch (error) {
+            console.warn('Could not retrieve video data before deletion:', error);
+        }
+        
         // Delete from database
         const success = await WigTubeDB.deleteVideo(videoId);
         
@@ -2267,6 +3202,21 @@ async function deleteVideo(videoId, videoTitle) {
         
         if (success) {
             console.log('Video deleted successfully from database:', videoId);
+            
+            // Also delete the video file from external repository
+            if (videoData && videoData.videoUrl) {
+                console.log('Attempting to delete video file from repository...');
+                const deleteResult = await deleteVideoFileFromRepo(videoData.videoUrl);
+                
+                if (deleteResult.success) {
+                    console.log('✅ Video file deleted from repository:', deleteResult.fileName);
+                } else {
+                    console.warn('⚠️ Could not delete video file from repository:', deleteResult.error);
+                    console.warn('The video metadata was deleted, but the file remains in the repository.');
+                }
+            } else {
+                console.warn('No video URL found, skipping file deletion from repository');
+            }
             
             // Wait a moment to ensure Firebase write completes
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -2303,4 +3253,889 @@ async function deleteVideo(videoId, videoTitle) {
         );
         updateStatus('Error deleting video');
     }
+}
+
+/**
+ * Show banner customization dialog
+ */
+function showBannerCustomization() {
+    const currentUsername = localStorage.getItem('username');
+    const currentBanner = localStorage.getItem(`channel_banner_${currentUsername}`) || '';
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 24px;
+        max-width: 600px;
+        width: 90%;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    dialog.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #000080; font-family: 'MS Sans Serif', sans-serif; font-weight: bold;">Customize Channel Banner</h2>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
+                Banner Image URL
+            </label>
+            <input type="text" id="bannerUrlInput" value="${currentBanner}" placeholder="Enter image URL (https://...)" style="
+                width: 100%;
+                padding: 10px;
+                border: 2px inset #d4d0c8;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">
+            <div style="margin-top: 8px; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">
+                Recommended size: 2560 x 1440px. Accepted formats: JPG, PNG, GIF
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
+                Or use a preset gradient
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #30cfd0 0%, #330867 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+                <div class="gradient-preset" data-gradient="linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%)" style="
+                    height: 60px;
+                    background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                "></div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <div style="font-size: 11px; color: #000; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">Preview</div>
+            <div id="bannerPreview" style="
+                width: 100%;
+                height: 120px;
+                background: ${currentBanner ? `url('${currentBanner}')` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+                background-size: cover;
+                background-position: center;
+                border: 2px inset #d4d0c8;
+            "></div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" id="cancelBannerBtn" style="
+                padding: 10px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">Cancel</button>
+            <button type="button" id="saveBannerBtn" style="
+                padding: 10px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                font-weight: bold;
+            ">Save Banner</button>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    const bannerUrlInput = dialog.querySelector('#bannerUrlInput');
+    const bannerPreview = dialog.querySelector('#bannerPreview');
+    const gradientPresets = dialog.querySelectorAll('.gradient-preset');
+    
+    // Update preview on input change
+    bannerUrlInput.addEventListener('input', () => {
+        const url = bannerUrlInput.value.trim();
+        if (url) {
+            bannerPreview.style.background = `url('${url}')`;
+            bannerPreview.style.backgroundSize = 'cover';
+            bannerPreview.style.backgroundPosition = 'center';
+        } else {
+            bannerPreview.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }
+    });
+    
+    // Handle gradient preset clicks
+    gradientPresets.forEach(preset => {
+        preset.addEventListener('click', () => {
+            const gradient = preset.getAttribute('data-gradient');
+            bannerPreview.style.background = gradient;
+            bannerUrlInput.value = gradient;
+        });
+    });
+    
+    // Handle save
+    dialog.querySelector('#saveBannerBtn').addEventListener('click', () => {
+        const bannerValue = bannerUrlInput.value.trim();
+        localStorage.setItem(`channel_banner_${currentUsername}`, bannerValue);
+        updateStatus('Banner updated successfully');
+        overlay.remove();
+        showMyChannel(); // Reload to show new banner
+    });
+    
+    // Handle cancel
+    dialog.querySelector('#cancelBannerBtn').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
+/**
+ * Show channel settings dialog
+ */
+function showChannelSettings() {
+    const currentUsername = localStorage.getItem('username');
+    const currentDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 24px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    dialog.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #000080; font-family: 'MS Sans Serif', sans-serif; font-weight: bold;">Channel Settings</h2>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
+                Channel Description
+            </label>
+            <textarea id="descriptionInput" placeholder="Tell viewers about your channel..." style="
+                width: 100%;
+                min-height: 100px;
+                padding: 10px;
+                border: 2px inset #d4d0c8;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                resize: vertical;
+            ">${currentDescription}</textarea>
+            <div style="margin-top: 8px; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">
+                Max 1000 characters
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <button type="button" onclick="showBannerCustomization(); document.querySelector('.channel-settings-overlay').remove();" style="
+                padding: 10px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                width: 100%;
+            ">🎨 Customize Banner</button>
+        </div>
+        
+        <div style="border-top: 2px groove #d4d0c8; padding-top: 16px; margin-top: 20px;">
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" id="cancelSettingsBtn" style="
+                    padding: 10px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Cancel</button>
+                <button type="button" id="saveSettingsBtn" style="
+                    padding: 10px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    font-weight: bold;
+                ">Save Changes</button>
+            </div>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    overlay.classList.add('channel-settings-overlay');
+    document.body.appendChild(overlay);
+    
+    const descriptionInput = dialog.querySelector('#descriptionInput');
+    
+    // Handle save
+    dialog.querySelector('#saveSettingsBtn').addEventListener('click', () => {
+        const description = descriptionInput.value.trim().substring(0, 1000);
+        localStorage.setItem(`channel_description_${currentUsername}`, description);
+        updateStatus('Channel settings saved');
+        overlay.remove();
+        showMyChannel(); // Reload to show changes
+    });
+    
+    // Handle cancel
+    dialog.querySelector('#cancelSettingsBtn').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
+/**
+ * Show specific tab in channel page
+ */
+async function showMyChannelTab(tabName) {
+    const currentUsername = localStorage.getItem('username');
+    if (!currentUsername) return;
+    
+    // Update tab styling
+    const tabs = ['home', 'videos', 'playlists', 'about'];
+    tabs.forEach(tab => {
+        const tabElement = document.getElementById(`channelTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+        if (tabElement) {
+            if (tab === tabName) {
+                tabElement.style.background = '#f0f0f0';
+                tabElement.style.border = '2px outset #d4d0c8';
+                tabElement.style.borderBottom = 'none';
+                tabElement.style.fontWeight = 'bold';
+                tabElement.style.color = '#000';
+            } else {
+                tabElement.style.background = '#c0c0c0';
+                tabElement.style.border = 'none';
+                tabElement.style.fontWeight = 'bold';
+                tabElement.style.color = '#000';
+            }
+        }
+    });
+    
+    const contentArea = document.getElementById('channelMainContent');
+    if (!contentArea) return;
+    
+    // Get user data
+    const allVideos = typeof WigTubeDB !== 'undefined' ? await WigTubeDB.getAllVideos() : [];
+    const myVideos = allVideos.filter(video => video.uploaderId === currentUsername || video.uploaderName === currentUsername);
+    const channelDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
+    
+    switch (tabName) {
+        case 'home':
+            showChannelHomeTab(contentArea, myVideos);
+            break;
+        case 'videos':
+            showChannelVideosTab(contentArea, myVideos);
+            break;
+        case 'playlists':
+            showChannelPlaylistsTab(contentArea, currentUsername);
+            break;
+        case 'about':
+            showChannelAboutTab(contentArea, channelDescription, myVideos.length);
+            break;
+    }
+}
+
+/**
+ * Show HOME tab content
+ */
+function showChannelHomeTab(contentArea, myVideos) {
+    const totalVideos = myVideos.length;
+    
+    contentArea.innerHTML = `
+        <!-- Upload Section -->
+        <div style="
+            background: #f0f0f0;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px outset #d4d0c8;
+        ">
+            <div style="
+                display: inline-flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                max-width: 500px;
+            ">
+                <svg width="100" height="100" viewBox="0 0 120 120" style="opacity: 0.5;">
+                    <circle cx="60" cy="60" r="58" fill="none" stroke="#999" stroke-width="2"/>
+                    <path d="M60 30 L60 70 M40 50 L60 30 L80 50" stroke="#666" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="40" y="75" width="40" height="15" rx="2" fill="#666"/>
+                </svg>
+                
+                <div>
+                    <h2 style="
+                        margin: 0 0 6px 0;
+                        font-size: 20px;
+                        color: #000080;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        font-weight: bold;
+                    ">Upload a video to get started</h2>
+                    
+                    <p style="
+                        margin: 0 0 16px 0;
+                        font-size: 11px;
+                        color: #000;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        line-height: 1.6;
+                    ">
+                        Share your videos with your subscribers and the world
+                    </p>
+                    
+                    <button type="button" onclick="showUploadVideoDialog()" style="
+                        padding: 8px 16px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-weight: bold;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        text-transform: uppercase;
+                    ">Upload video</button>
+                </div>
+            </div>
+        </div>
+        
+        ${totalVideos > 0 ? `
+        <div style="margin-bottom: 24px;">
+            <div style="
+                background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                padding: 8px 12px;
+                margin-bottom: 12px;
+                border: 2px outset #d4d0c8;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <h2 style="
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin: 0;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Recent Uploads</h2>
+                <span style="
+                    font-size: 11px;
+                    color: #fff;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
+            </div>
+            
+            <div id="channelHomeVideosGrid" style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 12px;
+            ">
+            </div>
+        </div>
+        ` : ''}
+    `;
+    
+    // Show only recent videos (last 6)
+    if (totalVideos > 0) {
+        const recentVideos = myVideos.slice(0, 6);
+        const grid = document.getElementById('channelHomeVideosGrid');
+        recentVideos.forEach(video => {
+            grid.appendChild(createChannelVideoCard(video));
+        });
+    }
+}
+
+/**
+ * Show VIDEOS tab content
+ */
+function showChannelVideosTab(contentArea, myVideos) {
+    const totalVideos = myVideos.length;
+    
+    contentArea.innerHTML = `
+        <div style="margin-bottom: 24px;">
+            <div style="
+                background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                padding: 8px 12px;
+                margin-bottom: 12px;
+                border: 2px outset #d4d0c8;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <h2 style="
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin: 0;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">All Uploads</h2>
+                <span style="
+                    font-size: 11px;
+                    color: #fff;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
+            </div>
+            
+            ${totalVideos > 0 ? `
+            <div id="channelAllVideosGrid" style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 12px;
+            ">
+            </div>
+            ` : `
+            <div style="
+                background: #f0f0f0;
+                padding: 40px;
+                text-align: center;
+                border: 2px inset #d4d0c8;
+            ">
+                <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📹</div>
+                <div style="font-size: 20px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No videos uploaded yet</div>
+                <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">Start uploading to build your channel</div>
+            </div>
+            `}
+        </div>
+    `;
+    
+    if (totalVideos > 0) {
+        const grid = document.getElementById('channelAllVideosGrid');
+        myVideos.forEach(video => {
+            grid.appendChild(createChannelVideoCard(video, true));
+        });
+    }
+}
+
+/**
+ * Show PLAYLISTS tab content
+ */
+function showChannelPlaylistsTab(contentArea, username) {
+    contentArea.innerHTML = `
+        <div style="margin-bottom: 24px;">
+            <div style="
+                background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                padding: 8px 12px;
+                margin-bottom: 12px;
+                border: 2px outset #d4d0c8;
+            ">
+                <h2 style="
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin: 0;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">My Playlists</h2>
+            </div>
+            
+            <div id="channelPlaylistsGrid" style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 16px;
+            ">
+            </div>
+        </div>
+    `;
+    
+    // Load playlists/albums
+    const grid = document.getElementById('channelPlaylistsGrid');
+    
+    if (albumMetadata && albumMetadata.length > 0) {
+        albumMetadata.forEach(album => {
+            const playlistCard = document.createElement('div');
+            playlistCard.style.cssText = `
+                background: #f0f0f0;
+                border: 2px outset #d4d0c8;
+                padding: 16px;
+                cursor: pointer;
+            `;
+            
+            playlistCard.innerHTML = `
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="
+                        width: 80px;
+                        height: 80px;
+                        background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                        border: 2px outset #d4d0c8;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 32px;
+                        flex-shrink: 0;
+                    ">📀</div>
+                    <div style="flex: 1;">
+                        <div style="
+                            font-size: 11px;
+                            font-weight: bold;
+                            color: #000080;
+                            margin-bottom: 4px;
+                            font-family: 'MS Sans Serif', sans-serif;
+                        ">${album.name}</div>
+                        <div style="
+                            font-size: 11px;
+                            color: #000;
+                            font-family: 'MS Sans Serif', sans-serif;
+                        ">${albumTracks[album.id] ? albumTracks[album.id].length : 0} videos</div>
+                    </div>
+                </div>
+            `;
+            
+            playlistCard.addEventListener('click', () => {
+                // Navigate to album/playlist view
+                showAlbumDetail(album.id);
+            });
+            
+            playlistCard.addEventListener('mouseenter', () => {
+                playlistCard.style.border = '2px inset #d4d0c8';
+            });
+            
+            playlistCard.addEventListener('mouseleave', () => {
+                playlistCard.style.border = '2px outset #d4d0c8';
+            });
+            
+            grid.appendChild(playlistCard);
+        });
+    } else {
+        grid.innerHTML = `
+            <div style="
+                grid-column: 1 / -1;
+                background: #f0f0f0;
+                padding: 40px;
+                text-align: center;
+                border: 2px inset #d4d0c8;
+            ">
+                <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📀</div>
+                <div style="font-size: 20px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No playlists yet</div>
+                <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">Create playlists to organize your videos</div>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Show ABOUT tab content
+ */
+function showChannelAboutTab(contentArea, description, videoCount) {
+    const currentUsername = localStorage.getItem('username');
+    const joinDate = 'January 2009'; // Could be stored in user profile
+    
+    contentArea.innerHTML = `
+        <div style="margin-bottom: 24px;">
+            <div style="
+                background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                padding: 8px 12px;
+                margin-bottom: 12px;
+                border: 2px outset #d4d0c8;
+            ">
+                <h2 style="
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin: 0;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">About</h2>
+            </div>
+            
+            <div style="
+                background: #f0f0f0;
+                border: 2px inset #d4d0c8;
+                padding: 20px;
+            ">
+                <div style="margin-bottom: 20px;">
+                    <h3 style="
+                        font-size: 11px;
+                        font-weight: bold;
+                        color: #000080;
+                        margin: 0 0 8px 0;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">Description</h3>
+                    <div style="
+                        font-size: 11px;
+                        color: #000;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        line-height: 1.6;
+                        white-space: pre-wrap;
+                    ">${description || 'No description added yet.'}</div>
+                    <button type="button" onclick="showChannelSettings()" style="
+                        margin-top: 12px;
+                        padding: 6px 12px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">Edit Description</button>
+                </div>
+                
+                <div style="
+                    border-top: 2px groove #d4d0c8;
+                    padding-top: 16px;
+                ">
+                    <h3 style="
+                        font-size: 11px;
+                        font-weight: bold;
+                        color: #000080;
+                        margin: 0 0 12px 0;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">Stats</h3>
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                        gap: 12px;
+                    ">
+                        <div>
+                            <div style="
+                                font-size: 11px;
+                                color: #000;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                margin-bottom: 4px;
+                            ">Joined</div>
+                            <div style="
+                                font-size: 11px;
+                                color: #000080;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                            ">${joinDate}</div>
+                        </div>
+                        <div>
+                            <div style="
+                                font-size: 11px;
+                                color: #000;
+                                font-family: 'MS Sans Serif', sans-serif;
+                                margin-bottom: 4px;
+                            ">Total videos</div>
+                            <div style="
+                                font-size: 11px;
+                                color: #000080;
+                                font-weight: bold;
+                                font-family: 'MS Sans Serif', sans-serif;
+                            ">${videoCount}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Create a video card for channel pages
+ */
+function createChannelVideoCard(video, showDelete = false) {
+    const videoCard = document.createElement('div');
+    videoCard.className = 'channel-video-card';
+    videoCard.setAttribute('data-video-id', video.id);
+    videoCard.style.cssText = `
+        position: relative;
+        cursor: pointer;
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+    `;
+    
+    // Thumbnail container
+    const thumbnailDiv = document.createElement('div');
+    thumbnailDiv.style.cssText = `
+        width: 100%;
+        padding-top: 56.25%;
+        position: relative;
+        background: #000;
+        overflow: hidden;
+        border-bottom: 2px groove #d4d0c8;
+    `;
+    
+    const thumbnailImg = document.createElement('img');
+    thumbnailImg.src = video.thumbnail || 'assets/images/icons/48x/WigleTube.png';
+    thumbnailImg.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    `;
+    thumbnailDiv.appendChild(thumbnailImg);
+    
+    // Duration badge
+    if (video.duration) {
+        const durationBadge = document.createElement('div');
+        durationBadge.textContent = video.duration;
+        durationBadge.style.cssText = `
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: #000080;
+            color: white;
+            padding: 1px 3px;
+            font-size: 9px;
+            font-weight: bold;
+            font-family: 'MS Sans Serif', sans-serif;
+            border: 1px solid white;
+        `;
+        thumbnailDiv.appendChild(durationBadge);
+    }
+    
+    // Delete button (only for VIDEOS tab)
+    if (showDelete) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.title = 'Delete video';
+        deleteBtn.style.cssText = `
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+            color: #000;
+            border: 2px outset #d4d0c8;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        `;
+        thumbnailDiv.appendChild(deleteBtn);
+        
+        // Show delete button on hover
+        videoCard.addEventListener('mouseenter', () => {
+            deleteBtn.style.display = 'flex';
+        });
+        videoCard.addEventListener('mouseleave', () => {
+            deleteBtn.style.display = 'none';
+        });
+        
+        // Handle delete click
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await deleteVideo(video.id, video.title);
+        });
+    }
+    
+    // Video info container
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = `
+        padding: 10px;
+    `;
+    
+    // Title
+    const titleDiv = document.createElement('div');
+    titleDiv.textContent = video.title;
+    titleDiv.style.cssText = `
+        font-size: 11px;
+        font-weight: bold;
+        color: #000080;
+        margin-bottom: 4px;
+        font-family: 'MS Sans Serif', sans-serif;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        line-height: 1.3;
+    `;
+    
+    // Stats
+    const statsDiv = document.createElement('div');
+    const views = video.viewCount || 0;
+    const uploadDate = WigTubeDB.formatTimestamp(video.uploadDate);
+    statsDiv.textContent = `${WigTubeDB.formatViewCount(views)} • ${uploadDate}`;
+    statsDiv.style.cssText = `
+        font-size: 10px;
+        color: #000;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    infoDiv.appendChild(titleDiv);
+    infoDiv.appendChild(statsDiv);
+    
+    videoCard.appendChild(thumbnailDiv);
+    videoCard.appendChild(infoDiv);
+    
+    // Handle video card click
+    videoCard.addEventListener('click', () => {
+        updateStatus(`Loading video: ${video.title}`);
+        window.location.href = `apps/browser/pages/wigtube-player.html?v=${video.id}`;
+    });
+    
+    return videoCard;
 }

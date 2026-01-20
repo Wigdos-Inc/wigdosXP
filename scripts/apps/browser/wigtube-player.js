@@ -1,4 +1,6 @@
 // WigTube Video Player JavaScript - 2003 YouTube Style
+// Note: Shared utilities (debugLog, getVideoRepoConfig, generateVideoUrl, loadVideoWithFallback) 
+// are loaded from wigtube-shared.js
 
 // debugLog is provided by wigtube-db.js which loads first
 
@@ -600,7 +602,11 @@ async function loadVideo(videoId) {
             
             // Update video information with real stats
             document.getElementById('videoTitle').textContent = video.title;
-            document.getElementById('uploader').textContent = video.uploader;
+            
+            // Make uploader name clickable
+            const uploaderElement = document.getElementById('uploader');
+            uploaderElement.innerHTML = `<span class="channel-link" data-channel="${video.uploader}" style="color: #0066cc; text-decoration: underline; cursor: pointer;">${video.uploader}</span>`;
+            
             document.getElementById('uploadDate').textContent = video.uploadDate;
             document.getElementById('viewCount').textContent = viewCount;
             document.getElementById('rating').textContent = ratingStars;
@@ -654,7 +660,11 @@ async function loadVideoFallback(videoId, video) {
     const savedStats = loadVideoStats(videoId);
     
     document.getElementById('videoTitle').textContent = video.title;
-    document.getElementById('uploader').textContent = video.uploader;
+    
+    // Make uploader name clickable
+    const uploaderElement = document.getElementById('uploader');
+    uploaderElement.innerHTML = `<span class="channel-link" data-channel="${video.uploader}" style="color: #0066cc; text-decoration: underline; cursor: pointer;">${video.uploader}</span>`;
+    
     document.getElementById('uploadDate').textContent = video.uploadDate;
     document.getElementById('viewCount').textContent = savedStats.views;
     document.getElementById('rating').textContent = savedStats.ratingStars;
@@ -785,6 +795,17 @@ function setupEventListeners() {
                 showImagePreview(selectedImage);
             };
             reader.readAsDataURL(file);
+        }
+    });
+    
+    // Channel link click handler - navigate to channel page
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('channel-link')) {
+            const channelName = e.target.getAttribute('data-channel');
+            if (channelName) {
+                // Navigate back to main WigTube page with channel parameter
+                window.location.href = `apps/browser/pages/wigtube.html?channel=${encodeURIComponent(channelName)}`;
+            }
         }
     });
 }
@@ -950,13 +971,48 @@ function createVideoElement() {
     }
     
     videoElement = document.createElement('video');
-    videoElement.src = currentVideo.videoFile;
+    
     videoElement.style.cssText = 'width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 10;';
     videoElement.controls = false; // We handle controls ourselves
     
-    // Add error handler for missing video files
+    // Preload metadata for better performance
+    videoElement.preload = 'metadata';
+    
+    // Generate the proper video URL (handles both local and external repo)
+    const videoUrl = generateVideoUrl(currentVideo.videoFile);
+    const originalPath = currentVideo.videoFile;
+    
+    debugLog('Loading video from:', videoUrl);
+    console.log('Video source URL:', videoUrl);
+    console.log('Original path:', originalPath);
+    
+    // Set video source directly (better compatibility than <source> elements)
+    videoElement.src = videoUrl;
+    
+    // Track if we've tried fallback
+    let fallbackAttempted = false;
+    
+    // Add error handler with fallback to local assets
     videoElement.addEventListener('error', function(e) {
-        console.error('Video load error:', e);
+        console.warn('Video load error:', e);
+        console.warn('Failed URL:', videoUrl);
+        console.warn('Video error details:', {
+            error: videoElement.error,
+            networkState: videoElement.networkState,
+            readyState: videoElement.readyState
+        });
+        
+        // Try local fallback if this was an external URL and we haven't tried fallback yet
+        if (!fallbackAttempted && originalPath.startsWith('assets/') && videoUrl !== originalPath) {
+            fallbackAttempted = true;
+            console.log('External URL failed, trying local fallback:', originalPath);
+            debugLog('Attempting local fallback source:', originalPath);
+            videoElement.src = originalPath;
+            videoElement.load(); // Force reload with new source
+            return; // Don't show error yet, give fallback a chance
+        }
+        
+        // Show error message if both sources failed (or no fallback available)
         const errorMsg = document.createElement('div');
         errorMsg.style.cssText = `
             position: absolute;
@@ -974,18 +1030,22 @@ function createVideoElement() {
         `;
         
         const fileName = currentVideo.videoFile.split('/').pop();
+        const { owner, name, folder } = getVideoRepoConfig();
         errorMsg.innerHTML = `
             <h3 style="margin: 0 0 15px 0; color: #ff6b6b;">❌ Video File Not Found</h3>
             <p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.5;">
-                The video file <strong>${fileName}</strong> hasn't been added to the repository yet.
+                The video file <strong>${fileName}</strong> couldn't be loaded.
             </p>
+            <p style="margin: 0 0 5px 0; font-size: 11px; color: #999;">Tried loading from:</p>
+            <p style="margin: 0 0 15px 0; font-size: 10px; color: #666; word-break: break-all;">${videoUrl}</p>
             <p style="margin: 0 0 15px 0; font-size: 12px; color: #ccc; line-height: 1.5;">
                 To make this video playable:
             </p>
             <ol style="text-align: left; font-size: 12px; line-height: 1.8; color: #ddd; padding-left: 20px;">
-                <li>Add the video file to: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">${currentVideo.videoFile}</code></li>
-                <li>Commit: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">git add ${currentVideo.videoFile}</code></li>
-                <li>Push: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">git push</code></li>
+                <li>Add the video file to the external repository: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">${owner}/${name}</code></li>
+                <li>Place it in the <code style="background: #333; padding: 2px 5px; border-radius: 3px;">${folder}/</code> folder</li>
+                <li>Filename: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">${fileName}</code></li>
+                <li>Commit and push to the repository</li>
             </ol>
         `;
         

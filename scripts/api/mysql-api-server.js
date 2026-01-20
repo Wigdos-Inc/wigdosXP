@@ -3,7 +3,8 @@ const cors = require('cors');
 const mysql = require('mysql2/promise');
 
 const app = express();
-const PORT = 3002;
+// Port is now configurable via environment variable (defaults to 3002)
+const PORT = parseInt(process.env.MYSQL_API_PORT || '3002', 10);
 
 // Middleware
 app.use(cors());

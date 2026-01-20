@@ -454,3 +454,54 @@
             background: linear-gradient(to bottom, #ffd700 0%, #ffa500 100%);
             color: #000;
         }
+
+        /* Modern Channel Page Styles */
+        .channel-banner-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gradient-preset:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s;
+            border-color: #065fd4 !important;
+        }
+
+        .channel-tab {
+            transition: border-bottom-color 0.2s, color 0.2s;
+        }
+
+        .channel-tab:hover {
+            color: #030303 !important;
+        }
+
+        .channel-video-card {
+            background: #f0f0f0;
+            border: 2px outset #d4d0c8;
+            overflow: hidden;
+            transition: border-style 0.1s;
+        }
+
+        .channel-video-card:hover {
+            background: #f8f8f8;
+        }
+
+        .channel-video-card:active {
+            border: 2px inset #d4d0c8;
+        }
+
+        /* Smooth animations for dialogs */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .dialog-animation {
+            animation: slideIn 0.2s ease-out;
+        }
