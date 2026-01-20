@@ -1,5 +1,5 @@
 // WigTube Unified Database Module
-// Manages video data, views, ratings, and comments via Cloudflare/Firebase
+// Manages video data, views, ratings, and comments via Firebase
 // Falls back to localStorage when offline
 
 // Use shared debug utility
@@ -8,7 +8,7 @@ const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('Wi
 /**
  * WigTube Database API
  * Unified module for video CRUD operations
- * Uses Cloudflare infrastructure with Firebase backend
+ * Uses Firebase Firestore for backend storage
  * Falls back to localStorage when offline
  */
 window.WigTubeDB = (function() {

@@ -15,7 +15,7 @@ WigTube is a video platform integrated into WigdosXP, using Cloudflare infrastru
 │  ├─ wigtube-player.html - Video player │
 │  └─ wigtube.js - Main logic             │
 │                                         │
-│  Backend (Cloudflare + Firebase)        │
+│  Backend (Firebase)                     │
 │  ├─ Firebase Firestore - Metadata      │
 │  ├─ localStorage - Offline fallback    │
 │  └─ GitHub - Video file storage         │
@@ -174,12 +174,12 @@ Debug logs will appear in the browser console with module prefixes like `[WigTub
 
 ## Changelog
 
-### v2.0 - Cloudflare Migration (Current)
+### v2.0 - Consolidation & Cleanup (Current)
 - ✅ Consolidated to unified database module
 - ✅ Removed MySQL server dependencies
 - ✅ Removed migration tools
 - ✅ Simplified documentation
-- ✅ Using Cloudflare infrastructure with Firebase backend
+- ✅ Using Firebase Firestore backend with localStorage fallback
 
 ### v1.0 - Initial Release
 - Firebase Firestore integration
