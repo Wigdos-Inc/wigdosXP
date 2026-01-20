@@ -1,12 +1,14 @@
-// WigTube Database Integration - Firestore & localStorage fallback
-// Manages video data, views, ratings, and comments
+// WigTube Unified Database Module
+// Manages video data, views, ratings, and comments via Cloudflare/Firebase
+// Falls back to localStorage when offline
 
 // Use shared debug utility
 const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTubeDB') : (...args) => {};
 
 /**
  * WigTube Database API
- * Provides methods for video CRUD operations with Firestore backend
+ * Unified module for video CRUD operations
+ * Uses Cloudflare infrastructure with Firebase backend
  * Falls back to localStorage when offline
  */
 window.WigTubeDB = (function() {
