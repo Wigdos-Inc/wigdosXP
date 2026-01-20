@@ -84,3 +84,4 @@ apps/wigtube/videos/*.flv
 apps/wigtube/videos/*.mkv
 apps/wigtube/videos/*.webm
 temp-uploads/*
+.vscode/mcp.json
