@@ -7,7 +7,7 @@
   },
 
   // Pre-configure ports to be automatically forwarded and public from Codespace creation
-  "forwardPorts": [3001, 3002, 5520],
+  "forwardPorts": [3001, 3002],
   
   // Port attributes ensure ports are PUBLIC by default (no manual configuration needed)
   "portsAttributes": {
