@@ -229,11 +229,25 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/superjeff/"]
     ),
     
-    gJeff: new Application(
-        ["gJeff", "Super Jeff 2 Galaxy Jeff"],
+    ggJeff: new Application(
+        ["ggJeff", "Super Jeff 2 Galaxy Jeff"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/galaxyjeff/"]
+    ),
+    
+    kJeff: new Application(
+        ["kJeff", "Super Jeff Kart (& Carl is here)"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffCart/"]
+    ),
+    
+    oddJeff: new Application(
+        ["oddJeff", "Super Jeff 3 Super Odyssey"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey/"]
     ),
     
     pHub: new Application(
@@ -244,12 +258,19 @@ const applications = {
     ),
 
 
-    /* INTERNAL-APPS (Repository) */
+    /* SAPPS (Repository) */
     cmd: new Application(
         ["cmd", "Terminal"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/WdosCMD/wingDosCMD.html"]
+    ),
+    
+    wEngine: new Application(
+        ["wEngine", "Wiggy Engine"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/WiggyEngine"]
     )
 }
 
