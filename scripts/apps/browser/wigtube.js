@@ -249,11 +249,10 @@ let videoData = [];
 let albumTracks = {};
 let albumMetadata = [];
 
-// Load video data from JSON file
-async function loadVideoDataFromJSON() {
-    try {
-        const response = await fetch('scripts/apps/browser/wigtube-data.json');
-        const data = await response.json();
+// Load and initialize video data (uses shared utility from wigtube-shared.js)
+async function initializeVideoData() {
+    const data = await loadVideoDataFromJSON('scripts/apps/browser/wigtube-data.json');
+    if (data) {
         videoData = data.videos;
         albumTracks = data.albums;
         
@@ -264,225 +263,12 @@ async function loadVideoDataFromJSON() {
         }));
         
         return true;
-    } catch (error) {
-        console.error('Error loading video data:', error);
-        return false;
     }
+    console.warn('Failed to load video data, using empty dataset');
+    return false;
 }
 
-// Fallback video data if JSON fails to load
-const fallbackVideoData = [
-    {
-        id: 'epic-minecraft-castle-build',
-        title: 'Steve being a menace as always',
-        author: 'Steve',
-        uploadDate: '3 days ago',
-        duration: '02:45',
-        views: '2 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/steve.png',
-        category: 'gaming'
-    },
-    {
-        id: 'yo Darren',
-        title: 'Yo Darren',
-        author: 'Codemittens',
-        uploadDate: '05-11-2025',
-        duration: '00:19',
-        views: '1042 personas',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/yodarren.png',
-        category: 'gaming'
-    },
-    {
-        id: 'chill-beats-mix-vol-12',
-        title: 'Chill Beats Mix Vol. 12',
-        author: 'WigBeats',
-        uploadDate: '5 days ago',
-        duration: '3:47',
-        views: '12,456 views',
-        rating: '★★★☆☆',
-        thumbnail: 'assets/images/thumbnail/beats.png',
-        category: 'music'
-    },
-    {
-        id: 'blackman',
-        title: 'freddy fazbear is about to get his dingaling touched',
-        author: 'fredbear',
-        uploadDate: '4 days ago',
-        duration: '00:08',
-        views: '8,923 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/blackman.png',
-        category: 'comedy'
-    },
-    {
-        id: 'jolly',
-        title: 'jolly flight',
-        author: 'Santa Claus',
-        uploadDate: '2512 days ago',
-        duration: '00:16',
-        views: '34,782 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/santa.png',
-        category: 'comedy'
-    },
-    {
-        id: 'fredrick-fazbear-touches-youtubers-dingalings',
-        title: 'Fredrick Fazbear Touches Youtubers Dingalings',
-        author: 'fredbear',
-        uploadDate: '1987 days ago',
-        duration: '04:37',
-        views: '4 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/dingaling.png',
-        category: 'gaming'
-    },
-    {
-        id: 'fnaf-squid-games-real',
-        title: 'Fnaf squid games real',
-        author: 'MrPenis',
-        uploadDate: '2 centuries ago',
-        duration: '00:56',
-        views: '1B views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/mr.png',
-        category: 'comedy'
-    },
-    {
-        id: 'c418',
-        title: 'hagstorm',
-        author: 'c418',
-        uploadDate: '1 day ago',
-        duration: '03:24',
-        views: '420 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        category: 'music'
-    },
-        {
-        id: 'c4182',
-        title: 'wethands',
-        author: 'c418',
-        uploadDate: '1 day ago',
-        duration: '01:30',
-        views: '420 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        category: 'music'
-    },
-        {
-        id: 'c4183',
-        title: 'dryhands',
-        author: 'c418',
-        uploadDate: '1 day ago',
-        duration: '01:08',
-        views: '420 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        category: 'music'
-    },
-        {
-        id: 'c4184',
-        title: 'moogcity',
-        author: 'c418',
-        uploadDate: '1 day ago',
-        duration: '02:40',
-        views: '420 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        category: 'music'
-    },
-        {
-        id: 'c4185',
-        title: 'sweden',
-        author: 'c418',
-        uploadDate: '1 day ago',
-        duration: '03:35',
-        views: '420 views',
-        rating: '★★★★☆',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        category: 'music'
-    },
-    {
-        id: 'schlaubum1',
-        title: 'jschlatt — Santa Claus Is Coming To Town',
-        author: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '02:17',
-        views: '420 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        category: 'music'
-    },
-    {
-        id: 'schlaubum2',
-        title: 'jschlatt — The Christmas Song ',
-        author: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '03:15',
-        views: '380 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        category: 'music'
-    },
-    {
-        id: 'schlaubum3',
-        title: 'jschlatt — Let It Snow! Let It Snow! Let It Snow!',
-        author: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '01:56',
-        views: '512 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        category: 'music'
-    },
-    {
-        id: 'schlaubum4',
-        title: 'jschlatt — Baby It\'s Cold Outside',
-        author: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '02:25',
-        views: '445 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        category: 'music'
-    },
-    {
-        id: 'schlaubum5',
-        title: 'jschlatt — Happy Holiday',
-        author: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '02:52',
-        views: '390 views',
-        rating: '★★★★★',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        category: 'music'
-    }
-];
- 
-// Helper function to convert duration string to seconds
-function durationToSeconds(duration) {
-    const parts = duration.split(':');
-    if (parts.length === 2) {
-        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    } else if (parts.length === 3) {
-        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-    }
-    return 0;
-}
-
-// Helper function to convert seconds to duration string
-function secondsToDuration(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-}
+// Note: durationToSeconds() and secondsToDuration() are now in wigtube-shared.js
 
 // Helper function to calculate total album duration from track IDs
 function calculateAlbumDuration(trackIds) {
@@ -564,10 +350,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, true);
     
     // Load video data from JSON first
-    const jsonLoaded = await loadVideoDataFromJSON();
+    const jsonLoaded = await initializeVideoData();
     if (!jsonLoaded) {
-        console.error('Failed to load video data from JSON, using fallback');
-        videoData = fallbackVideoData;
+        console.error('❌ Failed to load video data from JSON file!');
+        console.error('Make sure scripts/apps/browser/wigtube-data.json exists and is valid.');
+        alert('Failed to load video database. Please refresh the page.');
+        videoData = []; // Use empty array - JSON file is the single source of truth
+        albumTracks = {};
+        albumMetadata = [];
     }
     
     // Set albumData from loaded metadata

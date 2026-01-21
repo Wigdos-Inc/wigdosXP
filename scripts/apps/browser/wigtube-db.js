@@ -23,34 +23,125 @@ window.WigTubeDB = (function() {
     const COMMENTS_DOC = 'wigtube_comments';
     const RATINGS_DOC = 'user_ratings';
     
-    // Use shared storage key and utilities with fallbacks
-    const WigTubeDBCommon = window.WigTubeDBCommon || {};
-    const getOfflineData = WigTubeDBCommon.getOfflineData || function() { 
-        console.warn('WigTubeDBCommon not loaded, using fallback');
+    // ============================================
+    // Database Common Utilities (formerly wigtube-db-common.js)
+    // ============================================
+    
+    /**
+     * Storage key for offline data
+     */
+    const STORAGE_KEY = 'wigtube_offline_data';
+    
+    /**
+     * Rating constants
+     */
+    const MIN_RATING = 0;
+    const MAX_RATING = 5;
+    
+    /**
+     * Get offline data from localStorage
+     * @returns {Object} Parsed offline data or default empty structure
+     */
+    function getOfflineData() {
         try {
-            const data = localStorage.getItem('wigtube_offline_data');
-            return data ? JSON.parse(data) : {};
+            const data = localStorage.getItem(STORAGE_KEY);
+            const parsed = data ? JSON.parse(data) : {};
+            return parsed;
         } catch (e) {
+            console.error('Error reading offline data:', e);
             return {};
         }
-    };
-    const saveOfflineData = WigTubeDBCommon.saveOfflineData || function(data) { 
-        console.warn('WigTubeDBCommon not loaded, using fallback');
+    }
+    
+    /**
+     * Save offline data to localStorage
+     * @param {Object} data - Data to save to localStorage
+     */
+    function saveOfflineData(data) {
         try {
-            localStorage.setItem('wigtube_offline_data', JSON.stringify(data));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
             console.error('Error saving offline data:', e);
         }
-    };
-    const formatTimestamp = WigTubeDBCommon.formatTimestamp || function(timestamp) { 
-        return timestamp ? new Date(timestamp).toLocaleDateString() : 'Unknown'; 
-    };
-    const formatViewCount = WigTubeDBCommon.formatViewCount || function(count) { 
-        return count + ' views'; 
-    };
-    const calculateStarRating = WigTubeDBCommon.calculateStarRating || function() { 
-        return '☆☆☆☆☆'; 
-    };
+    }
+    
+    /**
+     * Format Firestore timestamp to readable string
+     * @param {*} timestamp - Firestore timestamp or Date object
+     * @returns {string} Formatted relative time string
+     */
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return 'Just now';
+        
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+        return `${Math.floor(diffDays / 365)} years ago`;
+    }
+    
+    /**
+     * Format view count to readable string
+     * @param {number} count - Number of views
+     * @returns {string} Formatted view count (e.g., "1.2K views")
+     */
+    function formatViewCount(count) {
+        if (count === 0) return '0 views';
+        if (count === 1) return '1 view';
+        if (count < 1000) return `${count} views`;
+        if (count < 1000000) return `${(count / 1000).toFixed(1)}K views`;
+        if (count < 1000000000) return `${(count / 1000000).toFixed(1)}M views`;
+        return `${(count / 1000000000).toFixed(1)}B views`;
+    }
+    
+    /**
+     * Calculate average rating and return star string
+     * @param {Array|Object} ratings - Array of ratings or Object with ratings as values
+     * @returns {string} Star rating string (e.g., "★★★☆☆")
+     */
+    function calculateStarRating(ratings) {
+        let values;
+        
+        // Handle both array and object formats
+        if (Array.isArray(ratings)) {
+            if (ratings.length === 0) return '☆☆☆☆☆';
+            values = ratings;
+        } else if (typeof ratings === 'object' && ratings !== null) {
+            const keys = Object.keys(ratings);
+            if (keys.length === 0) return '☆☆☆☆☆';
+            values = Object.values(ratings);
+        } else {
+            return '☆☆☆☆☆';
+        }
+        
+        const sum = values.reduce((acc, r) => acc + r, 0);
+        const avg = sum / values.length;
+        // Clamp rating between MIN_RATING and MAX_RATING
+        const roundedAvg = Math.max(MIN_RATING, Math.min(MAX_RATING, Math.round(avg)));
+        
+        const fullStars = '★'.repeat(roundedAvg);
+        const emptyStars = '☆'.repeat(MAX_RATING - roundedAvg);
+        
+        return fullStars + emptyStars;
+    }
+    
+    // Export utilities to window for backward compatibility
+    if (typeof window !== 'undefined') {
+        window.WigTubeDBCommon = {
+            getOfflineData,
+            saveOfflineData,
+            formatTimestamp,
+            formatViewCount,
+            calculateStarRating,
+            STORAGE_KEY
+        };
+    }
     
     /**
      * Get Firestore database instance (lazy initialization)
@@ -80,13 +171,6 @@ window.WigTubeDB = (function() {
         debugLog('Firebase API not available, using offline mode');
         return null;
     }
-
-    // ============================================
-    // Helper Functions (using shared utilities)
-    // ============================================
-    // getOfflineData, saveOfflineData, formatTimestamp, 
-    // formatViewCount, and calculateStarRating are now imported
-    // from window.WigTubeDBCommon
 
     // ============================================
     // Video CRUD Operations

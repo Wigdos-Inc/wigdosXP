@@ -55,11 +55,10 @@ let videoData = {};
 let albumTracksData = {};
 let albumMetadataArray = [];
 
-// Load video data from JSON file
-async function loadVideoDataFromJSON() {
-    try {
-        const response = await fetch('../../scripts/apps/browser/wigtube-data.json');
-        const data = await response.json();
+// Load and initialize video data (uses shared utility from wigtube-shared.js)
+async function initializePlayerVideoData() {
+    const data = await loadVideoDataFromJSON('../../scripts/apps/browser/wigtube-data.json');
+    if (data) {
         videoDataArray = data.videos;
         
         // Convert array to object format for player
@@ -72,320 +71,14 @@ async function loadVideoDataFromJSON() {
         albumMetadataArray = data.albumMetadata;
         
         return true;
-    } catch (error) {
-        console.error('Error loading video data:', error);
-        return false;
     }
+    console.warn('Failed to load video data, using fallback dataset');
+    return false;
 }
 
 // Fallback video data structure
-const fallbackVideoData = {
-    'epic-minecraft-castle-build': {
-        title: 'Steve being a menace as always',
-        uploader: 'Steve',
-        uploadDate: '3 days ago',
-        duration: '02:45',
-        views: '2 views',
-        rating: '★★★★☆',
-        ratingCount: 127,
-        description: 'I, AM STEVE',
-        videoFile: 'assets/videos/steve.mp4',
-        thumbnail: 'assets/images/thumbnail/steve.png'
-    },
-    'yo Darren': {
-        title: 'Yo Darren',
-        uploader: 'Codemittens',
-        uploadDate: '05-11-2025',
-        duration: '00:19',
-        views: '5112025',
-        rating: '★★★★★',
-        ratingCount: 89,
-        description: 'YO DARREN MY N',
-        videoFile: 'assets/videos/dingaling.mp4',
-        thumbnail: 'assets/images/thumbnail/yodarren.png'
-    },
-    'Fredrick fazbear touches youtubers dingalings': {
-        title: 'Fredrick Fazbear Touches Youtubers Dingalings',
-        uploader: 'fredbear',
-        uploadDate: '1987 days ago',
-        duration: '00:08',
-        views: '4 views',
-        rating: '★★★★☆',
-        ratingCount: 203,
-        description: 'The rival of mrPenis strikes once again',
-        videoFile: 'assets/videos/nightguard.mp4',
-        thumbnail: 'assets/images/thumbnail/dingaling.png'
-    },
-    'schlaubum1': {
-        title: 'schlaubum1',
-        uploader: 'schlatt & Co',
-        uploadDate: '5 days ago',
-        duration: '3:47',
-        views: '12,456 views',
-        rating: '★★★☆☆',
-        ratingCount: 31,
-        description: 'jolly music by the big man himself',
-        videoFile: 'assets/audio/album/album1.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'the Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'holiday'
-    },
-    'blackman': {
-        title: 'freddy fazbear is about to get his dingaling touched',
-        uploader: 'fredbear',
-        uploadDate: '4 days ago',
-        duration: '00:08',
-        views: '8,923 views',
-        rating: '★★★★★',
-        ratingCount: 45,
-        description: '',
-        videoFile: 'assets/videos/blackman.mp4',
-        thumbnail: 'assets/images/thumbnail/blackman.png'
-    },
-    'jolly': {
-        title: 'jolly flight',
-        uploader: 'Santa Claus',
-        uploadDate: '2512 days ago',
-        duration: '00:16',
-        views: '34,782 views',
-        rating: '★★★★☆',
-        ratingCount: 78,
-        description: 'flight felt a bit jolly this year',
-        videoFile: 'assets/videos/jolly.mp4',
-        thumbnail: 'assets/images/thumbnail/santa.png'
-    },
-  'fredrick-fazbear-touches-youtubers-dingalings': {
-        title: 'Fredrick Fazbear Touches Youtubers Dingalings',
-        uploader: 'fredbear',
-        uploadDate: '1987 days ago',
-        duration: '04:34',
-        views: '4 views',
-        rating: '★★★★☆',
-        ratingCount: 203,
-        description: 'The rival of mrPenis strikes once again',
-        videoFile: 'assets/videos/nightguard.mp4',
-        thumbnail: 'assets/images/thumbnail/dingaling.png'
-    },
-    'fnaf-squid-games-real': {
-        title: 'Fnaf squid games real',
-        uploader: 'MrPenis',
-        uploadDate: '2 centuries ago',
-        duration: '00:56',
-        views: '1B views',
-        rating: '★★★★☆',
-        ratingCount: 156,
-        description: 'The true fnaf experience',
-        videoFile: 'assets/videos/fnaf.mp4',
-        thumbnail: 'assets/images/thumbnail/mr.png'
-    },
-    'c418': {
-        title: 'hagstorm',
-        uploader: 'c418',
-        uploadDate: '1 day ago',
-        duration: '03:24',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'nostalgia is a curse',
-        videoFile: 'assets/album/hagstorm.mp4',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        isMusic: true,
-        album: 'Minecraft soundtrack to contemplate life choices',
-        albumArt: 'assets/images/thumbnail/nostalgia.png',
-        artist: 'c418',
-        year: '2025',
-        genre: 'gaming'
-    },
-    'c4182': {
-        title: 'wethands',
-        uploader: 'c418',
-        uploadDate: '1 day ago',
-        duration: '01:30',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'nostalgia is a curse',
-        videoFile: 'assets/album/wet.mp4',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        isMusic: true,
-        album: 'Minecraft soundtrack to contemplate life choices',
-        albumArt: 'assets/images/thumbnail/nostalgia.png',
-        artist: 'c418',
-        year: '2025',
-        genre: 'gaming'
-    },
-    'c4183': {
-        title: 'dryhands',
-        uploader: 'c418',
-        uploadDate: '1 day ago',
-        duration: '01:08',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'nostalgia is a curse',
-        videoFile: 'assets/album/dry.mp4',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        isMusic: true,
-        album: 'Minecraft soundtrack to contemplate life choices',
-        albumArt: 'assets/images/thumbnail/nostalgia.png',
-        artist: 'c418',
-        year: '2025',
-        genre: 'gaming'
-    },
-    'c4184': {
-        title: 'moogcity',
-        uploader: 'c418',
-        uploadDate: '1 day ago',
-        duration: '02:40',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'nostalgia is a curse',
-        videoFile: 'assets/album/moog.mp4',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        isMusic: true,
-        album: 'Minecraft soundtrack to contemplate life choices',
-        albumArt: 'assets/images/thumbnail/nostalgia.png',
-        artist: 'c418',
-        year: '2025',
-        genre: 'gaming'
-    },
-    'c4185': {
-        title: 'sweden',
-        uploader: 'c418',
-        uploadDate: '1 day ago',
-        duration: '03:35',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'nostalgia is a curse',
-        videoFile: 'assets/album/sweden.mp4',
-        thumbnail: 'assets/images/thumbnail/nostalgia.png',
-        isMusic: true,
-        album: 'Minecraft soundtrack to contemplate life choices',
-        albumArt: 'assets/images/thumbnail/nostalgia.png',
-        artist: 'c418',
-        year: '2025',
-        genre: 'gaming'
-    },
-    'schlaubum1': {
-        title: 'jschlatt — Santa Claus Is Coming To Town',
-        uploader: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '02:17',
-        views: '420 views',
-        rating: '★★★★★',
-        ratingCount: 69,
-        description: 'Schlaubman sings a festive tune',
-        videoFile: 'assets/album/album1.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'The Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'Holiday'
-    },
-    'schlaubum2': {
-        title: 'jschlatt — The Christmas Song',
-        uploader: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '03:15',
-        views: '380 views',
-        rating: '★★★★★',
-        ratingCount: 54,
-        description: 'A jolly holiday song by Schlaubman',
-        videoFile: 'assets/album/album2.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'The Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'Holiday'
-    },
-    'schlaubum3': {
-        title: 'jschlatt — Let It Snow! Let It Snow! Let It Snow!',
-        uploader: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '01:56',
-        views: '512 views',
-        rating: '★★★★★',
-        ratingCount: 71,
-        description: 'Another festive track from Schlaubman',
-        videoFile: 'assets/album/album3.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'The Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'Holiday'
-    },
-    'schlaubum4': {
-        title: 'jschlatt — Baby It\'s Cold Outside',
-        uploader: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '02:25',
-        views: '445 views',
-        rating: '★★★★★',
-        ratingCount: 63,
-        description: 'Schlaubman brings the holiday spirit',
-        videoFile: 'assets/album/album4.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'The Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'Holiday'
-    },
-    'schlaubum5': {
-        title: 'jschlatt — Happy Holiday',
-        uploader: 'schlatt & Co',
-        uploadDate: '1 day ago',
-        duration: '00:30',
-        views: '390 views',
-        rating: '★★★★★',
-        ratingCount: 58,
-        description: 'The grand finale of the Schlaubum',
-        videoFile: 'assets/album/album5.mp4',
-        thumbnail: 'assets/images/thumbnail/schlatt.png',
-        isMusic: true,
-        album: 'The Schlaubum',
-        albumArt: 'assets/images/thumbnail/schlatt.png',
-        artist: 'schlatt & Co',
-        year: '2025',
-        genre: 'Holiday'
-    }
-};
 
-// Helper function to convert duration string to seconds
-function durationToSeconds(duration) {
-    const parts = duration.split(':');
-    if (parts.length === 2) {
-        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    } else if (parts.length === 3) {
-        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-    }
-    return 0;
-}
-
-// Helper function to convert seconds to duration string
-function secondsToDuration(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-}
+// Note: durationToSeconds() and secondsToDuration() are now in wigtube-shared.js
 
 // Helper function to calculate total album duration from track IDs
 function calculateAlbumDuration(trackIds) {
@@ -466,10 +159,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     debugLog('DOM Content Loaded');
     
     // Load video data from JSON first
-    const jsonLoaded = await loadVideoDataFromJSON();
+    const jsonLoaded = await initializePlayerVideoData();
     if (!jsonLoaded) {
-        console.error('Failed to load video data from JSON, using fallback');
-        videoData = fallbackVideoData;
+        console.error('❌ Failed to load video data from JSON file!');
+        console.error('Make sure scripts/apps/browser/wigtube-data.json exists and is valid.');
+        document.body.innerHTML = '<div style="padding: 20px; color: red; font-family: Tahoma;"><h1>Error Loading Video Database</h1><p>Failed to load wigtube-data.json. Please check the console for details.</p></div>';
+        videoData = {}; // Use empty object - JSON file is the single source of truth
+        videoDataArray = [];
+        albumTracksData = {};
+        albumMetadataArray = [];
+        return; // Stop execution if data fails to load
     } else {
         // Convert album metadata to object format with tracks
         albumData = {};
