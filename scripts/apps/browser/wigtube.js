@@ -1,5 +1,5 @@
 // WigTube JavaScript - XP Era Style
-// Note: Shared utilities (debugLog, getVideoRepoConfig, generateVideoUrl, getUploadServerUrl) 
+// Note: Shared utilities (debugLog, getVideoRepoConfig, generateVideoUrl) 
 // are loaded from wigtube-shared.js
 
 // debugLog is provided by wigtube-db.js which loads first
@@ -20,267 +20,202 @@ function showUploadProgress(message, percentage) {
 
 /**
  * Upload file to external video repository with real-time progress
+ * Uses Cloudflare Worker for serverless upload (no CORS, no port forwarding)
+ * Automatically uses chunked upload for large files
  */
 async function uploadFileToGitHub(file, path, commitMessage) {
     try {
         const originalFileName = file.name;
         // Sanitize filename - keep spaces and common chars, just remove dangerous ones for path traversal
         const fileName = originalFileName.replace(/[\\/:*?\"<>|]/g, '_');
-        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (GitHub Codespaces limit)
-        
-        // Check file size before uploading
-        if (file.size > MAX_FILE_SIZE) {
-            throw new Error(
-                `File too large: ${Math.round(file.size / 1024 / 1024)}MB\n\n` +
-                `Maximum file size: 100MB (GitHub Codespaces port forwarding limit)\n\n` +
-                `Tips to reduce file size:\n` +
-                `• Compress the video with HandBrake or ffmpeg\n` +
-                `• Use a lower resolution (720p instead of 1080p)\n` +
-                `• Reduce video quality/bitrate\n` +
-                `• Trim unnecessary parts`
-            );
-        }
+        const SMALL_FILE_LIMIT = 50 * 1024 * 1024; // 50MB - above this, use chunked upload
         
         // External repository configuration
         const { owner: VIDEO_REPO_OWNER, name: VIDEO_REPO_NAME, branch: VIDEO_REPO_BRANCH, folder: VIDEO_FOLDER } = getVideoRepoConfig();
         
-        showUploadProgress('🔍 Detecting upload server...', 10);
-        
-        // Detect upload server URL (works in Codespaces and local dev)
-        const uploadServerUrl = getUploadServerUrl('/upload');
-        console.log('Current hostname:', window.location.hostname);
-        console.log('Current protocol:', window.location.protocol);
-        console.log('Upload server URL:', uploadServerUrl);
-        console.log('File size:', Math.round(file.size / 1024 / 1024 * 100) / 100, 'MB');
-        
-        showUploadProgress('🔗 Testing server connection...', 20);
-        
-        // Test if server is accessible first
-        const uploadPort = localStorage.getItem('wigtubeUploadPort') || '3001';
-        const healthUrl = getUploadServerUrl('/health');
-        
-        try {
-            console.log('Testing upload server connectivity...');
-            console.log('Health check URL:', healthUrl);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-            
-            const healthCheck = await fetch(healthUrl, {
-                method: 'GET',
-                mode: 'cors',
-                credentials: 'omit',
-                redirect: 'error', // Fail on redirects (GitHub auth page)
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!healthCheck.ok) {
-                throw new Error(`Upload server returned status ${healthCheck.status}`);
-            }
-            console.log('✅ Upload server is accessible');
-        } catch (healthError) {
-            console.error('❌ Upload server not accessible:', healthError);
-            
-            // Build detailed error message
-            let errorMessage = `Upload server not accessible at port ${uploadPort}\n\n`;
-            
-            // Check error type and provide specific guidance
-            if (healthError.name === 'AbortError') {
-                errorMessage += `⏱️ Connection timeout - server not responding\n\n`;
-                errorMessage += `🔧 TO FIX:\n`;
-                errorMessage += `1. Start the upload server:\n`;
-                errorMessage += `   cd scripts/api && ./start-upload-server-codespaces.sh\n`;
-                errorMessage += `2. Check logs: tail -f /tmp/upload-server.log\n\n`;
-            } else if (healthError.message.includes('redirect') || healthError.message.includes('302')) {
-                errorMessage += `🔒 Port is PRIVATE (redirecting to GitHub auth)\n\n`;
-                errorMessage += `🔧 TO FIX (REQUIRED):\n`;
-                errorMessage += `1. Click PORTS tab (bottom panel)\n`;
-                errorMessage += `2. Find port ${uploadPort}\n`;
-                errorMessage += `3. Right-click → Port Visibility → Public\n`;
-                errorMessage += `4. Wait 5-10 seconds for change to apply\n`;
-                errorMessage += `5. Try uploading again\n\n`;
-            } else if (healthError.message.includes('Failed to fetch') || healthError.message.includes('NetworkError') || healthError.message.includes('404')) {
-                errorMessage += `🔌 Cannot connect to server (404/Network Error)\n\n`;
-                errorMessage += `Most likely: Port ${uploadPort} is not PUBLIC\n\n`;
-                errorMessage += `🔧 TO FIX:\n\n`;
-                errorMessage += `STEP 1: Make port PUBLIC\n`;
-                errorMessage += `  • Click PORTS tab (bottom panel)\n`;
-                errorMessage += `  • Find port ${uploadPort}\n`;
-                errorMessage += `  • Right-click → Port Visibility → Public\n`;
-                errorMessage += `  • Verify it says "Public" in Visibility column\n\n`;
-                errorMessage += `STEP 2: Ensure server is running\n`;
-                errorMessage += `  • Run: pgrep -f "upload-server"\n`;
-                errorMessage += `  • If no output, start server:\n`;
-                errorMessage += `    cd scripts/api && ./start-upload-server-codespaces.sh\n\n`;
-                errorMessage += `STEP 3: Test connection\n`;
-                errorMessage += `  • Open in browser: ${healthUrl}\n`;
-                errorMessage += `  • Should show: {"status":"ok"}\n\n`;
-            } else {
-                errorMessage += `Error: ${healthError.message}\n\n`;
-                errorMessage += `🔧 TO FIX:\n`;
-                errorMessage += `1. Check PORTS tab (bottom panel)\n`;
-                errorMessage += `2. Make port ${uploadPort} PUBLIC\n`;
-                errorMessage += `3. Ensure server is running: pgrep -f "upload-server"\n\n`;
-            }
-            
-            errorMessage += `💡 Test URL: ${healthUrl}`;
-            
-            throw new Error(errorMessage);
+        // Resolve Cloudflare Worker URL from config, then localStorage, then fallback
+        const workerUrl = (window.WIGTUBE_CONFIG && window.WIGTUBE_CONFIG.workerUrl) ||
+            localStorage.getItem('wigtubeWorkerUrl') ||
+            'https://wigtube-upload.YOUR_SUBDOMAIN.workers.dev';
+
+        if (workerUrl.includes('YOUR_SUBDOMAIN')) {
+            throw new Error(
+                '⚠️ Cloudflare Worker not configured!\n\n' +
+                'Set your worker URL in scripts/apps/browser/wigtube-config.js\n' +
+                'or via localStorage.setItem(\'wigtubeWorkerUrl\', \'https://your-worker.workers.dev\');\n\n' +
+                'See cloudflare-worker/README.md for details.'
+            );
         }
         
-        showUploadProgress('📤 Uploading video to external repository...', 30);
-        console.log('Uploading to external video repository:', fileName);
+        console.log('🌐 Using Cloudflare Worker:', workerUrl);
+        console.log('📁 File:', fileName, `(${Math.round(file.size / 1024 / 1024)}MB)`);
         
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('path', `${VIDEO_FOLDER}/${fileName}`);
-        formData.append('repository', `${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}`);
-        
-        console.log('Sending upload request...');
-        showUploadProgress('⬆️ Transferring file... Please wait', 50);
-        
-        let response;
-        try {
-            response = await fetch(uploadServerUrl, {
-                method: 'POST',
-                mode: 'cors',
-                credentials: 'omit',
-                redirect: 'error', // fail fast if port is PRIVATE (302 to auth)
-                cache: 'no-store',
-                body: formData,
-                signal: AbortSignal.timeout(300000) // 5 minute timeout
-            });
-        } catch (fetchError) {
-            console.error('Fetch error details:', {
-                name: fetchError.name,
-                message: fetchError.message,
-                code: fetchError.code,
-                uploadServerUrl
-            });
-            
-            let detailedError = `Failed to upload file\n\n`;
-            detailedError += `URL: ${uploadServerUrl}\n`;
-            detailedError += `Error: ${fetchError.message}\n\n`;
-            
-            if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
-                detailedError += `⏱️ Request timed out after 5 minutes\n\n`;
-                detailedError += `This usually means:\n`;
-                detailedError += `• Upload server is not responding\n`;
-                detailedError += `• Port 3001 is not public\n`;
-                detailedError += `• Network connection is unstable\n`;
-            } else if (fetchError.message.includes('redirect')) {
-                detailedError += `🔒 Port is PRIVATE (redirecting to GitHub auth)\n\n`;
-                detailedError += `To fix:\n`;
-                detailedError += `• Open PORTS tab and set port 3001 to Public\n`;
-                detailedError += `• Or run start script to auto-set visibility\n`;
-            } else if (fetchError.name === 'TypeError') {
-                detailedError += `🔌 Cannot connect to upload server\n\n`;
-                detailedError += `This could be:\n`;
-                detailedError += `• Port 3001 not public in PORTS tab\n`;
-                detailedError += `• Upload server crashed (check: pgrep -f upload-server)\n`;
-                detailedError += `• CORS blocked the request\n`;
-            } else {
-                detailedError += `Network error: ${fetchError.name}\n`;
-            }
-            
-            throw new Error(detailedError);
-        }
-        
-        console.log('Response status:', response.status, response.statusText);
-        showUploadProgress('📡 Processing response...', 70);
-        
-        if (!response.ok) {
-            let errorMsg = `Upload failed: ${response.status} ${response.statusText}`;
-            if (response.status === 413) {
-                errorMsg = (
-                    `File too large: ${Math.round(file.size / 1024 / 1024)}MB\n\n` +
-                    `Maximum size: 100MB (GitHub Codespaces limit)\n\n` +
-                    `To reduce file size:\n` +
-                    `• Use ffmpeg: ffmpeg -i input.mp4 -vcodec libx264 -crf 28 output.mp4\n` +
-                    `• Use HandBrake (GUI tool)\n` +
-                    `• Compress with: ffmpeg -i input.mp4 -c:v libx265 -crf 28 -c:a aac -b:a 128k output.mp4`
-                );
-            } else if (response.status === 502 || response.status === 503) {
-                errorMsg = `Upload server is unavailable (${response.status})\n\nTry again in a moment`;
-            } else if (response.status === 500) {
-                try {
-                    const errorBody = await response.json();
-                    errorMsg = `Server error: ${errorBody.error || response.statusText}`;
-                } catch (e) {
-                    errorMsg = `Server error (500)`;
-                }
-            }
-            throw new Error(errorMsg);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log('✅ File uploaded to video repository:', result.fileName);
-            if (result.renamed) {
-                console.log('📝 File was renamed from:', result.originalFileName);
-            }
-            showUploadProgress('✅ Upload complete! Committing to GitHub...', 90);
-            
-            // Wait for git operations to complete (they happen async on server)
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Use the actual filename returned from server (may be renamed if duplicate)
-            const finalFileName = result.fileName;
-            
-            // Construct GitHub raw content URL using the final filename
-            const videoUrl = `https://raw.githubusercontent.com/${VIDEO_REPO_OWNER}/${VIDEO_REPO_NAME}/${VIDEO_REPO_BRANCH}/${VIDEO_FOLDER}/${finalFileName}`;
-            
-            showUploadProgress('✅ Video uploaded and committed to GitHub!', 100);
-            
-            console.log('Video URL:', videoUrl);
-            
-            // Return the external URL instead of local path
-            return videoUrl;
+        // Choose upload method based on file size
+        if (file.size <= SMALL_FILE_LIMIT) {
+            // Simple upload for small files
+            return await uploadFileSimple(file, fileName, workerUrl, VIDEO_FOLDER, VIDEO_REPO_OWNER, VIDEO_REPO_NAME);
         } else {
-            throw new Error(result.error || 'Upload failed');
+            // Chunked upload for large files
+            return await uploadFileChunked(file, fileName, workerUrl, VIDEO_FOLDER);
         }
         
     } catch (error) {
-        console.error('Error uploading file:', error);
-        
-        // Fallback to download method
-        const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        
-        await showPopup(
-            `Automatic upload failed: ${error.message}\n\n` +
-            `The file will download to your computer.\n\n` +
-            `Please manually add it to:\n` +
-            `https://github.com/${getVideoRepoConfig().owner || '<owner>'}/${getVideoRepoConfig().name || '<repo>'}\n` +
-            `in the "${getVideoRepoConfig().folder || 'videos'}" folder`,
-            'Upload Server Not Available',
-            'error'
-        );
-        
-        // Download file as fallback
-        const blob = new Blob([file], { type: file.type });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        // Return the GitHub raw URL anyway (user will push manually)
-        const { owner: F_OWNER, name: F_NAME, branch: F_BRANCH, folder: F_FOLDER } = getVideoRepoConfig();
-        return (F_OWNER && F_NAME)
-            ? `https://raw.githubusercontent.com/${F_OWNER}/${F_NAME}/${F_BRANCH}/${F_FOLDER}/${fileName}`
-            : '';
+        console.error('❌ Upload error:', error);
+        throw error;
     }
 }
 
 /**
- * Delete video file from external repository
+ * Simple upload for files <50MB
+ */
+async function uploadFileSimple(file, fileName, workerUrl, folder, owner, repo) {
+    showUploadProgress('📤 Uploading to GitHub...', 10);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', `${folder}/`);
+    formData.append('repository', `${owner}/${repo}`);
+    
+    showUploadProgress('⏳ Uploading... Please wait', 50);
+    
+    const response = await fetch(`${workerUrl}/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+    
+    showUploadProgress('📡 Processing...', 80);
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}\n${errorText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
+    }
+    
+    console.log('✅ Upload successful!');
+    console.log('📹 Video URL:', result.videoUrl);
+    
+    showUploadProgress('✅ Upload complete!', 100);
+    
+    return result.videoUrl;
+}
+
+/**
+ * Chunked upload for files >50MB
+ */
+async function uploadFileChunked(file, fileName, workerUrl, folder) {
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunks (smaller for Worker memory limits during finalization)
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const blobShas = [];
+    
+    console.log(`📦 Splitting ${fileName} into ${totalChunks} chunks`);
+    showUploadProgress(`📦 Uploading chunk 0/${totalChunks}...`, 5);
+    
+    // Upload each chunk
+    for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        
+        const progress = 5 + Math.floor((i / totalChunks) * 85);
+        showUploadProgress(`📤 Uploading chunk ${i + 1}/${totalChunks}...`, progress);
+        
+        console.log(`Uploading chunk ${i + 1}/${totalChunks} (${Math.round(chunk.size / 1024)}KB)`);
+        
+        const response = await fetch(`${workerUrl}/upload-chunk`, {
+            method: 'POST',
+            headers: {
+                'X-Chunk-Index': i.toString(),
+                'X-Total-Chunks': totalChunks.toString(),
+                'X-File-Name': fileName,
+                'X-File-Path': `${folder}/${fileName}`,
+            },
+            body: chunk,
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Chunk ${i + 1} upload failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(`Chunk ${i + 1} failed: ${result.error}`);
+        }
+        
+        blobShas.push(result.blobSha);
+        console.log(`✅ Chunk ${i + 1} uploaded: ${result.blobSha}`);
+    }
+    
+    // Finalize upload
+    showUploadProgress('🔗 Finalizing upload...', 90);
+    console.log('Finalizing chunked upload...');
+    
+    const finalizeResponse = await fetch(`${workerUrl}/finalize-upload`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            fileName: fileName,
+            filePath: `${folder}/${fileName}`,
+            blobShas: blobShas,
+            fileSize: file.size,
+        }),
+    });
+    
+    if (!finalizeResponse.ok) {
+        throw new Error(`Finalization failed: ${finalizeResponse.status}`);
+    }
+    
+    const finalResult = await finalizeResponse.json();
+    if (!finalResult.success) {
+        throw new Error(`Finalization failed: ${finalResult.error}`);
+    }
+    
+    console.log('✅ Upload successful!');
+    console.log('📹 Video URL:', finalResult.videoUrl);
+    
+    showUploadProgress('✅ Upload complete!', 100);
+    
+    return finalResult.videoUrl;
+}
+
+/**
+ * Delete video file from GitHub repository via Cloudflare Worker
+ */
+async function deleteVideoFromGitHub(fileName) {
+    try {
+        const workerUrl = (window.WIGTUBE_CONFIG && window.WIGTUBE_CONFIG.workerUrl) ||
+            localStorage.getItem('wigtubeWorkerUrl') ||
+            'https://wigtube-upload.YOUR_SUBDOMAIN.workers.dev';
+        
+        if (workerUrl.includes('YOUR_SUBDOMAIN')) {
+            console.error('⚠️ Cloudflare Worker not configured');
+            return false;
+        }
+        
+        const response = await fetch(`${workerUrl}/delete/${encodeURIComponent(fileName)}`, {
+            method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+            console.error('Delete failed:', response.status);
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error deleting video:', error);
+        return false;
+    }
+}
+
+/**
+ * Delete video file from external repository (wrapper for backwards compatibility)
  */
 async function deleteVideoFileFromRepo(videoUrl) {
     try {
@@ -288,13 +223,10 @@ async function deleteVideoFileFromRepo(videoUrl) {
         let fileName = '';
         
         if (videoUrl.includes('github')) {
-            // Extract from GitHub URL
             fileName = videoUrl.split('/').pop();
         } else if (videoUrl.includes('/')) {
-            // Extract from path
             fileName = videoUrl.split('/').pop();
         } else {
-            // Already just a filename
             fileName = videoUrl;
         }
         
@@ -303,27 +235,8 @@ async function deleteVideoFileFromRepo(videoUrl) {
             return { success: false, error: 'Invalid video URL' };
         }
         
-        console.log('Attempting to delete video file:', fileName);
-        
-        // Use shared function to get upload server URL
-        const uploadServerUrl = getUploadServerUrl(`/delete/${encodeURIComponent(fileName)}`);
-        console.log('Delete URL:', uploadServerUrl);
-        
-        // Call delete endpoint
-        const response = await fetch(uploadServerUrl, {
-            method: 'DELETE',
-            mode: 'cors',
-            credentials: 'omit'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Delete request failed: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('Delete result:', result);
-        
-        return { success: true, fileName, result };
+        const success = await deleteVideoFromGitHub(fileName);
+        return { success, fileName };
         
     } catch (error) {
         console.error('Error deleting video file from repo:', error);

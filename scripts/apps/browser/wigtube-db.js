@@ -1,8 +1,11 @@
 // WigTube Database Integration - Firestore & localStorage fallback
 // Manages video data, views, ratings, and comments
 
-// Use shared debug utility
-const debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTubeDB') : (...args) => {};
+// Use shared debug utility (only define if not already defined)
+if (typeof window.debugLog === 'undefined') {
+    window.debugLog = window.WigTubeDebug ? window.WigTubeDebug.createDebugLogger('WigTubeDB') : (...args) => {};
+}
+const debugLog = window.debugLog;
 
 /**
  * WigTube Database API

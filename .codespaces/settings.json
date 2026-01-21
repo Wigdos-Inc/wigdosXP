@@ -3,18 +3,6 @@
 
 # Port forwarding rules (applied BEFORE Codespace fully starts)
 ports:
-  - port: 3001
-    visibility: public
-    name: "WigTube Upload Server"
-    protocol: https
-    onAutoForward: notify
-  
-  - port: 3002
-    visibility: public
-    name: "WigTube MySQL API"
-    protocol: https
-    onAutoForward: silent
-  
   - port: 3000
     visibility: public
     name: "WigTube App"

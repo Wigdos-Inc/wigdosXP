@@ -8,11 +8,14 @@ if (typeof window.WIGTUBE_DEBUG === 'undefined') {
 
 /**
  * Debug logging utility
+ * Only define if not already defined by wigtube-db.js
  */
-function debugLog(...args) {
-    if (window.WIGTUBE_DEBUG) {
-        console.log('[WigTube]', ...args);
-    }
+if (typeof window.debugLog === 'undefined') {
+    window.debugLog = function(...args) {
+        if (window.WIGTUBE_DEBUG) {
+            console.log('[WigTube]', ...args);
+        }
+    };
 }
 
 /**
@@ -55,37 +58,6 @@ function generateVideoUrl(videoPath) {
     // Otherwise assume it's just a filename and construct external URL
     const { owner, name, branch, folder } = getVideoRepoConfig();
     return `https://raw.githubusercontent.com/${owner}/${name}/${branch}/${folder}/${videoPath}`;
-}
-
-/**
- * Detect upload server URL (works in Codespaces and local dev)
- * @param {string} endpoint - The endpoint path (e.g., '/upload', '/delete', '/health')
- * @returns {string} The full upload server URL
- */
-function getUploadServerUrl(endpoint = '') {
-    const uploadPort = localStorage.getItem('wigtubeUploadPort') || '3001';
-    let uploadServerUrl;
-    
-    // Check if we're in GitHub Codespaces
-    if (window.location.hostname.includes('.github.dev')) {
-        // Codespaces hostname format: workspace-5520.app.github.dev or similar
-        // We need to replace the port number with the upload port
-        // Extract workspace name and replace the port
-        const hostname = window.location.hostname;
-        // Match pattern like "workspace-5520" and replace 5520 with uploadPort
-        const updatedHostname = hostname.replace(/-\d+\./, `-${uploadPort}.`);
-        uploadServerUrl = `${window.location.protocol}//${updatedHostname}${endpoint}`;
-        console.log(`[Codespaces URL] Original: ${hostname} → ${updatedHostname}`);
-    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // Local development
-        uploadServerUrl = `http://localhost:${uploadPort}${endpoint}`;
-    } else {
-        // Fallback for other environments
-        uploadServerUrl = `${window.location.protocol}//${window.location.hostname}:${uploadPort}${endpoint}`;
-    }
-    
-    console.log(`[Upload URL] ${endpoint || '/upload'} → ${uploadServerUrl}`);
-    return uploadServerUrl;
 }
 
 /**

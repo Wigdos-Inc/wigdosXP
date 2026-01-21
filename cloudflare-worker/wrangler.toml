@@ -1,0 +1,11 @@
+name = "wigtube-upload"
+main = "wigtube-upload-worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables (set these in Cloudflare dashboard after deployment)
+# [vars]
+# These should be set as secrets in Cloudflare dashboard:
+# - GITHUB_TOKEN
+# - GITHUB_OWNER (e.g., "Danie-GLR")
+# - GITHUB_REPO (e.g., "Videoswigtube-EEEEEE")  
+# - GITHUB_BRANCH (default: "main")

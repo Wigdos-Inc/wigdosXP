@@ -1,0 +1,243 @@
+/**
+ * Cloudflare Worker for WigTube Video Uploads
+ * 
+ * This worker receives video uploads from the browser and pushes them to GitHub.
+ * No CORS issues, no port forwarding, works everywhere.
+ * 
+ * Environment Variables (set in Cloudflare dashboard):
+ * - GITHUB_TOKEN: Your GitHub Personal Access Token
+ * - GITHUB_OWNER: Repository owner (e.g., "Danie-GLR")
+ * - GITHUB_REPO: Repository name (e.g., "Videoswigtube-EEEEEE")
+ * - GITHUB_BRANCH: Branch name (default: "main")
+ */
+
+// CORS headers for all responses
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export default {
+  async fetch(request, env) {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS_HEADERS });
+    }
+
+    // Health check endpoint
+    if (request.url.endsWith('/health')) {
+      return new Response(
+        JSON.stringify({ status: 'ok', service: 'wigtube-upload' }),
+        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Upload endpoint
+    if (request.method === 'POST' && request.url.includes('/upload')) {
+      try {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        const path = formData.get('path') || 'videos/';
+        const repository = formData.get('repository') || `${env.GITHUB_OWNER}/${env.GITHUB_REPO}`;
+
+        if (!file) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'No file provided' }),
+            { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // File size limit: 50MB (Worker memory constraint)
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+        if (file.size > MAX_FILE_SIZE) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `File too large: ${Math.round(file.size / 1024 / 1024)}MB. Maximum: 50MB due to Worker memory limits.\n\nCompress your video with HandBrake or ffmpeg before uploading.`
+            }),
+            { status: 413, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log(`Uploading ${file.name} (${file.size} bytes) to ${repository}`);
+
+        // Get file content as ArrayBuffer
+        const fileContent = await file.arrayBuffer();
+        const base64Content = btoa(String.fromCharCode(...new Uint8Array(fileContent)));
+
+        // Parse repository
+        const [owner, repo] = repository.split('/');
+        const branch = env.GITHUB_BRANCH || 'main';
+        const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${path.replace(/\/$/, '')}/${fileName}`;
+
+        // GitHub API endpoint
+        const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+
+        // Check if file exists (to get SHA for update)
+        let sha = null;
+        try {
+          const checkResponse = await fetch(githubUrl, {
+            headers: {
+              'Authorization': `token ${env.GITHUB_TOKEN}`,
+              'User-Agent': 'WigTube-Worker',
+            },
+          });
+          if (checkResponse.ok) {
+            const data = await checkResponse.json();
+            sha = data.sha;
+            console.log(`File exists, updating with SHA: ${sha}`);
+          }
+        } catch (e) {
+          console.log('File does not exist, creating new');
+        }
+
+        // Create or update file on GitHub
+        const githubPayload = {
+          message: `Add video: ${fileName}`,
+          content: base64Content,
+          branch: branch,
+        };
+
+        if (sha) {
+          githubPayload.sha = sha; // Include SHA for updates
+        }
+
+        const uploadResponse = await fetch(githubUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${env.GITHUB_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'WigTube-Worker',
+          },
+          body: JSON.stringify(githubPayload),
+        });
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('GitHub API error:', errorText);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `GitHub API error: ${uploadResponse.status}`,
+              details: errorText 
+            }),
+            { status: uploadResponse.status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const result = await uploadResponse.json();
+        const videoUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+
+        console.log(`Successfully uploaded to: ${videoUrl}`);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            fileName: fileName,
+            videoUrl: videoUrl,
+            path: filePath,
+            size: file.size,
+          }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Upload error:', error);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: error.message || 'Upload failed' 
+          }),
+          { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Delete endpoint
+    if (request.method === 'DELETE' && request.url.includes('/delete/')) {
+      try {
+        const urlParts = request.url.split('/delete/');
+        const fileName = decodeURIComponent(urlParts[1]);
+        
+        if (!fileName) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'No filename provided' }),
+            { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const owner = env.GITHUB_OWNER;
+        const repo = env.GITHUB_REPO;
+        const branch = env.GITHUB_BRANCH || 'main';
+        const folder = 'videos'; // Default video folder
+        const filePath = `${folder}/${fileName}`;
+
+        console.log(`Deleting ${filePath} from ${owner}/${repo}`);
+
+        // Get file SHA (required for deletion)
+        const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+        const checkResponse = await fetch(githubUrl, {
+          headers: {
+            'Authorization': `token ${env.GITHUB_TOKEN}`,
+            'User-Agent': 'WigTube-Worker',
+          },
+        });
+
+        if (!checkResponse.ok) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'File not found' }),
+            { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const fileData = await checkResponse.json();
+        
+        // Delete file
+        const deleteResponse = await fetch(githubUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `token ${env.GITHUB_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'WigTube-Worker',
+          },
+          body: JSON.stringify({
+            message: `Delete video: ${fileName}`,
+            sha: fileData.sha,
+            branch: branch,
+          }),
+        });
+
+        if (!deleteResponse.ok) {
+          const errorText = await deleteResponse.text();
+          console.error('GitHub API delete error:', errorText);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Delete failed' }),
+            { status: deleteResponse.status, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log(`Successfully deleted: ${filePath}`);
+
+        return new Response(
+          JSON.stringify({ success: true, fileName: fileName }),
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        console.error('Delete error:', error);
+        return new Response(
+          JSON.stringify({ success: false, error: error.message }),
+          { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 404 for unknown routes
+    return new Response('Not Found', { 
+      status: 404, 
+      headers: CORS_HEADERS 
+    });
+  },
+};
