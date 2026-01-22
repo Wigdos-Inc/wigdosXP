@@ -2540,6 +2540,11 @@ async function handleVideoUpload(event) {
             result = await WigTubeDB.createVideo(videoData);
             console.log('🟢 Database save successful!');
             console.log('🟢 Result:', result);
+            
+            // Track achievement for uploading a video
+            if (typeof WigTubeAchievements !== 'undefined') {
+                WigTubeAchievements.onVideoUploaded();
+            }
         } catch (dbError) {
             console.error('🔴 Database save error:', dbError);
             throw new Error(`Failed to save to database: ${dbError.message}`);
@@ -3720,6 +3725,11 @@ async function showChannelSettings() {
             // Continue anyway - localStorage save already succeeded
         }
         
+        // Award channel customization achievement
+        if (typeof WigTubeAchievements !== 'undefined') {
+            WigTubeAchievements.onChannelCustomized();
+        }
+        
         updateStatus('Channel settings saved');
         overlay.remove();
         showMyChannel(); // Reload to show changes
@@ -4689,6 +4699,12 @@ function showCreatePlaylistDialog() {
             });
             
             updateStatus('Playlist created!');
+            
+            // Track achievement for creating a public playlist
+            if (isPublic && typeof WigTubeAchievements !== 'undefined') {
+                WigTubeAchievements.onPublicPlaylistCreated();
+            }
+            
             overlay.remove();
             
             // Refresh playlists tab

@@ -611,6 +611,11 @@ function playVideo() {
                 document.getElementById('viewCount').textContent = WigTubeDB.formatViewCount(newViewCount);
                 console.log(`View count updated: ${newViewCount}`);
                 debugLog('playVideo: View count updated to', newViewCount);
+                
+                // Track view for achievements (for the video uploader)
+                if (typeof WigTubeAchievements !== 'undefined' && currentVideo.uploader) {
+                    WigTubeAchievements.onVideoViewed(currentVideo.uploader);
+                }
             }).catch(error => {
                 console.error('Error incrementing view count:', error);
                 debugLog('playVideo: ERROR incrementing view count', error);
@@ -989,6 +994,11 @@ async function setupSubscribeButton(channelName) {
                     subscribeBtn.textContent = 'Subscribed ✓';
                     subscribeBtn.className = 'subscribe-btn subscribed';
                     updateStatus(`Subscribed to ${channelName}!`);
+                    
+                    // Track achievement for gaining a subscriber
+                    if (typeof WigTubeAchievements !== 'undefined') {
+                        WigTubeAchievements.onSubscriberGained(channelName);
+                    }
                 } else {
                     alert('Unable to subscribe. You may already be subscribed or cannot subscribe to yourself.');
                 }
@@ -1253,6 +1263,11 @@ async function addComment(commentText, imageData = null) {
             console.log('Comment saved to Firestore');
             debugLog('addComment: Successfully saved to Firestore');
             updateStatus('Comment posted successfully');
+            
+            // Track achievement for commenting
+            if (typeof WigTubeAchievements !== 'undefined') {
+                WigTubeAchievements.onCommentPosted();
+            }
             
             // Reload all comments from Firestore to prevent duplicates
             await loadComments();

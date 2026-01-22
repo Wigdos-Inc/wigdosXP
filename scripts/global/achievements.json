@@ -68,17 +68,65 @@
     "wigtube": {
       "name": "WigTube",
       "badges": {
-        "wigtube_first_view": {
-          "name": "First View",
-          "description": "Watch your first video on WigTube",
-          "icon": "/assets/images/icons/achievment/badge_impossible.png",
+        "wigtube_seen": {
+          "name": "seen",
+          "description": "Get 10 total views on your videos",
+          "icon": "/assets/images/icons/achievment/flashbang.gif",
+          "color": "#3498db"
+        },
+        "wigtube_noticed": {
+          "name": "Noticed",
+          "description": "Get 100 total views on your videos",
+          "icon": "/assets/images/icons/achievment/slenderman.gif",
+          "color": "#9b59b6"
+        },
+        "wigtube_ohio_impressed": {
+          "name": "*ohio impressed*",
+          "description": "Get 1 subscriber",
+          "icon": "/assets/images/icons/achievment/ohio.gif",
+          "color": "#e67e22"
+        },
+        "wigtube_big_leagues": {
+          "name": "the big leagues",
+          "description": "Get 10 subscribers",
+          "icon": "/assets/images/icons/achievment/leagues.png",
+          "color": "#e74c3c"
+        },
+        "wigtube_moistcritical": {
+          "name": "moistcritical",
+          "description": "Post 1 comment",
+          "icon": "/assets/images/icons/achievment/moist.png",
+          "color": "#16a085"
+        },
+        "wigtube_reviewer": {
+          "name": "reviewer",
+          "description": "Post 10 comments in total",
+          "icon": "/assets/images/icons/achievment/redditor.png",
+          "color": "#27ae60"
+        },
+        "wigtube_wigtuber": {
+          "name": "wigtuber",
+          "description": "Publish 1 video",
+          "icon": "/assets/images/icons/achievment/dbd.png",
           "color": "#FF0000"
         },
-        "wigtube_content_creator": {
-          "name": "Content Creator",
-          "description": "Upload a video to WigTube",
-          "icon": "/assets/images/icons/achievment/badge_tactical.png",
-          "color": "#FF6B00"
+        "wigtube_one_who_tubes": {
+          "name": "the one who tubes",
+          "description": "Publish 10 videos",
+          "icon": "/assets/images/icons/achievment/mistake.png",
+          "color": "#c0392b"
+        },
+        "wigtube_not_lucio": {
+          "name": "bro is not lucio",
+          "description": "Make a playlist that is public",
+          "icon": "/assets/images/icons/achievment/lucio.png",
+          "color": "#f39c12"
+        },
+        "wigtube_fabulious": {
+          "name": "FABULIOUS",
+          "description": "Customize your WigTube channel",
+          "icon": "/assets/images/icons/achievment/schocked.gif",
+          "color": "#FF1493"
         }
       }
     },
