@@ -791,13 +791,17 @@ window.WigTubeDB = (function() {
                 dislikeIncrement = 1;
             }
             
-            // Update video document
+            // Calculate new counts
+            const newLikeCount = Math.max(0, likeCount + likeIncrement);
+            const newDislikeCount = Math.max(0, dislikeCount + dislikeIncrement);
+            
+            // Update video document only if counts changed
             const updates = {};
             if (likeIncrement !== 0) {
-                updates.likeCount = Math.max(0, likeCount + likeIncrement);
+                updates.likeCount = newLikeCount;
             }
             if (dislikeIncrement !== 0) {
-                updates.dislikeCount = Math.max(0, dislikeCount + dislikeIncrement);
+                updates.dislikeCount = newDislikeCount;
             }
             
             if (Object.keys(updates).length > 0) {
@@ -812,9 +816,10 @@ window.WigTubeDB = (function() {
             }
             localStorage.setItem(storageKey, JSON.stringify(userLikes));
             
+            // Return the current counts (after applying increments)
             return {
-                likeCount: updates.likeCount !== undefined ? updates.likeCount : likeCount,
-                dislikeCount: updates.dislikeCount !== undefined ? updates.dislikeCount : dislikeCount,
+                likeCount: newLikeCount,
+                dislikeCount: newDislikeCount,
                 userAction: newAction
             };
         } catch (error) {

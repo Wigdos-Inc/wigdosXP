@@ -452,6 +452,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             else if (itemText.includes('What\'s Hot')) {
                 showWhatsHot();
             }
+            // Handle New Videos
+            else if (itemText.includes('New Videos')) {
+                showNewVideos();
+            }
+            // Handle Top Rated
+            else if (itemText.includes('Top Rated')) {
+                showTopRated();
+            }
             // Handle History
             else if (itemText.includes('History')) {
                 showHistory();
@@ -602,6 +610,7 @@ async function loadVideosWithStats() {
                         debugLog('loadVideosWithStats: Got stats for', video.id, '-', dbVideo.viewCount, 'views,', userRatings.length, 'ratings');
                         return {
                             ...video,
+                            uploadDateRaw: dbVideo.uploadDate || 0,
                             views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
                             rating: WigTubeDB.calculateStarRating(userRatings)
                         };
@@ -613,6 +622,7 @@ async function loadVideosWithStats() {
                 debugLog('loadVideosWithStats: No stats for', video.id, '- using zeros');
                 return {
                     ...video,
+                    uploadDateRaw: 0,
                     views: '0 views',
                     rating: '☆☆☆☆☆'
                 };
@@ -628,6 +638,7 @@ async function loadVideosWithStats() {
                     uploaderName: dbVideo.uploaderName || dbVideo.uploaderId,
                     uploaderId: dbVideo.uploaderId,
                     uploadDate: dbVideo.uploadDate ? WigTubeDB.formatTimestamp(dbVideo.uploadDate) : 'Unknown',
+                    uploadDateRaw: dbVideo.uploadDate || 0,
                     duration: dbVideo.duration || '0:00',
                     views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
                     rating: WigTubeDB.calculateStarRating(userRatings),
@@ -658,20 +669,21 @@ async function loadVideosWithStats() {
     debugLog('loadVideosWithStats: Using fallback (zeros)');
     const videosWithZeros = videoData.map(video => ({
         ...video,
+        uploadDateRaw: 0,
         views: '0 views',
         rating: '☆☆☆☆☆'
     }));
     renderVideos(videosWithZeros);
 }
 
-function renderVideos(videos) {
+function renderVideos(videos, showNewBadges = false) {
     const videoGrid = document.querySelector('.video-grid');
     if (!videoGrid) return;
     
     videoGrid.innerHTML = '';
     
     videos.forEach(video => {
-        const videoCard = createVideoCard(video);
+        const videoCard = createVideoCard(video, showNewBadges);
         videoGrid.appendChild(videoCard);
     });
     
@@ -679,7 +691,7 @@ function renderVideos(videos) {
     attachVideoCardEvents();
 }
 
-function createVideoCard(video) {
+function createVideoCard(video, showNewBadge = false) {
     const card = document.createElement('div');
     card.className = 'video-card';
     card.setAttribute('data-video-id', video.id);
@@ -695,10 +707,33 @@ function createVideoCard(video) {
     const likePercentage = totalVotes > 0 ? Math.round((likeCount / totalVotes) * 100) : 0;
     const ratingDisplay = totalVotes > 0 ? `👍 ${likePercentage}% (${totalVotes} votes)` : video.rating || '☆☆☆☆☆';
     
+    // Check if video is new (uploaded within last 7 days) - only show if showNewBadge is true
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const uploadDateRaw = video.uploadDateRaw || video.uploadDate || 0;
+    const isNewVideo = showNewBadge && uploadDateRaw > sevenDaysAgo;
+    
     card.innerHTML = `
-        <div class="video-thumbnail">
+        <div class="video-thumbnail" style="position: relative;">
             <img src="${video.thumbnail}" alt="${video.title}" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #c0c0c0 25%, transparent 25%)'; this.parentElement.style.backgroundSize='20px 20px';">
             <div class="video-duration">${video.duration}</div>
+            ${isNewVideo ? `
+            <div style="
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: linear-gradient(135deg, #00cc00, #00ff00);
+                color: white;
+                padding: 3px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                border: 1px solid white;
+                box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                z-index: 10;
+            ">
+                ✨ NEW
+            </div>
+            ` : ''}
         </div>
         <div class="video-info">
             <h3>${video.title}</h3>
@@ -769,6 +804,7 @@ async function filterVideosByCategory(category) {
                 uploaderId: dbVideo.uploaderId,
                 uploaderName: dbVideo.uploaderName,
                 uploadDate: WigTubeDB.formatTimestamp ? WigTubeDB.formatTimestamp(dbVideo.uploadDate) : 'Recently',
+                uploadDateRaw: dbVideo.uploadDate || 0,
                 views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
                 duration: dbVideo.duration,
                 thumbnail: dbVideo.thumbnail || dbVideo.thumbnailUrl || 'assets/images/thumbnail/default.png',
@@ -881,6 +917,7 @@ async function performSearch() {
                     if (dbVideo) {
                         return {
                             ...video,
+                            uploadDateRaw: dbVideo.uploadDate || 0,
                             views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
                             rating: WigTubeDB.calculateStarRating(dbVideo.ratings || [])
                         };
@@ -890,6 +927,7 @@ async function performSearch() {
                 }
                 return {
                     ...video,
+                    uploadDateRaw: 0,
                     views: '0 views',
                     rating: '☆☆☆☆☆'
                 };
@@ -904,6 +942,7 @@ async function performSearch() {
         // Fallback: render with zeros
         const videosWithZeros = searchResults.map(video => ({
             ...video,
+            uploadDateRaw: 0,
             views: '0 views',
             rating: '☆☆☆☆☆'
         }));
@@ -979,9 +1018,9 @@ setTimeout(() => {
 // ============================================
 
 /**
- * Show albums view in 2003 YouTube style
+ * Show albums view in 2003 YouTube style - includes both albums and user playlists
  */
-function showAlbumsView() {
+async function showAlbumsView() {
     const videoGrid = document.querySelector('.video-grid');
     const contentHeader = document.querySelector('.content-header');
     
@@ -1021,13 +1060,71 @@ function showAlbumsView() {
     
     videoGrid.appendChild(backButton);
     
-    // Create albums grid
-    albumData.forEach(album => {
-        const albumCard = createAlbumCard(album);
-        videoGrid.appendChild(albumCard);
-    });
+    // Section header for Albums
+    if (albumData && albumData.length > 0) {
+        const albumsHeader = document.createElement('div');
+        albumsHeader.style.cssText = `
+            grid-column: 1 / -1;
+            background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+            padding: 8px 12px;
+            margin: 10px 0;
+            border: 2px outset #d4d0c8;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        `;
+        albumsHeader.innerHTML = '🎵 Music Albums';
+        videoGrid.appendChild(albumsHeader);
+        
+        // Create albums grid
+        albumData.forEach(album => {
+            const albumCard = createAlbumCard(album);
+            videoGrid.appendChild(albumCard);
+        });
+    }
     
-    updateStatus(`Showing ${albumData.length} album(s)`);
+    // Load user playlists
+    const username = localStorage.getItem('username');
+    let userPlaylists = [];
+    
+    if (username && username.toLowerCase() !== 'guest' && typeof WigTubeDB !== 'undefined') {
+        try {
+            debugLog('showAlbumsView: Loading user playlists for', username);
+            userPlaylists = await WigTubeDB.getUserPlaylists(username);
+            
+            // Also load public playlists from other users
+            // Note: For now we only show the current user's playlists
+            // In the future, we could add a "Browse Public Playlists" section
+            
+            if (userPlaylists && userPlaylists.length > 0) {
+                // Section header for User Playlists
+                const playlistsHeader = document.createElement('div');
+                playlistsHeader.style.cssText = `
+                    grid-column: 1 / -1;
+                    background: linear-gradient(to bottom, #c5316a 0%, #881e40 100%);
+                    padding: 8px 12px;
+                    margin: 20px 0 10px 0;
+                    border: 2px outset #d4d0c8;
+                    color: white;
+                    font-size: 16px;
+                    font-weight: bold;
+                `;
+                playlistsHeader.innerHTML = `📝 My Playlists (${userPlaylists.length})`;
+                videoGrid.appendChild(playlistsHeader);
+                
+                // Create playlist cards
+                userPlaylists.forEach(playlist => {
+                    const playlistCard = createPlaylistCard(playlist);
+                    videoGrid.appendChild(playlistCard);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading user playlists:', error);
+        }
+    }
+    
+    const totalItems = (albumData?.length || 0) + userPlaylists.length;
+    updateStatus(`Showing ${albumData?.length || 0} album(s) and ${userPlaylists.length} playlist(s)`);
     showLoadingProgress();
 }
 
@@ -1081,6 +1178,81 @@ function createAlbumCard(album) {
     card.addEventListener('click', function() {
         updateStatus(`Loading album: ${album.title}`);
         window.location.href = `apps/browser/pages/wigtube-player.html?album=${album.id}`;
+    });
+    
+    // Hover effect
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.02)';
+        this.style.boxShadow = '4px 4px 0px #999';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+        this.style.boxShadow = '2px 2px 0px #999';
+    });
+    
+    return card;
+}
+
+/**
+ * Create playlist card in 2003 YouTube style
+ */
+function createPlaylistCard(playlist) {
+    const card = document.createElement('div');
+    card.className = 'video-card playlist-card';
+    card.style.cursor = 'pointer';
+    
+    // Get first video thumbnail or use default
+    const firstVideoId = playlist.videos && playlist.videos.length > 0 ? playlist.videos[0] : null;
+    const thumbnailUrl = 'assets/images/thumbnail/default.png'; // Will be improved with actual video thumbnail
+    
+    card.innerHTML = `
+        <div class="video-thumbnail" style="position: relative;">
+            <img src="${thumbnailUrl}" alt="${playlist.name}" 
+                 onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #c0c0c0 25%, transparent 25%)'; this.parentElement.style.backgroundSize='20px 20px';">
+            <div style="
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                background: rgba(128,0,128,0.8);
+                color: white;
+                padding: 3px 8px;
+                font-size: 10px;
+                font-weight: bold;
+                border: 1px solid white;
+            ">
+                📝 PLAYLIST
+            </div>
+            <div class="video-duration" style="background: rgba(128,0,128,0.9);">
+                ${playlist.videos?.length || 0} videos
+            </div>
+        </div>
+        <div class="video-info">
+            <h3 style="color: #800080;">📋 ${playlist.name}</h3>
+            <div class="video-meta">
+                by ${playlist.owner}<br>
+                ${playlist.isPublic ? '🌐 Public' : '🔒 Private'}
+            </div>
+            <div class="video-stats">
+                <span style="font-size: 10px; color: #666;">
+                    ${playlist.description || 'No description'}
+                </span>
+            </div>
+            <div style="margin-top: 8px; padding: 5px; background: #e6ccff; border: 1px solid #c9c; font-size: 10px; text-align: center;">
+                <strong>▶ Click to view playlist</strong>
+            </div>
+        </div>
+    `;
+    
+    // Add click handler
+    card.addEventListener('click', function() {
+        updateStatus(`Loading playlist: ${playlist.name}`);
+        // Navigate to first video in playlist with playlist context
+        if (playlist.videos && playlist.videos.length > 0) {
+            window.location.href = `apps/browser/pages/wigtube-player.html?v=${playlist.videos[0]}&playlist=${playlist.id}`;
+        } else {
+            alert('This playlist is empty. Add some videos to it first!');
+        }
     });
     
     // Hover effect
@@ -1154,6 +1326,260 @@ async function showHomePage() {
     
     updateStatus('Showing home page');
     showLoadingProgress();
+}
+
+/**
+ * Show New Videos - display newly uploaded videos sorted by upload date
+ */
+async function showNewVideos() {
+    const videoGrid = document.querySelector('.video-grid');
+    const contentHeader = document.querySelector('.content-header');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Update header
+    contentHeader.innerHTML = '📅 New Videos - Recently Uploaded';
+    
+    // Keep category buttons visible (consistent with homepage)
+    const categoryButtons = document.querySelector('.video-categories');
+    if (categoryButtons) {
+        categoryButtons.style.display = 'flex';
+    }
+    
+    try {
+        // Load ALL videos including user-uploaded ones from database
+        let videosWithStats = [];
+        
+        if (typeof WigTubeDB !== 'undefined') {
+            debugLog('showNewVideos: Loading all videos from database');
+            
+            // Get all videos from database (includes both default and user-uploaded)
+            const dbVideos = await WigTubeDB.getAllVideos();
+            
+            if (dbVideos && dbVideos.length > 0) {
+                // Format database videos with stats
+                videosWithStats = dbVideos.map(video => {
+                    const userRatings = video.userRatings ? Object.values(video.userRatings) : [];
+                    return {
+                        id: video.id,
+                        title: video.title,
+                        author: video.uploaderName || video.uploaderId || 'Unknown',
+                        uploaderName: video.uploaderName || video.uploaderId,
+                        uploaderId: video.uploaderId,
+                        uploadDate: video.uploadDate ? WigTubeDB.formatTimestamp(video.uploadDate) : 'Unknown',
+                        uploadDateRaw: video.uploadDate || 0,
+                        duration: video.duration || '0:00',
+                        views: WigTubeDB.formatViewCount(video.viewCount || 0),
+                        viewCount: video.viewCount || 0,
+                        rating: WigTubeDB.calculateStarRating(userRatings),
+                        thumbnail: video.thumbnail || video.thumbnailUrl || 'assets/images/thumbnail/default.png',
+                        category: video.category || 'other',
+                        description: video.description || '',
+                        isUserUploaded: true
+                    };
+                });
+            } else {
+                // Fallback to static videos if database is empty
+                videosWithStats = await Promise.all(videoData.map(async (video) => {
+                    try {
+                        const dbVideo = await WigTubeDB.getVideoById(video.id);
+                        if (dbVideo) {
+                            const userRatings = dbVideo.userRatings ? Object.values(dbVideo.userRatings) : [];
+                            return {
+                                ...video,
+                                uploadDateRaw: dbVideo.uploadDate || 0,
+                                viewCount: dbVideo.viewCount || 0,
+                                views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                                rating: WigTubeDB.calculateStarRating(userRatings)
+                            };
+                        }
+                    } catch (err) {
+                        console.error(`Error loading stats for ${video.id}:`, err);
+                    }
+                    return {
+                        ...video,
+                        uploadDateRaw: 0,
+                        viewCount: 0,
+                        views: '0 views',
+                        rating: '☆☆☆☆☆'
+                    };
+                }));
+            }
+        } else {
+            // Fallback: use static videos with zeros
+            videosWithStats = videoData.map(video => ({
+                ...video,
+                uploadDateRaw: 0,
+                viewCount: 0,
+                views: '0 views',
+                rating: '☆☆☆☆☆'
+            }));
+        }
+        
+        // Sort by upload date (descending - newest first)
+        videosWithStats.sort((a, b) => {
+            const dateA = a.uploadDateRaw || 0;
+            const dateB = b.uploadDateRaw || 0;
+            return dateB - dateA;
+        });
+        
+        // Render all new videos (no limit, show all sorted by date) with NEW badges
+        renderVideos(videosWithStats, true);
+        
+        // Re-attach click events
+        attachVideoCardEvents();
+        
+        updateStatus(`Showing ${videosWithStats.length} video(s) sorted by upload date`);
+        showLoadingProgress();
+        
+    } catch (error) {
+        console.error('Error loading New Videos:', error);
+        updateStatus('Error loading new videos');
+    }
+}
+
+/**
+ * Show Top Rated - display top-rated videos by star rating
+ */
+async function showTopRated() {
+    const videoGrid = document.querySelector('.video-grid');
+    const contentHeader = document.querySelector('.content-header');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Update header
+    contentHeader.innerHTML = '⭐ Top Rated Videos - Best of the Best';
+    
+    // Keep category buttons visible (consistent with homepage)
+    const categoryButtons = document.querySelector('.video-categories');
+    if (categoryButtons) {
+        categoryButtons.style.display = 'flex';
+    }
+    
+    try {
+        // Load ALL videos including user-uploaded ones from database
+        let videosWithStats = [];
+        
+        if (typeof WigTubeDB !== 'undefined') {
+            debugLog('showTopRated: Loading all videos from database');
+            
+            // Get all videos from database (includes both default and user-uploaded)
+            const dbVideos = await WigTubeDB.getAllVideos();
+            
+            if (dbVideos && dbVideos.length > 0) {
+                // Format database videos with stats
+                videosWithStats = dbVideos.map(video => {
+                    const userRatings = video.userRatings ? Object.values(video.userRatings) : [];
+                    const avgRating = userRatings.length > 0 
+                        ? userRatings.reduce((sum, r) => sum + r, 0) / userRatings.length 
+                        : 0;
+                    
+                    return {
+                        id: video.id,
+                        title: video.title,
+                        author: video.uploaderName || video.uploaderId || 'Unknown',
+                        uploaderName: video.uploaderName || video.uploaderId,
+                        uploaderId: video.uploaderId,
+                        uploadDate: video.uploadDate ? WigTubeDB.formatTimestamp(video.uploadDate) : 'Unknown',
+                        duration: video.duration || '0:00',
+                        views: WigTubeDB.formatViewCount(video.viewCount || 0),
+                        viewCount: video.viewCount || 0,
+                        rating: WigTubeDB.calculateStarRating(userRatings),
+                        avgRating: avgRating,
+                        ratingCount: userRatings.length,
+                        thumbnail: video.thumbnail || video.thumbnailUrl || 'assets/images/thumbnail/default.png',
+                        category: video.category || 'other',
+                        description: video.description || '',
+                        isUserUploaded: true
+                    };
+                });
+            } else {
+                // Fallback to static videos if database is empty
+                videosWithStats = await Promise.all(videoData.map(async (video) => {
+                    try {
+                        const dbVideo = await WigTubeDB.getVideoById(video.id);
+                        if (dbVideo) {
+                            const userRatings = dbVideo.userRatings ? Object.values(dbVideo.userRatings) : [];
+                            const avgRating = userRatings.length > 0 
+                                ? userRatings.reduce((sum, r) => sum + r, 0) / userRatings.length 
+                                : 0;
+                            
+                            return {
+                                ...video,
+                                avgRating: avgRating,
+                                ratingCount: userRatings.length,
+                                viewCount: dbVideo.viewCount || 0,
+                                views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                                rating: WigTubeDB.calculateStarRating(userRatings)
+                            };
+                        }
+                    } catch (err) {
+                        console.error(`Error loading stats for ${video.id}:`, err);
+                    }
+                    return {
+                        ...video,
+                        avgRating: 0,
+                        ratingCount: 0,
+                        viewCount: 0,
+                        views: '0 views',
+                        rating: '☆☆☆☆☆'
+                    };
+                }));
+            }
+        } else {
+            // Fallback: use static videos with zeros
+            videosWithStats = videoData.map(video => ({
+                ...video,
+                avgRating: 0,
+                ratingCount: 0,
+                viewCount: 0,
+                views: '0 views',
+                rating: '☆☆☆☆☆'
+            }));
+        }
+        
+        // Filter videos with at least 1 rating and sort by average rating (descending)
+        const ratedVideos = videosWithStats
+            .filter(video => video.ratingCount > 0)
+            .sort((a, b) => {
+                // Primary sort: average rating (descending)
+                if (b.avgRating !== a.avgRating) {
+                    return b.avgRating - a.avgRating;
+                }
+                // Secondary sort: number of ratings (descending)
+                return b.ratingCount - a.ratingCount;
+            });
+        
+        if (ratedVideos.length === 0) {
+            // No rated videos found - show message in content area
+            videoGrid.innerHTML = `
+                <div style="
+                    grid-column: 1 / -1;
+                    padding: 40px;
+                    text-align: center;
+                    background: #ffffcc;
+                    border: 2px solid #cc9;
+                    margin: 20px;
+                    font-size: 14px;
+                ">
+                    ⭐ No rated videos yet! Be the first to rate some videos.
+                </div>
+            `;
+        } else {
+            // Render all rated videos (showing all, not just top 20)
+            renderVideos(ratedVideos);
+        }
+        
+        // Re-attach click events
+        attachVideoCardEvents();
+        
+        updateStatus(`Showing ${ratedVideos.length} top-rated video(s)`);
+        showLoadingProgress();
+        
+    } catch (error) {
+        console.error('Error loading Top Rated videos:', error);
+        updateStatus('Error loading top rated videos');
+    }
 }
 
 /**

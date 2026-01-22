@@ -344,6 +344,38 @@ body {
     color: #d41300;
 }
 
+/* Subscribe Button */
+.subscribe-btn {
+    background: linear-gradient(to bottom, #ff0000 0%, #cc0000 100%);
+    border: 2px outset #ff4444;
+    padding: 3px 10px;
+    font-size: 10px;
+    cursor: pointer;
+    color: white;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-weight: bold;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.subscribe-btn:hover {
+    background: linear-gradient(to bottom, #ff3333 0%, #dd0000 100%);
+}
+
+.subscribe-btn:active {
+    border: 2px inset #ff4444;
+}
+
+.subscribe-btn.subscribed {
+    background: linear-gradient(to bottom, #808080 0%, #606060 100%);
+    border: 2px outset #999999;
+    cursor: default;
+}
+
+.subscribe-btn.subscribed:hover {
+    background: linear-gradient(to bottom, #999999 0%, #707070 100%);
+}
+
 /* Sidebar */
 .sidebar {
     width: 400px;

@@ -315,6 +315,9 @@ async function loadVideo(videoId) {
             const uploaderElement = document.getElementById('uploader');
             uploaderElement.innerHTML = `<span class="channel-link" data-channel="${video.uploader}" style="color: #0066cc; text-decoration: underline; cursor: pointer;">${video.uploader}</span>`;
             
+            // Setup subscribe button
+            setupSubscribeButton(video.uploader || video.uploaderId);
+            
             document.getElementById('uploadDate').textContent = video.uploadDate;
             document.getElementById('viewCount').textContent = viewCount;
             document.getElementById('rating').textContent = ratingStars;
@@ -381,6 +384,9 @@ async function loadVideoFallback(videoId, video) {
     // Make uploader name clickable
     const uploaderElement = document.getElementById('uploader');
     uploaderElement.innerHTML = `<span class="channel-link" data-channel="${video.uploader}" style="color: #0066cc; text-decoration: underline; cursor: pointer;">${video.uploader}</span>`;
+    
+    // Setup subscribe button
+    setupSubscribeButton(video.uploader || video.uploaderId);
     
     document.getElementById('uploadDate').textContent = video.uploadDate;
     document.getElementById('viewCount').textContent = savedStats.views;
@@ -924,6 +930,74 @@ function handleActionButton(action) {
             flagVideo(videoId);
             break;
     }
+}
+
+/**
+ * Setup subscribe button for the video uploader
+ */
+async function setupSubscribeButton(channelName) {
+    const subscribeBtn = document.getElementById('subscribeBtn');
+    if (!subscribeBtn || !channelName) return;
+    
+    const currentUser = localStorage.getItem('username') || 'guest';
+    
+    // Don't show subscribe button for guest users or if viewing own channel
+    if (currentUser.toLowerCase() === 'guest' || currentUser === channelName) {
+        subscribeBtn.style.display = 'none';
+        return;
+    }
+    
+    // Show the subscribe button
+    subscribeBtn.style.display = 'inline-block';
+    
+    // Check if already subscribed
+    if (typeof WigTubeDB !== 'undefined') {
+        try {
+            const isSubscribed = await WigTubeDB.isSubscribed(channelName);
+            subscribeBtn.textContent = isSubscribed ? 'Subscribed ✓' : 'Subscribe';
+            subscribeBtn.className = isSubscribed ? 'subscribe-btn subscribed' : 'subscribe-btn';
+        } catch (error) {
+            console.error('Error checking subscription status:', error);
+        }
+    }
+    
+    // Add click handler
+    subscribeBtn.onclick = async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (typeof WigTubeDB === 'undefined') {
+            alert('Database not available. Please try again later.');
+            return;
+        }
+        
+        try {
+            const isSubscribed = await WigTubeDB.isSubscribed(channelName);
+            
+            if (isSubscribed) {
+                // Unsubscribe
+                const success = await WigTubeDB.unsubscribeFromChannel(channelName);
+                if (success) {
+                    subscribeBtn.textContent = 'Subscribe';
+                    subscribeBtn.className = 'subscribe-btn';
+                    updateStatus(`Unsubscribed from ${channelName}`);
+                }
+            } else {
+                // Subscribe
+                const success = await WigTubeDB.subscribeToChannel(channelName);
+                if (success) {
+                    subscribeBtn.textContent = 'Subscribed ✓';
+                    subscribeBtn.className = 'subscribe-btn subscribed';
+                    updateStatus(`Subscribed to ${channelName}!`);
+                } else {
+                    alert('Unable to subscribe. You may already be subscribed or cannot subscribe to yourself.');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling subscription:', error);
+            alert('Error updating subscription. Please try again.');
+        }
+    };
 }
 
 function addToFavorites(videoId) {
@@ -3549,13 +3623,25 @@ async function handleLikeDislike(type) {
         return;
     }
     
+    if (!window.WigTubeDB) {
+        alert('⚠️ Error\n\nDatabase not available. Please refresh the page.');
+        return;
+    }
+    
     try {
         // Toggle the like/dislike in database
         const result = await window.WigTubeDB.toggleLikeDislike(videoId, type, username);
         
-        // Update UI
-        document.getElementById('likeCount').textContent = result.likeCount;
-        document.getElementById('dislikeCount').textContent = result.dislikeCount;
+        console.log('Like/Dislike result:', result);
+        
+        // Update UI with new counts
+        const likeCountElement = document.getElementById('likeCount');
+        const dislikeCountElement = document.getElementById('dislikeCount');
+        
+        if (likeCountElement && dislikeCountElement) {
+            likeCountElement.textContent = result.likeCount;
+            dislikeCountElement.textContent = result.dislikeCount;
+        }
         
         // Update button states
         updateLikeDislikeButtons(result.userAction);
