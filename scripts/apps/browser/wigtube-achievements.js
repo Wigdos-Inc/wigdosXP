@@ -6,6 +6,196 @@ console.log('WigTube Achievements: Module loading...');
 window.WigTubeAchievements = (function() {
     'use strict';
 
+    let achievementsConfig = null;
+
+    /**
+     * Load achievements configuration
+     */
+    async function loadAchievementsConfig() {
+        if (achievementsConfig) {
+            return achievementsConfig;
+        }
+
+        try {
+            const response = await fetch('/scripts/global/achievements.json?t=' + Date.now());
+            const data = await response.json();
+            achievementsConfig = data.categories;
+            return achievementsConfig;
+        } catch (error) {
+            console.error('Error loading achievements config:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Show achievement notification popup
+     */
+    function showAchievementNotification(badge) {
+        // Play achievement sound
+        const achievementSound = new Audio('/assets/audio/system/achievment.mp3');
+        achievementSound.volume = 0.5;
+        achievementSound.play().catch(err => console.log('Audio play failed:', err));
+        
+        // Create notification
+        const notification = document.createElement('div');
+        notification.className = 'wigtube-achievement-notification';
+        
+        notification.innerHTML = `
+            <div class="wigtube-achievement-content">
+                <div class="wigtube-achievement-header">
+                    <div class="wigtube-achievement-icon"><img src="/assets/images/icons/achievment/info.gif" alt="Achievement"></div>
+                    <div class="wigtube-achievement-title">Achievement Unlocked</div>
+                </div>
+                <div class="wigtube-achievement-body">
+                    <div class="wigtube-badge-icon"><img src="${badge.icon}" alt="${badge.name}"></div>
+                    <div class="wigtube-badge-info">
+                        <div class="wigtube-badge-name">${badge.name}</div>
+                        <div class="wigtube-badge-desc">${badge.description}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Add styles if not already present
+        if (!document.getElementById('wigtube-achievement-styles')) {
+            const style = document.createElement('style');
+            style.id = 'wigtube-achievement-styles';
+            style.textContent = `
+                .wigtube-achievement-notification {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    animation: slideIn 0.5s ease-out;
+                }
+                
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+                
+                .wigtube-achievement-content {
+                    background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+                    border: 2px solid #0054e3;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+                                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                    width: 320px;
+                    font-family: 'Tahoma', 'Segoe UI', sans-serif;
+                    overflow: hidden;
+                }
+                
+                .wigtube-achievement-header {
+                    background: linear-gradient(to bottom, #0078d7, #0054e3);
+                    border-bottom: 1px solid #003d99;
+                    padding: 8px 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .wigtube-achievement-icon {
+                    width: 16px;
+                    height: 16px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .wigtube-achievement-icon img {
+                    width: 16px;
+                    height: 16px;
+                }
+                
+                .wigtube-achievement-title {
+                    color: #ffffff;
+                    font-size: 12px;
+                    font-weight: bold;
+                    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+                }
+                
+                .wigtube-achievement-body {
+                    padding: 15px;
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    background: linear-gradient(to bottom, #d6e8ff, #c3ddf9);
+                }
+                
+                .wigtube-badge-icon {
+                    flex-shrink: 0;
+                    width: 64px;
+                    height: 64px;
+                    border: 2px solid #0054e3;
+                    background: #ffffff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+                                0 2px 4px rgba(0, 0, 0, 0.2);
+                    border-radius: 4px;
+                }
+                
+                .wigtube-badge-icon img {
+                    max-width: 100%;
+                    max-height: 100%;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+                
+                .wigtube-badge-info {
+                    flex: 1;
+                    min-width: 0;
+                }
+                
+                .wigtube-badge-name {
+                    color: #003d99;
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 6px;
+                    line-height: 1.3;
+                    word-wrap: break-word;
+                }
+                
+                .wigtube-badge-desc {
+                    color: #0054e3;
+                    font-size: 11px;
+                    line-height: 1.4;
+                    word-wrap: break-word;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remove notification after 4 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.5s ease-in';
+            setTimeout(() => {
+                notification.remove();
+            }, 500);
+        }, 4000);
+    }
+
     /**
      * Check and award achievement
      */
@@ -21,9 +211,27 @@ window.WigTubeAchievements = (function() {
         }
 
         try {
-            const awarded = await window.AchievementsDB.awardBadge(username, achievementId);
+            const awarded = await window.AchievementsDB.awardAchievement(achievementId, username);
             if (awarded && !silent) {
                 console.log(`🏆 Achievement unlocked: ${achievementId}`);
+                
+                // Load config and show notification
+                const config = await loadAchievementsConfig();
+                if (config) {
+                    // Find badge info
+                    let badgeInfo = null;
+                    for (const categoryKey in config) {
+                        const category = config[categoryKey];
+                        if (category.badges && category.badges[achievementId]) {
+                            badgeInfo = category.badges[achievementId];
+                            break;
+                        }
+                    }
+                    
+                    if (badgeInfo) {
+                        showAchievementNotification(badgeInfo);
+                    }
+                }
             }
             return awarded;
         } catch (error) {
