@@ -49,12 +49,13 @@ async function fetchWithRetry(url, options, attempts = 3, backoffMs = 250) {
 // POST /large-upload/chunk
 // Headers: X-Chunk-Index, X-Total-Chunks, X-File-Name, X-File-Path
 // Body: binary chunk (application/octet-stream)
+// Stores each chunk as a separate file: videos/<filename>.part001, part002, etc.
 app.post('/large-upload/chunk', async (req, res) => {
   try {
     const chunkIndex = parseInt(req.header('X-Chunk-Index'));
     const totalChunks = parseInt(req.header('X-Total-Chunks'));
     const fileName = req.header('X-File-Name');
-    const filePath = req.header('X-File-Path') || `videos/${fileName}`;
+    const baseFilePath = req.header('X-File-Path') || `videos/${fileName}`;
 
     if (Number.isNaN(chunkIndex) || Number.isNaN(totalChunks) || !fileName) {
       return res.status(400).json({ success: false, error: 'Missing chunk headers' });
@@ -64,37 +65,44 @@ app.post('/large-upload/chunk', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Server not configured with GITHUB_TOKEN' });
     }
 
-    console.log(`[Chunk] ${fileName} chunk ${chunkIndex + 1}/${totalChunks} -> ${filePath}`);
+    // Store as separate file: videos/<filename>.part001
+    const paddedIndex = String(chunkIndex + 1).padStart(3, '0');
+    const chunkFilePath = `${baseFilePath}.part${paddedIndex}`;
+
+    console.log(`[Chunk] ${fileName} chunk ${chunkIndex + 1}/${totalChunks} -> ${chunkFilePath}`);
 
     const chunkBuffer = Buffer.from(req.body);
     const base64Chunk = chunkBuffer.toString('base64');
 
-    const blobResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/blobs`, {
-      method: 'POST',
+    // Upload chunk as a separate file using Contents API
+    const uploadResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${chunkFilePath}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `token ${GITHUB_TOKEN}`,
         'Content-Type': 'application/json',
         'User-Agent': 'WigTube-Large-Upload-Server',
       },
       body: JSON.stringify({
+        message: `Upload ${fileName} part ${paddedIndex}`,
         content: base64Chunk,
-        encoding: 'base64',
+        branch: GITHUB_BRANCH,
       }),
     });
 
-    if (!blobResponse.ok) {
-      const errorText = await blobResponse.text();
-      console.error('[Chunk] Blob creation error:', errorText);
-      return res.status(500).json({ success: false, error: 'Failed to create blob' });
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('[Chunk] Upload error:', errorText);
+      return res.status(500).json({ success: false, error: 'Failed to upload chunk file' });
     }
 
-    const blobData = await blobResponse.json();
-    console.log(`[Chunk] ✅ ${fileName} chunk ${chunkIndex + 1} -> ${blobData.sha}`);
+    const uploadData = await uploadResponse.json();
+    console.log(`[Chunk] ✅ ${fileName} chunk ${chunkIndex + 1} -> ${chunkFilePath}`);
 
     return res.json({
       success: true,
       chunkIndex,
-      blobSha: blobData.sha,
+      chunkPath: chunkFilePath,
+      sha: uploadData.content.sha,
     });
   } catch (err) {
     console.error('[Chunk] Error:', err);
@@ -103,12 +111,13 @@ app.post('/large-upload/chunk', async (req, res) => {
 });
 
 // POST /large-upload/finalize
-// Body: { fileName, filePath, chunkShas: string[] }
+// Body: { fileName, filePath, chunkPaths: string[], totalChunks: number, fileSize: number }
+// Creates a metadata file to describe the multi-part video
 app.post('/large-upload/finalize', async (req, res) => {
   try {
-    const { fileName, filePath, chunkShas } = req.body || {};
+    const { fileName, filePath, totalChunks, fileSize } = req.body || {};
 
-    if (!fileName || !filePath || !Array.isArray(chunkShas) || chunkShas.length === 0) {
+    if (!fileName || !filePath || !totalChunks) {
       return res.status(400).json({ success: false, error: 'Missing required data' });
     }
 
@@ -116,197 +125,125 @@ app.post('/large-upload/finalize', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Server not configured with GITHUB_TOKEN' });
     }
 
-    console.log(`[Finalize] ${fileName} with ${chunkShas.length} chunks -> ${filePath}`);
+    console.log(`[Finalize] ${fileName} with ${totalChunks} parts -> metadata file`);
 
-    const owner = GITHUB_OWNER;
-    const repo = GITHUB_REPO;
-    const branch = GITHUB_BRANCH;
+    // Create metadata file describing the multi-part video
+    const metadataPath = `${filePath}.meta.json`;
+    const metadata = {
+      fileName,
+      totalParts: totalChunks,
+      fileSize: fileSize || 0,
+      uploadedAt: new Date().toISOString(),
+      isMultiPart: true,
+      baseUrl: `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${filePath}`,
+    };
 
-    // Combine chunk blobs into one blob in GitHub, streaming base64 JSON body
-    console.log('[Finalize] Streaming chunks into final blob...');
+    const metadataContent = Buffer.from(JSON.stringify(metadata, null, 2)).toString('base64');
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        (async () => {
-          try {
-            controller.enqueue(encoder.encode('{"content":"'));
-            for (let i = 0; i < chunkShas.length; i++) {
-              if (i > 0) {
-                await sleep(3000);
-              }
-              const sha = chunkShas[i];
-              console.log(`[Finalize] Fetching chunk ${i + 1}/${chunkShas.length}: ${sha}`);
-
-              const blobResponse = await fetchWithRetry(
-                `https://api.github.com/repos/${owner}/${repo}/git/blobs/${sha}`,
-                {
-                  headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'User-Agent': 'WigTube-Large-Upload-Server',
-                  },
-                },
-                3,
-                250,
-              );
-
-              if (!blobResponse.ok) {
-                const errText = await blobResponse.text();
-                console.error('[Finalize] Chunk fetch error body:', errText);
-                throw new Error(`Failed to fetch chunk ${i + 1} (status ${blobResponse.status})`);
-              }
-
-              const blobJson = await blobResponse.json();
-              let base64Chunk = (blobJson.content || '').replace(/\n/g, '');
-              if (i < chunkShas.length - 1) {
-                base64Chunk = base64Chunk.replace(/=+$/g, '');
-              }
-
-              controller.enqueue(encoder.encode(base64Chunk));
-            }
-
-            controller.enqueue(encoder.encode('","encoding":"base64"}'));
-            controller.close();
-          } catch (err) {
-            console.error('[Finalize] Stream combine error:', err);
-            try {
-              controller.error(err);
-            } catch (innerErr) {
-              console.error('[Finalize] controller.error failed:', innerErr);
-            }
-          }
-        })();
-      },
-    });
-
-    // Create final blob in GitHub
-    const blobResponse = await fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}/git/blobs`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'WigTube-Large-Upload-Server',
-      },
-      // Node/undici requires duplex: 'half' when sending a streamed body
-      duplex: 'half',
-      body: stream,
-    }, 3, 250);
-
-    if (!blobResponse.ok) {
-      const errorText = await blobResponse.text();
-      console.error('[Finalize] Final blob creation error:', errorText);
-      throw new Error('Failed to create final blob');
-    }
-
-    const blobData = await blobResponse.json();
-    console.log(`[Finalize] ✅ Final blob: ${blobData.sha}`);
-
-    // Get current branch reference
-    const refResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'User-Agent': 'WigTube-Large-Upload-Server',
-      },
-    });
-
-    if (!refResponse.ok) {
-      throw new Error('Failed to get branch reference');
-    }
-
-    const refData = await refResponse.json();
-    const baseCommitSha = refData.object.sha;
-
-    // Get base tree
-    const commitResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits/${baseCommitSha}`, {
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'User-Agent': 'WigTube-Large-Upload-Server',
-      },
-    });
-
-    const commitData = await commitResponse.json();
-    const baseTreeSha = commitData.tree.sha;
-
-    // Create new tree with the file
-    const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees`, {
-      method: 'POST',
+    const uploadResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${metadataPath}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `token ${GITHUB_TOKEN}`,
         'Content-Type': 'application/json',
         'User-Agent': 'WigTube-Large-Upload-Server',
       },
       body: JSON.stringify({
-        base_tree: baseTreeSha,
-        tree: [
-          {
-            path: filePath,
-            mode: '100644',
-            type: 'blob',
-            sha: blobData.sha,
-          },
-        ],
+        message: `Add metadata for ${fileName}`,
+        content: metadataContent,
+        branch: GITHUB_BRANCH,
       }),
     });
 
-    if (!treeResponse.ok) {
-      const errorText = await treeResponse.text();
-      console.error('[Finalize] Tree creation error:', errorText);
-      throw new Error('Failed to create tree');
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('[Finalize] Metadata upload error:', errorText);
+      throw new Error('Failed to create metadata file');
     }
 
-    const treeData = await treeResponse.json();
-
-    // Create commit
-    const newCommitResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/commits`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'WigTube-Large-Upload-Server',
-      },
-      body: JSON.stringify({
-        message: `Add video: ${fileName}`,
-        tree: treeData.sha,
-        parents: [baseCommitSha],
-      }),
-    });
-
-    if (!newCommitResponse.ok) {
-      throw new Error('Failed to create commit');
-    }
-
-    const newCommitData = await newCommitResponse.json();
-
-    // Update branch ref
-    const updateRefResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'WigTube-Large-Upload-Server',
-      },
-      body: JSON.stringify({
-        sha: newCommitData.sha,
-      }),
-    });
-
-    if (!updateRefResponse.ok) {
-      throw new Error('Failed to update branch');
-    }
-
-    const videoUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-    console.log(`[Finalize] ✅ Video URL: ${videoUrl}`);
+    const videoUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${filePath}`;
+    console.log(`[Finalize] ✅ Multi-part video: ${videoUrl} (${totalChunks} parts)`);
 
     return res.json({
       success: true,
       fileName,
       videoUrl,
-      path: filePath,
+      isMultiPart: true,
+      totalParts: totalChunks,
+      metadataUrl: `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${metadataPath}`,
     });
   } catch (err) {
     console.error('[Finalize] Error:', err);
     return res.status(500).json({ success: false, error: err.message || 'Finalize error' });
+  }
+});
+
+// GET /large-upload/reconstruct/:filename
+// Reconstructs a multi-part video by fetching all parts and streaming them together
+app.get('/large-upload/reconstruct/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const baseFilePath = `videos/${filename}`;
+    const metadataPath = `${baseFilePath}.meta.json`;
+
+    console.log(`[Reconstruct] Fetching metadata for ${filename}`);
+
+    // Fetch metadata
+    const metadataUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${metadataPath}`;
+    const metadataResponse = await fetch(metadataUrl);
+
+    if (!metadataResponse.ok) {
+      return res.status(404).json({ success: false, error: 'Video metadata not found' });
+    }
+
+    const metadata = await metadataResponse.json();
+    const totalParts = metadata.totalParts || 0;
+
+    if (!metadata.isMultiPart || totalParts === 0) {
+      return res.status(400).json({ success: false, error: 'Not a multi-part video' });
+    }
+
+    console.log(`[Reconstruct] Streaming ${totalParts} parts for ${filename}`);
+
+    // Set headers for video streaming
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (metadata.fileSize) {
+      res.setHeader('Content-Length', metadata.fileSize);
+    }
+
+    // Stream all parts in order
+    for (let i = 1; i <= totalParts; i++) {
+      const paddedIndex = String(i).padStart(3, '0');
+      const partPath = `${baseFilePath}.part${paddedIndex}`;
+      const partUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${partPath}`;
+
+      console.log(`[Reconstruct] Fetching part ${i}/${totalParts}: ${partPath}`);
+
+      const partResponse = await fetch(partUrl);
+      if (!partResponse.ok) {
+        console.error(`[Reconstruct] Failed to fetch part ${i}`);
+        if (!res.headersSent) {
+          return res.status(500).json({ success: false, error: `Failed to fetch part ${i}` });
+        }
+        return;
+      }
+
+      // Stream this part directly to the response
+      const reader = partResponse.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+    }
+
+    console.log(`[Reconstruct] ✅ Completed streaming ${filename}`);
+    res.end();
+  } catch (err) {
+    console.error('[Reconstruct] Error:', err);
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, error: err.message || 'Reconstruction error' });
+    }
   }
 });
 
