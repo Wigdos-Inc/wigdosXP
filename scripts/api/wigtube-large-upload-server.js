@@ -188,6 +188,8 @@ app.post('/large-upload/finalize', async (req, res) => {
         'Content-Type': 'application/json',
         'User-Agent': 'WigTube-Large-Upload-Server',
       },
+      // Node/undici requires duplex: 'half' when sending a streamed body
+      duplex: 'half',
       body: stream,
     }, 3, 250);
 
