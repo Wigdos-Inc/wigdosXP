@@ -192,6 +192,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         debugLog('Username display updated');
     }
     
+    // Migrate old playlists to new WigTubeDB format
+    if (username && username !== 'guest') {
+        await migrateOldPlaylists();
+    }
+    
     debugLog('Setting up event listeners');
     setupEventListeners();
     
@@ -199,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initializePlayer();
     
     debugLog('Populating related videos');
-    populateRelatedVideos();
+    await populateRelatedVideos();
     
     // Note: loadComments() is now called from within loadVideo()
     debugLog('Player initialization complete');
@@ -281,7 +286,7 @@ async function loadVideo(videoId) {
             // Get real-time stats from database
             const dbVideo = await WigTubeDB.getVideoById(videoId);
             
-            let viewCount, ratingStars, ratingCount;
+            let viewCount, ratingStars, ratingCount, likeCount, dislikeCount;
             
             if (dbVideo) {
                 debugLog('loadVideo: DB video found', dbVideo);
@@ -289,15 +294,19 @@ async function loadVideo(videoId) {
                 viewCount = WigTubeDB.formatViewCount(dbVideo.viewCount || 0);
                 ratingStars = WigTubeDB.calculateStarRating(dbVideo.ratings || []);
                 ratingCount = (dbVideo.ratings || []).length;
+                likeCount = dbVideo.likeCount || 0;
+                dislikeCount = dbVideo.dislikeCount || 0;
             } else {
                 debugLog('loadVideo: DB video not found, using zeros');
                 // Initialize with zeros for new video
                 viewCount = '0 views';
                 ratingStars = '☆☆☆☆☆';
                 ratingCount = 0;
+                likeCount = 0;
+                dislikeCount = 0;
             }
             
-            debugLog('loadVideo: Stats -', { viewCount, ratingStars, ratingCount });
+            debugLog('loadVideo: Stats -', { viewCount, ratingStars, ratingCount, likeCount, dislikeCount });
             
             // Update video information with real stats
             document.getElementById('videoTitle').textContent = video.title;
@@ -312,6 +321,15 @@ async function loadVideo(videoId) {
             document.getElementById('ratingCount').textContent = ratingCount;
             document.getElementById('videoDescription').textContent = video.description;
             document.getElementById('totalTime').textContent = video.duration;
+            
+            // Update like/dislike counts
+            document.getElementById('likeCount').textContent = likeCount;
+            document.getElementById('dislikeCount').textContent = dislikeCount;
+            
+            // Update like/dislike button states based on user's previous action
+            const username = localStorage.getItem('username') || 'anonymous';
+            const userAction = WigTubeDB.getUserLikeStatus(videoId, username);
+            updateLikeDislikeButtons(userAction);
             
             debugLog('loadVideo: UI updated with stats');
             
@@ -461,6 +479,26 @@ function setupEventListeners() {
             const action = this.textContent;
             handleActionButton(action);
         });
+    });
+    
+    // Like button
+    document.getElementById('likeBtn').addEventListener('click', async function(e) {
+        e.stopPropagation(); // Prevent action button handler from firing
+        await handleLikeDislike('like');
+    });
+    
+    // Dislike button
+    document.getElementById('dislikeBtn').addEventListener('click', async function(e) {
+        e.stopPropagation(); // Prevent action button handler from firing
+        await handleLikeDislike('dislike');
+    });
+    
+    // Add to Playlist button
+    document.getElementById('addToPlaylistBtn').addEventListener('click', async function(e) {
+        e.stopPropagation(); // Prevent action button handler from firing
+        if (currentVideoId) {
+            await showAddToPlaylistMenu(currentVideoId);
+        }
     });
     
     // Comment form
@@ -1308,6 +1346,22 @@ async function loadComments() {
             ? `<button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">🗑️</button>`
             : '';
         
+        // Reply button (show for logged-in users)
+        const canReply = currentUsername && currentUsername !== 'guest';
+        const replyButtonHTML = canReply
+            ? `<button class="comment-reply-btn" onclick="toggleReplyBox('${comment.id}')" style="
+                margin-left: 40px;
+                margin-top: 8px;
+                padding: 4px 10px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">💬 Reply</button>`
+            : '';
+        
         commentElement.innerHTML = `
             <div class="comment-header" style="display: flex; align-items: center;">
                 ${profilePicHTML}
@@ -1319,16 +1373,55 @@ async function loadComments() {
             </div>
             <div class="comment-text" style="margin-left: 40px;">${comment.text}</div>
             ${imageHTML ? `<div style="margin-left: 40px;">${imageHTML}</div>` : ''}
+            ${replyButtonHTML}
+            <div id="replyBox_${comment.id}" style="display: none; margin-left: 40px; margin-top: 12px;">
+                <textarea id="replyInput_${comment.id}" placeholder="Add a reply..." style="
+                    width: 100%;
+                    height: 60px;
+                    padding: 8px;
+                    border: 2px inset #d4d0c8;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    resize: vertical;
+                "></textarea>
+                <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <button onclick="submitReply('${comment.id}')" style="
+                        padding: 4px 12px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        font-weight: bold;
+                    ">Post Reply</button>
+                    <button onclick="toggleReplyBox('${comment.id}')" style="
+                        padding: 4px 12px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 11px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">Cancel</button>
+                </div>
+            </div>
+            <div id="replies_${comment.id}" style="margin-left: 40px; margin-top: 12px;"></div>
         `;
         
         commentsList.appendChild(commentElement);
+        
+        // Display replies if they exist
+        if (comment.replies && comment.replies.length > 0) {
+            displayReplies(comment.id, comment.replies);
+        }
     }
     
     // Update comment count
-    const commentsHeader = document.querySelector('.comments-section .sidebar-header');
-    if (commentsHeader) {
-        commentsHeader.textContent = `Comments (${comments.length})`;
-        debugLog('loadComments: Updated header with count', comments.length);
+    const commentCountSpan = document.getElementById('commentCount');
+    if (commentCountSpan) {
+        commentCountSpan.textContent = comments.length;
+        debugLog('loadComments: Updated count to', comments.length);
     }
     
     debugLog('loadComments: Complete');
@@ -1337,6 +1430,11 @@ async function loadComments() {
 function getVideoIdFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('v') || 'epic-minecraft-castle-build';
+}
+
+function getPlaylistIdFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('playlist');
 }
 
 function showImagePreview(imageData) {
@@ -1356,59 +1454,277 @@ function removeImagePreview() {
     selectedImage = null;
 }
 
-function populateRelatedVideos() {
+async function populateRelatedVideos() {
     const relatedVideosList = document.getElementById('relatedVideosList');
     const currentVideoId = getVideoIdFromURL();
+    const playlistId = getPlaylistIdFromURL();
     
-    // Get current video to check its category
-    const currentVideoData = videoData[currentVideoId];
-    const currentCategory = currentVideoData ? (currentVideoData.category || 'other') : 'other';
+    // Clear existing content
+    relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #666;">Loading...</div>';
     
-    // Build list of related videos from all available video data
-    const allVideos = Object.keys(videoData).map(id => ({
-        id: id,
-        title: videoData[id].title,
-        uploader: videoData[id].uploader,
-        duration: videoData[id].duration,
-        thumbnail: videoData[id].thumbnail,
-        category: videoData[id].category || 'other'
-    }));
+    // If in playlist mode, show playlist videos instead
+    if (playlistId) {
+        await populatePlaylistVideos(playlistId, currentVideoId);
+        return;
+    }
     
-    // Filter videos by matching category and exclude current video
-    const availableVideos = allVideos.filter(video => {
-        // Exclude current video
-        if (video.id === currentVideoId) return false;
+    try {
+        // Get current video to check its tags
+        const currentVideoData = await window.WigTubeDB.getVideoById(currentVideoId);
+        const currentTags = currentVideoData?.tags || [];
         
-        // Match category: show only videos from the same category
-        return video.category === currentCategory;
-    });
+        // Get all videos from database
+        const allVideos = await window.WigTubeDB.getAllVideos();
+        
+        // Filter and score videos based on matching tags
+        const scoredVideos = allVideos
+            .filter(video => video.id !== currentVideoId && video.visibility === 'public')
+            .map(video => {
+                const videoTags = video.tags || [];
+                // Count matching tags
+                const matchingTags = videoTags.filter(tag => 
+                    currentTags.some(currentTag => 
+                        currentTag.toLowerCase() === tag.toLowerCase()
+                    )
+                ).length;
+                
+                return {
+                    ...video,
+                    matchScore: matchingTags
+                };
+            })
+            .filter(video => video.matchScore > 0) // Only videos with at least 1 matching tag
+            .sort((a, b) => {
+                // Sort by match score first, then by view count
+                if (b.matchScore !== a.matchScore) {
+                    return b.matchScore - a.matchScore;
+                }
+                return (b.viewCount || 0) - (a.viewCount || 0);
+            });
+        
+        // If we have tagged videos, use them; otherwise fall back to recent videos
+        let selectedVideos = scoredVideos.slice(0, 20);
+        
+        if (selectedVideos.length < 5) {
+            // Not enough tag matches, add some recent videos
+            const recentVideos = allVideos
+                .filter(video => video.id !== currentVideoId && video.visibility === 'public')
+                .sort((a, b) => (b.uploadDate || 0) - (a.uploadDate || 0))
+                .slice(0, 20 - selectedVideos.length);
+            
+            selectedVideos = [...selectedVideos, ...recentVideos];
+        }
+        
+        // Clear loading message
+        relatedVideosList.innerHTML = '';
+        
+        if (selectedVideos.length === 0) {
+            relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #666;">No related videos found.</div>';
+            return;
+        }
+        
+        selectedVideos.forEach(video => {
+            const videoElement = document.createElement('div');
+            videoElement.className = 'related-video';
+            videoElement.onclick = () => loadRelatedVideo(video.id);
+            
+            const thumbnailHtml = video.thumbnail ?
+                `<img src="${video.thumbnail}" alt="${video.title}" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #667eea, #764ba2)'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; width: 100%; height: 100%;\\'>📺</div>';">` :
+                `<div style="background: linear-gradient(45deg, #667eea, #764ba2); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white;">📺</div>`;
+            
+            const viewCount = window.WigTubeDB.formatViewCount(video.viewCount || 0);
+            const uploadDate = window.WigTubeDB.formatTimestamp(video.uploadDate);
+            
+            videoElement.innerHTML = `
+                <div class="related-thumbnail">
+                    ${thumbnailHtml}
+                    <div class="related-duration">${video.duration || '0:00'}</div>
+                </div>
+                <div class="related-info">
+                    <h4>${video.title || 'Untitled Video'}</h4>
+                    <div class="related-meta">by ${video.uploaderName || video.uploader || 'Anonymous'}</div>
+                    <div class="related-meta">${viewCount} • ${uploadDate}</div>
+                </div>
+            `;
+            
+            relatedVideosList.appendChild(videoElement);
+        });
+    } catch (error) {
+        console.error('Error loading related videos:', error);
+        relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #ff0000;">Error loading related videos.</div>';
+    }
+}
+
+/**
+ * Populate playlist videos in sidebar
+ */
+async function populatePlaylistVideos(playlistId, currentVideoId) {
+    const relatedVideosList = document.getElementById('relatedVideosList');
+    const username = localStorage.getItem('username') || 'guest';
     
-    // Shuffle array and take first 4-6 videos
-    const shuffled = availableVideos.sort(() => 0.5 - Math.random());
-    const selectedVideos = shuffled.slice(0, Math.min(6, availableVideos.length));
+    try {
+        // Get playlist data
+        const playlist = await window.WigTubeDB.getPlaylistById(playlistId, username);
+        
+        if (!playlist) {
+            relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #ff0000;">Playlist not found.</div>';
+            return;
+        }
+        
+        // Update sidebar header to show playlist info
+        const sidebarHeader = document.querySelector('.sidebar-header');
+        if (sidebarHeader) {
+            const currentIndex = playlist.videos.indexOf(currentVideoId) + 1;
+            const totalVideos = playlist.videos.length;
+            sidebarHeader.textContent = `${playlist.name}`;
+            
+            // Add playlist info below header
+            const playlistInfo = document.createElement('div');
+            playlistInfo.style.cssText = `
+                padding: 8px;
+                font-size: 10px;
+                color: #666;
+                border-bottom: 2px groove #d4d0c8;
+                background: #f0f0f0;
+            `;
+            playlistInfo.textContent = `${currentIndex} / ${totalVideos} videos`;
+            
+            // Insert after header if not already there
+            if (!sidebarHeader.nextElementSibling?.classList?.contains('playlist-info')) {
+                playlistInfo.classList.add('playlist-info');
+                sidebarHeader.parentElement.insertBefore(playlistInfo, relatedVideosList);
+            }
+        }
+        
+        // Clear loading message
+        relatedVideosList.innerHTML = '';
+        
+        if (playlist.videos.length === 0) {
+            relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #666;">No videos in this playlist.</div>';
+            return;
+        }
+        
+        // Load and display each video in the playlist
+        for (let i = 0; i < playlist.videos.length; i++) {
+            const videoId = playlist.videos[i];
+            const video = await window.WigTubeDB.getVideoById(videoId);
+            
+            if (!video) continue;
+            
+            const isCurrentVideo = videoId === currentVideoId;
+            
+            const videoElement = document.createElement('div');
+            videoElement.className = 'related-video';
+            videoElement.style.cssText = `
+                cursor: pointer;
+                margin-bottom: 8px;
+                padding: 8px;
+                border: 2px ${isCurrentVideo ? 'inset' : 'outset'} #d4d0c8;
+                background: ${isCurrentVideo ? '#e0e0e0' : '#f0f0f0'};
+                position: relative;
+            `;
+            
+            // Add video number badge
+            const numberBadge = document.createElement('div');
+            numberBadge.style.cssText = `
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 2px 6px;
+                font-size: 10px;
+                font-weight: bold;
+                border-radius: 2px;
+                z-index: 1;
+            `;
+            numberBadge.textContent = i + 1;
+            
+            const thumbnailHtml = video.thumbnail ?
+                `<img src="${video.thumbnail}" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #667eea, #764ba2)'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; width: 100%; height: 100%;\\'>📺</div>';">` :
+                `<div style="background: linear-gradient(45deg, #667eea, #764ba2); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white;">📺</div>`;
+            
+            const viewCount = window.WigTubeDB.formatViewCount(video.viewCount || 0);
+            
+            videoElement.innerHTML = `
+                <div class="related-thumbnail" style="position: relative;">
+                    ${thumbnailHtml}
+                    <div class="related-duration">${video.duration || '0:00'}</div>
+                </div>
+                <div class="related-info">
+                    <h4 style="${isCurrentVideo ? 'color: #000080; font-weight: bold;' : ''}">${video.title || 'Untitled Video'}</h4>
+                    <div class="related-meta">${video.uploader || 'Anonymous'}</div>
+                    <div class="related-meta">${viewCount}</div>
+                </div>
+            `;
+            
+            videoElement.insertBefore(numberBadge, videoElement.firstChild);
+            
+            // Click handler to play this video in playlist context
+            if (!isCurrentVideo) {
+                videoElement.onclick = () => {
+                    window.location.href = `wigtube-player.html?v=${videoId}&playlist=${playlistId}`;
+                };
+                
+                videoElement.addEventListener('mouseenter', () => {
+                    videoElement.style.background = '#e8e8e8';
+                });
+                
+                videoElement.addEventListener('mouseleave', () => {
+                    videoElement.style.background = '#f0f0f0';
+                });
+            } else {
+                videoElement.style.cursor = 'default';
+            }
+            
+            relatedVideosList.appendChild(videoElement);
+        }
+        
+        // Add auto-play next functionality
+        setupAutoPlayNext(playlist, currentVideoId, playlistId);
+        
+    } catch (error) {
+        console.error('Error loading playlist videos:', error);
+        relatedVideosList.innerHTML = '<div style="padding: 8px; font-size: 10px; color: #ff0000;">Error loading playlist.</div>';
+    }
+}
+
+/**
+ * Setup auto-play next video in playlist
+ */
+function setupAutoPlayNext(playlist, currentVideoId, playlistId) {
+    const currentIndex = playlist.videos.indexOf(currentVideoId);
+    const nextIndex = currentIndex + 1;
     
-    selectedVideos.forEach(video => {
-        const videoElement = document.createElement('div');
-        videoElement.className = 'related-video';
-        videoElement.onclick = () => loadRelatedVideo(video.id);
+    // If there's a next video, set up auto-play
+    if (nextIndex < playlist.videos.length) {
+        const nextVideoId = playlist.videos[nextIndex];
         
-        const thumbnailHtml = video.thumbnail ?
-            `<img src="${video.thumbnail}" alt="${video.title}" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #667eea, #764ba2)'; this.parentElement.innerHTML='<div style=\\'display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; width: 100%; height: 100%;\\'>📺</div>';">` :
-            `<div style="background: linear-gradient(45deg, #667eea, #764ba2); width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white;">📺</div>`;
+        // Listen for video end event
+        const checkVideoEnd = setInterval(() => {
+            // In the simulated player, check if we've reached the end
+            const progressFill = document.getElementById('progressFill');
+            const currentTimeSpan = document.getElementById('currentTime');
+            const totalTimeSpan = document.getElementById('totalTime');
+            
+            if (progressFill && currentTimeSpan && totalTimeSpan) {
+                const currentWidth = parseFloat(progressFill.style.width || '0');
+                
+                // If video is at 100% (or very close), play next
+                if (currentWidth >= 99.5) {
+                    clearInterval(checkVideoEnd);
+                    
+                    // Small delay before auto-playing next
+                    setTimeout(() => {
+                        window.location.href = `?v=${nextVideoId}&playlist=${playlistId}`;
+                    }, 1000);
+                }
+            }
+        }, 500);
         
-        videoElement.innerHTML = `
-            <div class="related-thumbnail">
-                ${thumbnailHtml}
-                <div class="related-duration">${video.duration}</div>
-            </div>
-            <div class="related-info">
-                <h4>${video.title}</h4>
-                <div class="related-meta">by ${video.uploader}</div>
-            </div>
-        `;
-        
-        relatedVideosList.appendChild(videoElement);
-    });
+        // Clear interval when page unloads
+        window.addEventListener('beforeunload', () => clearInterval(checkVideoEnd));
+    }
 }
 
 async function loadRelatedVideo(videoId) {
@@ -1424,7 +1740,7 @@ async function loadRelatedVideo(videoId) {
     
     // Clear and repopulate related videos
     document.getElementById('relatedVideosList').innerHTML = '';
-    populateRelatedVideos();
+    await populateRelatedVideos();
     
     // Note: loadComments() is already called inside loadVideo()
     
@@ -1859,71 +2175,162 @@ function hideAlbumSection() {
 /**
  * Get all user playlists from localStorage
  */
-function getUserPlaylists() {
-    return getWigTubeProperty('playlists') || {};
+/**
+ * Migrate old localStorage playlists to new WigTubeDB format
+ */
+async function migrateOldPlaylists() {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return;
+    
+    // Check if migration already done
+    const migrationKey = `wigtube_playlists_migrated_${username}`;
+    if (localStorage.getItem(migrationKey)) return;
+    
+    // Get old playlists
+    const oldPlaylists = getWigTubeProperty('playlists') || {};
+    const playlistNames = Object.keys(oldPlaylists);
+    
+    if (playlistNames.length === 0) {
+        // Mark as migrated even if no playlists
+        localStorage.setItem(migrationKey, 'true');
+        return;
+    }
+    
+    debugLog('Migrating old playlists to WigTubeDB:', playlistNames);
+    
+    try {
+        // Migrate each playlist
+        for (const name of playlistNames) {
+            const oldPlaylist = oldPlaylists[name];
+            
+            // Convert tracks to video IDs
+            const videoIds = oldPlaylist.tracks
+                .map(track => track.videoId)
+                .filter(id => id); // Remove null/undefined
+            
+            // Create new playlist in WigTubeDB
+            await WigTubeDB.createPlaylist({
+                name: name,
+                description: `Migrated from local storage on ${new Date().toLocaleDateString()}`,
+                isPublic: false,
+                owner: username
+            });
+            
+            // Get the newly created playlist
+            const newPlaylists = await WigTubeDB.getUserPlaylists(username);
+            const newPlaylist = newPlaylists.find(p => p.name === name);
+            
+            if (newPlaylist && videoIds.length > 0) {
+                // Add all videos to the playlist
+                for (const videoId of videoIds) {
+                    try {
+                        await WigTubeDB.addVideoToPlaylist(newPlaylist.id, videoId, username);
+                    } catch (err) {
+                        console.warn('Failed to add video to migrated playlist:', videoId, err);
+                    }
+                }
+            }
+        }
+        
+        // Mark migration as complete
+        localStorage.setItem(migrationKey, 'true');
+        
+        // Clear old playlists
+        updateWigTubeProperty('playlists', {});
+        
+        debugLog('Playlist migration completed successfully');
+    } catch (error) {
+        console.error('Error migrating playlists:', error);
+    }
 }
 
 /**
- * Save user playlists to localStorage
+ * Get user playlists from WigTubeDB
  */
-function saveUserPlaylists(playlists) {
-    updateWigTubeProperty('playlists', playlists);
+async function getUserPlaylists() {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return [];
+    
+    try {
+        return await WigTubeDB.getUserPlaylists(username);
+    } catch (error) {
+        console.error('Error getting playlists:', error);
+        return [];
+    }
 }
 
 /**
  * Create a new playlist
  */
-function createNewPlaylist(playlistName) {
+async function createNewPlaylist(playlistName) {
     if (!playlistName || playlistName.trim() === '') {
         updateStatus('Please enter a playlist name');
         return false;
     }
     
-    const playlists = getUserPlaylists();
-    
-    // Check if playlist already exists
-    if (playlists[playlistName]) {
-        updateStatus('Playlist already exists');
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        updateStatus('Please log in to create playlists');
         return false;
     }
     
-    playlists[playlistName] = {
-        name: playlistName,
-        tracks: [],
-        created: new Date().toISOString(),
-        modified: new Date().toISOString()
-    };
-    
-    saveUserPlaylists(playlists);
-    updateStatus(`Created playlist: ${playlistName}`);
-    return true;
+    try {
+        // Check if playlist already exists
+        const playlists = await getUserPlaylists();
+        if (playlists.some(p => p.name === playlistName)) {
+            updateStatus('Playlist already exists');
+            return false;
+        }
+        
+        // Create playlist in WigTubeDB
+        await WigTubeDB.createPlaylist({
+            name: playlistName,
+            description: '',
+            isPublic: false,
+            owner: username
+        });
+        
+        updateStatus(`Created playlist: ${playlistName}`);
+        return true;
+    } catch (error) {
+        console.error('Error creating playlist:', error);
+        updateStatus('Failed to create playlist');
+        return false;
+    }
 }
 
 /**
  * Delete a playlist
  */
-function deletePlaylist(playlistName) {
-    const playlists = getUserPlaylists();
+async function deletePlaylist(playlistId) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return;
     
-    if (!playlists[playlistName]) {
-        updateStatus('Playlist not found');
-        return;
-    }
-    
-    if (confirm(`Are you sure you want to delete "${playlistName}"?`)) {
-        delete playlists[playlistName];
-        saveUserPlaylists(playlists);
-        updateStatus(`Deleted playlist: ${playlistName}`);
-        closePlaylistModal();
+    try {
+        const playlists = await getUserPlaylists();
+        const playlist = playlists.find(p => p.id === playlistId);
+        
+        if (!playlist) {
+            updateStatus('Playlist not found');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete "${playlist.name}"?`)) {
+            await WigTubeDB.deletePlaylist(playlistId, username);
+            updateStatus(`Deleted playlist: ${playlist.name}`);
+            closePlaylistModal();
+        }
+    } catch (error) {
+        console.error('Error deleting playlist:', error);
+        updateStatus('Failed to delete playlist');
     }
 }
 
 /**
  * Show playlist selection modal
  */
-function showPlaylistModal(trackTitle, trackData, buttonElement) {
-    const playlists = getUserPlaylists();
-    const playlistNames = Object.keys(playlists);
+async function showPlaylistModal(trackTitle, trackData, buttonElement) {
+    const playlists = await getUserPlaylists();
     
     // Create modal overlay
     const modal = document.createElement('div');
@@ -1941,6 +2348,8 @@ function showPlaylistModal(trackTitle, trackData, buttonElement) {
         z-index: 10000;
     `;
     
+    const playlistNames = playlists.map(p => p.name);
+    
     // Create modal content
     const modalContent = document.createElement('div');
     modalContent.style.cssText = `
@@ -1956,13 +2365,13 @@ function showPlaylistModal(trackTitle, trackData, buttonElement) {
     `;
     
     let playlistListHTML = '';
-    if (playlistNames.length === 0) {
+    if (playlists.length === 0) {
         playlistListHTML = '<div style="padding: 10px; text-align: center; color: #666;">No playlists yet. Create one below!</div>';
     } else {
-        playlistListHTML = playlistNames.map(name => {
-            const playlist = playlists[name];
-            const trackCount = playlist.tracks.length;
-            const isInPlaylist = playlist.tracks.some(t => t.title === trackTitle);
+        playlistListHTML = playlists.map(playlist => {
+            const trackCount = playlist.videos?.length || 0;
+            const videoIdToAdd = trackData?.videoId || currentVideoId;
+            const isInPlaylist = playlist.videos && playlist.videos.includes(videoIdToAdd);
             
             return `
                 <div style="
@@ -1973,20 +2382,20 @@ function showPlaylistModal(trackTitle, trackData, buttonElement) {
                     cursor: ${isInPlaylist ? 'not-allowed' : 'pointer'};
                     opacity: ${isInPlaylist ? '0.6' : '1'};
                 " 
-                onclick="${isInPlaylist ? '' : `addTrackToPlaylist('${name.replace(/'/g, "\\'")}', '${trackTitle.replace(/'/g, "\\'")}'); closePlaylistModal();`}"
+                onclick="${isInPlaylist ? '' : `addTrackToPlaylistById('${playlist.id}', '${playlist.name.replace(/'/g, "\\'")}', '${trackTitle.replace(/'/g, "\\'")}'); closePlaylistModal();`}"
                 onmouseover="if(!${isInPlaylist}) this.style.background='#FFFFCC'"
                 onmouseout="this.style.background='white'">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <div style="font-weight: bold; font-size: 11px;">${name}</div>
-                            <div style="font-size: 10px; color: #666;">${trackCount} track${trackCount !== 1 ? 's' : ''}</div>
+                            <div style="font-weight: bold; font-size: 11px;">${playlist.name}</div>
+                            <div style="font-size: 10px; color: #666;">${trackCount} video${trackCount !== 1 ? 's' : ''}</div>
                         </div>
                         <div>
                             ${isInPlaylist ? 
                                 '<span style="color: green; font-size: 10px;">✓ Already added</span>' : 
-                                '<button onclick="event.stopPropagation(); addTrackToPlaylist(\'' + name.replace(/'/g, "\\'") + '\', \'' + trackTitle.replace(/'/g, "\\'") + '\'); closePlaylistModal();" style="background: white; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 10px;">Add</button>'
+                                '<button onclick="event.stopPropagation(); addTrackToPlaylistById(\'' + playlist.id + '\', \'' + playlist.name.replace(/'/g, "\\'") + '\', \'' + trackTitle.replace(/'/g, "\\'") + '\'); closePlaylistModal();" style="background: white; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 10px;">Add</button>'
                             }
-                            <button onclick="event.stopPropagation(); deletePlaylist('${name.replace(/'/g, "\\'")}'); showPlaylistModal('${trackTitle.replace(/'/g, "\\'")}', null, null);" style="background: #FFB0B0; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 10px; margin-left: 5px;">Delete</button>
+                            <button onclick="event.stopPropagation(); deletePlaylist('${playlist.id}'); setTimeout(() => showPlaylistModal('${trackTitle.replace(/'/g, "\\'")}', null, null), 300);" style="background: #FFB0B0; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 10px; margin-left: 5px;">Delete</button>
                         </div>
                     </div>
                 </div>
@@ -2060,68 +2469,62 @@ function closePlaylistModal() {
 /**
  * Create new playlist and add track
  */
-function createNewPlaylistAndAdd(trackTitle) {
+async function createNewPlaylistAndAdd(trackTitle) {
     const input = document.getElementById('newPlaylistName');
     const playlistName = input.value.trim();
     
-    if (createNewPlaylist(playlistName)) {
-        addTrackToPlaylist(playlistName, trackTitle);
+    if (await createNewPlaylist(playlistName)) {
+        // Get the newly created playlist
+        const playlists = await getUserPlaylists();
+        const newPlaylist = playlists.find(p => p.name === playlistName);
+        if (newPlaylist) {
+            await addTrackToPlaylistById(newPlaylist.id, playlistName, trackTitle);
+        }
         closePlaylistModal();
     }
 }
 
 /**
- * Add track to specific playlist
+ * Add track to specific playlist by ID
  */
-function addTrackToPlaylist(playlistName, trackTitle) {
-    const playlists = getUserPlaylists();
+async function addTrackToPlaylistById(playlistId, playlistName, trackTitle) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return;
     
-    if (!playlists[playlistName]) {
-        updateStatus('Playlist not found');
-        return;
+    try {
+        // Find the video ID from the title
+        const videoId = currentVideoId || Object.keys(videoData || {}).find(key => 
+            videoData[key].title === trackTitle
+        );
+        
+        if (!videoId) {
+            updateStatus('Video not found');
+            return;
+        }
+        
+        // Add video to playlist
+        await WigTubeDB.addVideoToPlaylist(playlistId, videoId, username);
+        updateStatus(`Added "${trackTitle}" to "${playlistName}"`);
+    } catch (error) {
+        console.error('Error adding video to playlist:', error);
+        updateStatus('Failed to add video to playlist');
     }
-    
-    // Check if track already in playlist
-    if (playlists[playlistName].tracks.some(t => t.title === trackTitle)) {
-        updateStatus('Track already in this playlist');
-        return;
-    }
-    
-    // Get track data
-    const trackData = videoData[Object.keys(videoData).find(key => 
-        videoData[key].title === trackTitle
-    )] || null;
-    
-    // Add track
-    playlists[playlistName].tracks.push({
-        title: trackTitle,
-        uploader: trackData?.uploader || 'Unknown',
-        duration: trackData?.duration || '0:00',
-        videoId: Object.keys(videoData).find(key => videoData[key].title === trackTitle),
-        addedDate: new Date().toISOString()
-    });
-    
-    playlists[playlistName].modified = new Date().toISOString();
-    saveUserPlaylists(playlists);
-    
-    updateStatus(`Added "${trackTitle}" to "${playlistName}"`);
 }
 
 /**
  * Main function to add to playlist - shows modal
  */
-function addToPlaylist(trackTitle, buttonElement) {
-    showPlaylistModal(trackTitle, null, buttonElement);
+async function addToPlaylist(trackTitle, buttonElement) {
+    await showPlaylistModal(trackTitle, null, buttonElement);
 }
 
 /**
  * Open playlist manager
  */
-function openPlaylistManager() {
+async function openPlaylistManager() {
     closePlaylistModal();
     
-    const playlists = getUserPlaylists();
-    const playlistNames = Object.keys(playlists);
+    const playlists = await getUserPlaylists();
     
     // Create manager modal
     const modal = document.createElement('div');
@@ -2153,35 +2556,44 @@ function openPlaylistManager() {
     `;
     
     let playlistsHTML = '';
-    if (playlistNames.length === 0) {
+    if (playlists.length === 0) {
         playlistsHTML = '<div style="padding: 20px; text-align: center; color: #666;">No playlists yet. Create your first playlist!</div>';
     } else {
-        playlistsHTML = playlistNames.map(name => {
-            const playlist = playlists[name];
-            const tracksHTML = playlist.tracks.map((track, idx) => `
+        playlistsHTML = playlists.map(playlist => {
+            const tracksHTML = (playlist.videos || []).map((videoId, idx) => {
+                // Try to get video from local data, show ID if not available
+                const video = videoData[videoId];
+                const videoTitle = video ? video.title : `Video ${videoId.substring(0, 20)}...`;
+                const videoDuration = video ? video.duration : 'Unknown';
+                
+                return `
                 <div style="background: #F0F0F0; border: 1px solid #ccc; padding: 5px; margin: 3px 0; display: flex; justify-content: space-between; align-items: center;">
                     <div style="flex: 1;">
-                        <span style="font-size: 10px;">${idx + 1}. ${track.title}</span>
-                        <span style="font-size: 9px; color: #666; margin-left: 10px;">(${track.duration})</span>
+                        <span style="font-size: 10px;">${idx + 1}. ${videoTitle}</span>
+                        <span style="font-size: 9px; color: #666; margin-left: 10px;">(${videoDuration})</span>
                     </div>
-                    <button onclick="removeTrackFromPlaylist('${name.replace(/'/g, "\\'")}', ${idx}); openPlaylistManager();" style="background: #FFB0B0; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 9px;">Remove</button>
+                    <button onclick="removeTrackFromPlaylist('${playlist.id}', '${videoId}'); setTimeout(() => openPlaylistManager(), 300);" style="background: #FFB0B0; border: 2px outset #ddd; padding: 2px 8px; cursor: pointer; font-size: 9px;">Remove</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+            
+            const videoCount = playlist.videos?.length || 0;
+            const createdDate = playlist.createdAt ? new Date(playlist.createdAt).toLocaleDateString() : 'Unknown';
             
             return `
                 <div style="background: white; border: 2px inset #ddd; padding: 10px; margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <div>
-                            <div style="font-weight: bold; font-size: 12px;">${name}</div>
-                            <div style="font-size: 10px; color: #666;">${playlist.tracks.length} track${playlist.tracks.length !== 1 ? 's' : ''} • Created ${new Date(playlist.created).toLocaleDateString()}</div>
+                            <div style="font-weight: bold; font-size: 12px;">${playlist.name}</div>
+                            <div style="font-size: 10px; color: #666;">${videoCount} video${videoCount !== 1 ? 's' : ''} • Created ${createdDate}</div>
                         </div>
                         <div>
-                            <button onclick="playPlaylist('${name.replace(/'/g, "\\'")}'); closePlaylistManagerModal();" style="background: #90EE90; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 10px; margin-right: 5px;">▶ Play</button>
-                            <button onclick="deletePlaylist('${name.replace(/'/g, "\\'")}'); openPlaylistManager();" style="background: #FFB0B0; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 10px;">Delete</button>
+                            <button onclick="playPlaylist('${playlist.id}'); closePlaylistManagerModal();" style="background: #90EE90; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 10px; margin-right: 5px;">▶ Play</button>
+                            <button onclick="deletePlaylist('${playlist.id}'); setTimeout(() => openPlaylistManager(), 300);" style="background: #FFB0B0; border: 2px outset #ddd; padding: 3px 10px; cursor: pointer; font-size: 10px;">Delete</button>
                         </div>
                     </div>
                     <div style="max-height: 200px; overflow-y: auto;">
-                        ${tracksHTML || '<div style="padding: 10px; text-align: center; color: #999; font-size: 10px;">No tracks in this playlist</div>'}
+                        ${tracksHTML || '<div style="padding: 10px; text-align: center; color: #999; font-size: 10px;">No videos in this playlist</div>'}
                     </div>
                 </div>
             `;
@@ -2242,74 +2654,74 @@ function closePlaylistManagerModal() {
 /**
  * Create new playlist from manager
  */
-function createNewPlaylistFromManager() {
+async function createNewPlaylistFromManager() {
     const input = document.getElementById('managerNewPlaylistName');
     const playlistName = input.value.trim();
     
-    if (createNewPlaylist(playlistName)) {
-        openPlaylistManager();
+    if (await createNewPlaylist(playlistName)) {
+        await openPlaylistManager();
     }
 }
 
 /**
  * Remove track from playlist
  */
-function removeTrackFromPlaylist(playlistName, trackIndex) {
-    const playlists = getUserPlaylists();
+async function removeTrackFromPlaylist(playlistId, videoId) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return;
     
-    if (!playlists[playlistName]) {
-        updateStatus('Playlist not found');
-        return;
+    try {
+        await WigTubeDB.removeVideoFromPlaylist(playlistId, videoId, username);
+        const video = videoData[videoId];
+        const videoTitle = video ? video.title : videoId;
+        updateStatus(`Removed "${videoTitle}" from playlist`);
+    } catch (error) {
+        console.error('Error removing video from playlist:', error);
+        updateStatus('Failed to remove video from playlist');
     }
-    
-    if (trackIndex < 0 || trackIndex >= playlists[playlistName].tracks.length) {
-        updateStatus('Track not found');
-        return;
-    }
-    
-    const trackTitle = playlists[playlistName].tracks[trackIndex].title;
-    playlists[playlistName].tracks.splice(trackIndex, 1);
-    playlists[playlistName].modified = new Date().toISOString();
-    
-    saveUserPlaylists(playlists);
-    updateStatus(`Removed "${trackTitle}" from "${playlistName}"`);
 }
 
 /**
  * Play a user playlist
  */
-async function playPlaylist(playlistName) {
-    const playlists = getUserPlaylists();
+async function playPlaylist(playlistId) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') return;
     
-    if (!playlists[playlistName]) {
-        updateStatus('Playlist not found');
-        return;
-    }
-    
-    const playlist = playlists[playlistName];
-    
-    if (playlist.tracks.length === 0) {
-        updateStatus('Playlist is empty');
-        return;
-    }
-    
-    // Load first track
-    const firstTrack = playlist.tracks[0];
-    if (firstTrack.videoId && videoData[firstTrack.videoId]) {
-        await loadVideo(firstTrack.videoId);
-        updateStatus(`Playing playlist: ${playlistName}`);
+    try {
+        const playlist = await WigTubeDB.getPlaylistById(playlistId, username);
         
-        // Set up playlist queue
-        currentAlbum = {
-            name: playlistName,
-            tracks: playlist.tracks.map(t => t.videoId).filter(id => id && videoData[id])
-        };
-        currentTrackIndex = 0;
+        if (!playlist) {
+            updateStatus('Playlist not found');
+            return;
+        }
         
-        // Display playlist UI
-        displayUserPlaylist(playlist);
-    } else {
-        updateStatus('Track not found');
+        if (!playlist.videos || playlist.videos.length === 0) {
+            updateStatus('Playlist is empty');
+            return;
+        }
+        
+        // Load first video (loadVideo will fetch from WigTubeDB if not in local videoData)
+        const firstVideoId = playlist.videos[0];
+        if (firstVideoId) {
+            await loadVideo(firstVideoId);
+            updateStatus(`Playing playlist: ${playlist.name}`);
+            
+            // Set up playlist queue with all video IDs (don't filter by videoData)
+            currentAlbum = {
+                name: playlist.name,
+                tracks: playlist.videos.filter(id => id)
+            };
+            currentTrackIndex = 0;
+            
+            // Display playlist UI
+            displayUserPlaylist(playlist);
+        } else {
+            updateStatus('Playlist is empty');
+        }
+    } catch (error) {
+        console.error('Error playing playlist:', error);
+        updateStatus('Failed to play playlist');
     }
 }
 
@@ -2338,7 +2750,12 @@ function displayUserPlaylist(playlist) {
         font-family: "MS Sans Serif", sans-serif;
     `;
     
-    const tracksHTML = playlist.tracks.map((track, index) => {
+    const tracksHTML = (playlist.videos || []).map((videoId, index) => {
+        // Check local videoData first, show loading indicator if not available
+        const video = videoData[videoId];
+        const videoTitle = video ? video.title : 'Loading...';
+        const videoDuration = video ? video.duration : '?:??';
+        
         const isCurrentTrack = currentAlbum && index === currentTrackIndex;
         return `
             <div class="playlist-track ${isCurrentTrack ? 'current-track' : ''}" 
@@ -2346,7 +2763,7 @@ function displayUserPlaylist(playlist) {
                  onclick="playTrackFromPlaylist(${index})"
                  onmouseover="if(!${isCurrentTrack}) this.style.background='#E0E0FF'"
                  onmouseout="if(!${isCurrentTrack}) this.style.background='#F0F0F0'">
-                ${isCurrentTrack ? '▶ ' : ''}${index + 1}. ${track.title} - ${track.duration}
+                ${isCurrentTrack ? '▶ ' : ''}${index + 1}. ${videoTitle} - ${videoDuration}
             </div>
         `;
     }).join('');
@@ -2368,14 +2785,18 @@ async function playTrackFromPlaylist(index) {
     if (currentAlbum && currentAlbum.tracks && index >= 0 && index < currentAlbum.tracks.length) {
         currentTrackIndex = index;
         const videoId = currentAlbum.tracks[index];
-        if (videoId && videoData[videoId]) {
+        if (videoId) {
+            // loadVideo will fetch from WigTubeDB if not in videoData
             await loadVideo(videoId);
             
-            // Update playlist display
-            const playlists = getUserPlaylists();
-            const playlistName = currentAlbum.name;
-            if (playlists[playlistName]) {
-                displayUserPlaylist(playlists[playlistName]);
+            // Update playlist display - get playlist by name from WigTubeDB
+            const username = localStorage.getItem('username');
+            if (username && username !== 'guest') {
+                const playlists = await getUserPlaylists();
+                const playlist = playlists.find(p => p.name === currentAlbum.name);
+                if (playlist) {
+                    displayUserPlaylist(playlist);
+                }
             }
         }
     }
@@ -2671,6 +3092,422 @@ async function setupRatingButtons() {
     });
 }
 
+// ============================================
+// Reply Management
+// ============================================
+
+/**
+ * Toggle reply box visibility
+ */
+function toggleReplyBox(commentId) {
+    const replyBox = document.getElementById(`replyBox_${commentId}`);
+    if (replyBox) {
+        replyBox.style.display = replyBox.style.display === 'none' ? 'block' : 'none';
+        if (replyBox.style.display === 'block') {
+            document.getElementById(`replyInput_${commentId}`).focus();
+        }
+    }
+}
+
+/**
+ * Submit a reply to a comment
+ */
+async function submitReply(commentId) {
+    const replyInput = document.getElementById(`replyInput_${commentId}`);
+    const replyText = replyInput.value.trim();
+    
+    if (!replyText) {
+        alert('Please enter a reply');
+        return;
+    }
+    
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        alert('Please log in to reply');
+        return;
+    }
+    
+    const videoId = currentVideoId || getVideoIdFromURL();
+    
+    try {
+        await WigTubeDB.addReply(videoId, commentId, {
+            author: username,
+            text: replyText
+        });
+        
+        updateStatus('Reply posted successfully');
+        replyInput.value = '';
+        toggleReplyBox(commentId);
+        
+        // Reload comments to show new reply
+        await loadComments();
+    } catch (error) {
+        console.error('Error posting reply:', error);
+        updateStatus('Error posting reply');
+    }
+}
+
+/**
+ * Toggle nested reply box visibility
+ */
+function toggleNestedReplyBox(commentId, replyId) {
+    const replyBox = document.getElementById(`nestedReplyBox_${replyId}`);
+    if (replyBox) {
+        replyBox.style.display = replyBox.style.display === 'none' ? 'block' : 'none';
+        if (replyBox.style.display === 'block') {
+            document.getElementById(`nestedReplyInput_${replyId}`).focus();
+        }
+    }
+}
+
+/**
+ * Submit a nested reply (reply to a reply)
+ */
+async function submitNestedReply(commentId, parentReplyId) {
+    const replyInput = document.getElementById(`nestedReplyInput_${parentReplyId}`);
+    const replyText = replyInput.value.trim();
+    
+    if (!replyText) {
+        alert('Please enter a reply');
+        return;
+    }
+    
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        alert('Please log in to reply');
+        return;
+    }
+    
+    const videoId = currentVideoId || getVideoIdFromURL();
+    
+    try {
+        await WigTubeDB.addReply(videoId, commentId, {
+            author: username,
+            text: replyText,
+            parentReplyId: parentReplyId
+        });
+        
+        updateStatus('Reply posted successfully');
+        replyInput.value = '';
+        toggleNestedReplyBox(commentId, parentReplyId);
+        
+        // Reload comments to show new nested reply
+        await loadComments();
+    } catch (error) {
+        console.error('Error posting nested reply:', error);
+        updateStatus('Error posting reply');
+    }
+}
+
+/**
+ * Delete a reply
+ */
+async function deleteReply(commentId, replyId) {
+    if (!confirm('Are you sure you want to delete this reply?')) {
+        return;
+    }
+    
+    const videoId = currentVideoId || getVideoIdFromURL();
+    
+    try {
+        await WigTubeDB.deleteReply(videoId, commentId, replyId);
+        updateStatus('Reply deleted successfully');
+        
+        // Reload comments to reflect the deletion
+        await loadComments();
+    } catch (error) {
+        console.error('Error deleting reply:', error);
+        updateStatus('Error deleting reply');
+    }
+}
+
+/**
+ * Display replies for a comment
+ */
+async function displayReplies(commentId, replies) {
+    const repliesContainer = document.getElementById(`replies_${commentId}`);
+    if (!repliesContainer) return;
+    
+    repliesContainer.innerHTML = '';
+    
+    for (const reply of replies) {
+        const replyElement = document.createElement('div');
+        replyElement.style.cssText = `
+            padding: 12px;
+            background: #f5f5f5;
+            border-left: 3px solid #ccc;
+            margin-bottom: 8px;
+        `;
+        
+        // Get profile picture for reply author
+        let authorPfp = null;
+        if (window.getUserProfilePicture) {
+            authorPfp = window.getUserProfilePicture(reply.author);
+        }
+        
+        if (!authorPfp && reply.author && reply.author.toLowerCase() !== 'guest') {
+            if (window.firebaseAPI && window.firebaseAPI.db && window.firebaseOnline) {
+                try {
+                    const { doc, getDoc } = window.firebaseAPI;
+                    const userDoc = await getDoc(doc(window.firebaseAPI.db, "users", reply.author));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        if (userData.profilePicture) {
+                            authorPfp = userData.profilePicture;
+                            localStorage.setItem(`pfp_${reply.author}`, authorPfp);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading profile picture:', e);
+                }
+            }
+        }
+        
+        let profilePicHTML = '';
+        if (authorPfp) {
+            profilePicHTML = `<img src="${authorPfp}" alt="${reply.author}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px; border: 1px solid #999;">`;
+        } else {
+            profilePicHTML = `<div style="width: 24px; height: 24px; border-radius: 50%; background: #ccc; margin-right: 8px; border: 1px solid #999; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666; font-size: 10px;">${(reply.author || 'G').charAt(0).toUpperCase()}</div>`;
+        }
+        
+        // Format timestamp
+        let timeString = 'Just now';
+        if (reply.timestamp) {
+            const replyDate = new Date(reply.timestamp);
+            const now = new Date();
+            const diffMs = now - replyDate;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) {
+                timeString = 'Just now';
+            } else if (diffMins < 60) {
+                timeString = `${diffMins}m ago`;
+            } else if (diffHours < 24) {
+                timeString = `${diffHours}h ago`;
+            } else {
+                timeString = `${diffDays}d ago`;
+            }
+        }
+        
+        // Check if current user is the reply author
+        const currentUsername = localStorage.getItem('username');
+        const isReplyAuthor = currentUsername && (reply.author === currentUsername);
+        const canReply = currentUsername && currentUsername !== 'guest';
+        
+        const deleteButtonHTML = isReplyAuthor
+            ? `<button onclick="deleteReply('${commentId}', '${reply.id}')" style="
+                padding: 2px 6px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+            " title="Delete reply">🗑️</button>`
+            : '';
+        
+        const replyButtonHTML = canReply
+            ? `<button onclick="toggleNestedReplyBox('${commentId}', '${reply.id}')" style="
+                padding: 2px 6px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+                margin-left: 4px;
+            " title="Reply">💬</button>`
+            : '';
+        
+        replyElement.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                ${profilePicHTML}
+                <div style="flex: 1;">
+                    <div style="font-size: 11px; font-weight: bold; color: #000;">${reply.author || 'Guest'}</div>
+                    <div style="font-size: 10px; color: #666;">${timeString}</div>
+                </div>
+                ${replyButtonHTML}
+                ${deleteButtonHTML}
+            </div>
+            <div style="margin-left: 32px; font-size: 11px; color: #000;">${reply.text}</div>
+            <div id="nestedReplyBox_${reply.id}" style="display: none; margin-left: 32px; margin-top: 8px;">
+                <textarea id="nestedReplyInput_${reply.id}" placeholder="Add a reply..." style="
+                    width: 100%;
+                    height: 50px;
+                    padding: 6px;
+                    border: 2px inset #d4d0c8;
+                    font-size: 10px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    resize: vertical;
+                "></textarea>
+                <div style="margin-top: 6px; display: flex; gap: 6px;">
+                    <button onclick="submitNestedReply('${commentId}', '${reply.id}')" style="
+                        padding: 3px 10px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 10px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        font-weight: bold;
+                    ">Post</button>
+                    <button onclick="toggleNestedReplyBox('${commentId}', '${reply.id}')" style="
+                        padding: 3px 10px;
+                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                        color: #000;
+                        border: 2px outset #d4d0c8;
+                        cursor: pointer;
+                        font-size: 10px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                    ">Cancel</button>
+                </div>
+            </div>
+            <div id="nestedReplies_${reply.id}" style="margin-left: 20px; margin-top: 8px;"></div>
+        `;
+        
+        repliesContainer.appendChild(replyElement);
+        
+        // Recursively display nested replies
+        if (reply.replies && reply.replies.length > 0) {
+            const nestedContainer = document.getElementById(`nestedReplies_${reply.id}`);
+            if (nestedContainer) {
+                await displayNestedReplies(commentId, reply.id, reply.replies, nestedContainer);
+            }
+        }
+    }
+}
+
+/**
+ * Display nested replies recursively
+ */
+async function displayNestedReplies(commentId, parentReplyId, replies, container) {
+    for (const reply of replies) {
+        const replyElement = document.createElement('div');
+        replyElement.style.cssText = `
+            padding: 12px;
+            background: #f9f9f9;
+            border-left: 3px solid #ccc;
+            margin-bottom: 8px;
+            border-radius: 2px;
+        `;
+        
+        // Get profile picture
+        let authorPfp = localStorage.getItem(`pfp_${reply.author}`);
+        if (!authorPfp && reply.author && reply.author.toLowerCase() !== 'guest') {
+            if (window.firebaseAPI && window.firebaseAPI.db && window.firebaseOnline) {
+                try {
+                    const { doc, getDoc } = window.firebaseAPI;
+                    const userDoc = await getDoc(doc(window.firebaseAPI.db, "users", reply.author));
+                    if (userDoc.exists() && userDoc.data().profilePicture) {
+                        authorPfp = userDoc.data().profilePicture;
+                        localStorage.setItem(`pfp_${reply.author}`, authorPfp);
+                    }
+                } catch (e) {}
+            }
+        }
+        
+        const profilePicHTML = authorPfp
+            ? `<img src="${authorPfp}" alt="${reply.author}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 8px; border: 1px solid #999;">`
+            : `<div style="width: 24px; height: 24px; border-radius: 50%; background: #ccc; margin-right: 8px; border: 1px solid #999; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666; font-size: 10px;">${(reply.author || 'G').charAt(0).toUpperCase()}</div>`;
+        
+        // Format timestamp
+        let timeString = 'Just now';
+        if (reply.timestamp) {
+            const replyDate = new Date(reply.timestamp);
+            const diffMs = new Date() - replyDate;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) timeString = 'Just now';
+            else if (diffMins < 60) timeString = `${diffMins}m ago`;
+            else if (diffHours < 24) timeString = `${diffHours}h ago`;
+            else timeString = `${diffDays}d ago`;
+        }
+        
+        const currentUsername = localStorage.getItem('username');
+        const isReplyAuthor = currentUsername && (reply.author === currentUsername);
+        const canReply = currentUsername && currentUsername !== 'guest';
+        
+        const deleteButtonHTML = isReplyAuthor
+            ? `<button onclick="deleteReply('${commentId}', '${reply.id}')" style="padding: 2px 6px; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif;" title="Delete">🗑️</button>`
+            : '';
+        
+        const replyButtonHTML = canReply
+            ? `<button onclick="toggleNestedReplyBox('${commentId}', '${reply.id}')" style="padding: 2px 6px; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; margin-left: 4px;" title="Reply">💬</button>`
+            : '';
+        
+        // Show reply count if there are nested replies
+        const replyCount = reply.replies && reply.replies.length > 0 ? reply.replies.length : 0;
+        const showRepliesButtonHTML = replyCount > 0
+            ? `<button onclick="toggleNestedRepliesVisibility('${reply.id}')" id="toggleBtn_${reply.id}" style="
+                padding: 2px 8px;
+                background: linear-gradient(to bottom, #e8e8e8 0%, #d0d0d0 100%);
+                color: #0066cc;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+                margin-top: 8px;
+                margin-left: 32px;
+                font-weight: bold;
+            ">▼ Show ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</button>`
+            : '';
+        
+        replyElement.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                ${profilePicHTML}
+                <div style="flex: 1;">
+                    <div style="font-size: 11px; font-weight: bold; color: #000;">${reply.author || 'Guest'}</div>
+                    <div style="font-size: 10px; color: #666;">${timeString}</div>
+                </div>
+                ${replyButtonHTML}
+                ${deleteButtonHTML}
+            </div>
+            <div style="margin-left: 32px; font-size: 11px; color: #000; line-height: 1.4;">${reply.text}</div>
+            <div id="nestedReplyBox_${reply.id}" style="display: none; margin-left: 32px; margin-top: 8px;">
+                <textarea id="nestedReplyInput_${reply.id}" placeholder="Add a reply..." style="width: 100%; height: 50px; padding: 6px; border: 2px inset #d4d0c8; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; resize: vertical;"></textarea>
+                <div style="margin-top: 6px; display: flex; gap: 6px;">
+                    <button onclick="submitNestedReply('${commentId}', '${reply.id}')" style="padding: 3px 10px; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; font-weight: bold;">Post</button>
+                    <button onclick="toggleNestedReplyBox('${commentId}', '${reply.id}')" style="padding: 3px 10px; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif;">Cancel</button>
+                </div>
+            </div>
+            ${showRepliesButtonHTML}
+            <div id="nestedReplies_${reply.id}" style="margin-left: 20px; margin-top: 8px; display: none;"></div>
+        `;
+        
+        container.appendChild(replyElement);
+        
+        // Recursively display even deeper nested replies (hidden by default)
+        if (reply.replies && reply.replies.length > 0) {
+            const deeperContainer = document.getElementById(`nestedReplies_${reply.id}`);
+            if (deeperContainer) {
+                await displayNestedReplies(commentId, reply.id, reply.replies, deeperContainer);
+            }
+        }
+    }
+}
+
+/**
+ * Toggle nested replies visibility
+ */
+function toggleNestedRepliesVisibility(replyId) {
+    const container = document.getElementById(`nestedReplies_${replyId}`);
+    const button = document.getElementById(`toggleBtn_${replyId}`);
+    
+    if (container && button) {
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            button.innerHTML = button.innerHTML.replace('▼ Show', '▲ Hide');
+        } else {
+            container.style.display = 'none';
+            button.innerHTML = button.innerHTML.replace('▲ Hide', '▼ Show');
+        }
+    }
+}
+
 // Setup rating buttons after page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Wait a bit for the page to fully load
@@ -2695,3 +3532,246 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ============================================
+// Like/Dislike System
+// ============================================
+
+/**
+ * Handle like/dislike button clicks
+ */
+async function handleLikeDislike(type) {
+    const videoId = getVideoIdFromURL();
+    const username = localStorage.getItem('username') || 'anonymous';
+    
+    if (!videoId) {
+        console.error('No video ID found');
+        return;
+    }
+    
+    try {
+        // Toggle the like/dislike in database
+        const result = await window.WigTubeDB.toggleLikeDislike(videoId, type, username);
+        
+        // Update UI
+        document.getElementById('likeCount').textContent = result.likeCount;
+        document.getElementById('dislikeCount').textContent = result.dislikeCount;
+        
+        // Update button states
+        updateLikeDislikeButtons(result.userAction);
+        
+        debugLog(`${type} toggled:`, result);
+    } catch (error) {
+        console.error(`Error toggling ${type}:`, error);
+        alert(`⚠️ Error\n\nCould not ${type} this video. Please try again.`);
+    }
+}
+
+/**
+ * Update like/dislike button visual states
+ */
+function updateLikeDislikeButtons(userAction) {
+    const likeBtn = document.getElementById('likeBtn');
+    const dislikeBtn = document.getElementById('dislikeBtn');
+    
+    // Remove active class from both
+    likeBtn.classList.remove('active');
+    dislikeBtn.classList.remove('active');
+    
+    // Add active class to the appropriate button
+    if (userAction === 'like') {
+        likeBtn.classList.add('active');
+    } else if (userAction === 'dislike') {
+        dislikeBtn.classList.add('active');
+    }
+}
+
+// ============================================
+// Playlist Management
+// ============================================
+
+/**
+ * Show add to playlist menu
+ */
+async function showAddToPlaylistMenu(videoId) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        alert('Please log in to add videos to playlists');
+        return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 20px;
+        max-width: 400px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    dialog.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #000080; font-weight: bold;">Add to Playlist</h2>
+        <div id="playlistSelectionList" style="
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px inset #d4d0c8;
+            background: white;
+            padding: 8px;
+        ">
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 11px;">
+                Loading playlists...
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: space-between; border-top: 2px groove #d4d0c8; padding-top: 16px;">
+            <button type="button" id="createNewPlaylistBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">+ New Playlist</button>
+            <button type="button" id="closePlaylistMenuBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">Close</button>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Load user's playlists
+    try {
+        const playlists = await WigTubeDB.getUserPlaylists(username);
+        const listContainer = document.getElementById('playlistSelectionList');
+        
+        if (playlists.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 36px; margin-bottom: 8px; opacity: 0.5;">📺</div>
+                    <div style="font-size: 11px; color: #666;">No playlists yet</div>
+                    <div style="font-size: 10px; color: #888; margin-top: 4px;">Create your first playlist to get started</div>
+                </div>
+            `;
+        } else {
+            listContainer.innerHTML = '';
+            
+            for (const playlist of playlists) {
+                // Check if video is already in playlist
+                const isInPlaylist = playlist.videos && playlist.videos.includes(videoId);
+                
+                const playlistItem = document.createElement('div');
+                playlistItem.style.cssText = `
+                    padding: 8px;
+                    margin-bottom: 6px;
+                    border: 1px solid #d4d0c8;
+                    background: ${isInPlaylist ? '#e0e0e0' : '#f9f9f9'};
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isInPlaylist;
+                checkbox.disabled = isInPlaylist;
+                checkbox.style.cssText = 'width: 16px; height: 16px;';
+                
+                const label = document.createElement('span');
+                label.textContent = `${playlist.name} (${playlist.videos?.length || 0} videos)`;
+                label.style.cssText = `
+                    font-size: 11px;
+                    flex: 1;
+                    ${isInPlaylist ? 'color: #666;' : 'color: #000;'}
+                `;
+                
+                playlistItem.appendChild(checkbox);
+                playlistItem.appendChild(label);
+                
+                if (!isInPlaylist) {
+                    playlistItem.addEventListener('click', async () => {
+                        try {
+                            checkbox.disabled = true;
+                            await WigTubeDB.addVideoToPlaylist(playlist.id, videoId, username);
+                            checkbox.checked = true;
+                            playlistItem.style.background = '#e0e0e0';
+                            label.style.color = '#666';
+                            label.textContent = `${playlist.name} (${(playlist.videos?.length || 0) + 1} videos)`;
+                            
+                            // Update status
+                            const statusText = document.getElementById('statusText');
+                            if (statusText) {
+                                statusText.textContent = `Added to ${playlist.name}`;
+                            }
+                        } catch (error) {
+                            console.error('Error adding to playlist:', error);
+                            alert('Error adding video to playlist');
+                            checkbox.disabled = false;
+                        }
+                    });
+                    
+                    playlistItem.addEventListener('mouseenter', () => {
+                        playlistItem.style.background = '#e8e8e8';
+                    });
+                    playlistItem.addEventListener('mouseleave', () => {
+                        playlistItem.style.background = '#f9f9f9';
+                    });
+                }
+                
+                listContainer.appendChild(playlistItem);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading playlists:', error);
+        document.getElementById('playlistSelectionList').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 11px;">
+                Error loading playlists
+            </div>
+        `;
+    }
+    
+    // Handle create new playlist - navigate back to main WigTube page
+    dialog.querySelector('#createNewPlaylistBtn').addEventListener('click', () => {
+        overlay.remove();
+        // Navigate back to WigTube and open create playlist dialog
+        window.location.href = 'wigtube.html?createPlaylist=true';
+    });
+    
+    // Handle close
+    dialog.querySelector('#closePlaylistMenuBtn').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}

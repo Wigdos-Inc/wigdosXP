@@ -676,6 +676,172 @@ window.WigTubeDB = (function() {
     // ============================================
 
     /**
+     * Toggle like/dislike for a video
+     * @param {string} videoId - Video ID
+     * @param {string} type - 'like' or 'dislike'
+     * @param {string} userId - User ID
+     * @returns {Object} - { likeCount, dislikeCount, userAction }
+     */
+    async function toggleLikeDislike(videoId, type, userId = 'anonymous') {
+        if (type !== 'like' && type !== 'dislike') {
+            throw new Error('Type must be "like" or "dislike"');
+        }
+
+        const db = getDB();
+        const storageKey = `wigtube_user_likes_${userId}`;
+        
+        // Get user's current likes/dislikes from localStorage
+        let userLikes = {};
+        try {
+            const stored = localStorage.getItem(storageKey);
+            userLikes = stored ? JSON.parse(stored) : {};
+        } catch (e) {
+            console.error('Error reading user likes:', e);
+        }
+        
+        const currentAction = userLikes[videoId]; // 'like', 'dislike', or undefined
+        let newAction = null;
+        
+        // Determine new action
+        if (currentAction === type) {
+            // User clicked the same button - remove their action
+            newAction = null;
+        } else {
+            // User clicked opposite button or no action yet
+            newAction = type;
+        }
+        
+        if (!db) {
+            // Offline mode - update local storage
+            const offlineData = getOfflineData();
+            if (!offlineData.videos) offlineData.videos = {};
+            if (!offlineData.videos[videoId]) {
+                offlineData.videos[videoId] = { likeCount: 0, dislikeCount: 0 };
+            }
+            
+            const video = offlineData.videos[videoId];
+            
+            // Update counts based on state change
+            if (currentAction === 'like') video.likeCount = Math.max(0, (video.likeCount || 0) - 1);
+            if (currentAction === 'dislike') video.dislikeCount = Math.max(0, (video.dislikeCount || 0) - 1);
+            if (newAction === 'like') video.likeCount = (video.likeCount || 0) + 1;
+            if (newAction === 'dislike') video.dislikeCount = (video.dislikeCount || 0) + 1;
+            
+            saveOfflineData(offlineData);
+            
+            // Update user's likes
+            if (newAction) {
+                userLikes[videoId] = newAction;
+            } else {
+                delete userLikes[videoId];
+            }
+            localStorage.setItem(storageKey, JSON.stringify(userLikes));
+            
+            return {
+                likeCount: video.likeCount || 0,
+                dislikeCount: video.dislikeCount || 0,
+                userAction: newAction
+            };
+        }
+
+        try {
+            const { doc, getDoc, updateDoc, setDoc, collection, increment } = window.firebaseAPI;
+            const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+            const videoDocRef = doc(videosCollectionRef, videoId);
+            
+            let videoSnap = await getDoc(videoDocRef);
+            
+            // If video doesn't exist in Firestore, create it
+            if (!videoSnap.exists()) {
+                debugLog('Video not found in Firestore, creating document for:', videoId);
+                const newVideoDoc = {
+                    id: videoId,
+                    viewCount: 0,
+                    likeCount: 0,
+                    dislikeCount: 0,
+                    userRatings: {},
+                    commentCount: 0,
+                    uploadDate: Date.now()
+                };
+                await setDoc(videoDocRef, newVideoDoc);
+                videoSnap = await getDoc(videoDocRef);
+            }
+            
+            const video = videoSnap.data();
+            let likeCount = video.likeCount || 0;
+            let dislikeCount = video.dislikeCount || 0;
+            
+            // Calculate increment values
+            let likeIncrement = 0;
+            let dislikeIncrement = 0;
+            
+            if (currentAction === 'like' && newAction === 'dislike') {
+                likeIncrement = -1;
+                dislikeIncrement = 1;
+            } else if (currentAction === 'like' && newAction === null) {
+                likeIncrement = -1;
+            } else if (currentAction === 'dislike' && newAction === 'like') {
+                likeIncrement = 1;
+                dislikeIncrement = -1;
+            } else if (currentAction === 'dislike' && newAction === null) {
+                dislikeIncrement = -1;
+            } else if (currentAction === null && newAction === 'like') {
+                likeIncrement = 1;
+            } else if (currentAction === null && newAction === 'dislike') {
+                dislikeIncrement = 1;
+            }
+            
+            // Update video document
+            const updates = {};
+            if (likeIncrement !== 0) {
+                updates.likeCount = Math.max(0, likeCount + likeIncrement);
+            }
+            if (dislikeIncrement !== 0) {
+                updates.dislikeCount = Math.max(0, dislikeCount + dislikeIncrement);
+            }
+            
+            if (Object.keys(updates).length > 0) {
+                await updateDoc(videoDocRef, updates);
+            }
+            
+            // Update user's likes in localStorage
+            if (newAction) {
+                userLikes[videoId] = newAction;
+            } else {
+                delete userLikes[videoId];
+            }
+            localStorage.setItem(storageKey, JSON.stringify(userLikes));
+            
+            return {
+                likeCount: updates.likeCount !== undefined ? updates.likeCount : likeCount,
+                dislikeCount: updates.dislikeCount !== undefined ? updates.dislikeCount : dislikeCount,
+                userAction: newAction
+            };
+        } catch (error) {
+            console.error('Error toggling like/dislike:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get user's like/dislike status for a video
+     * @param {string} videoId - Video ID
+     * @param {string} userId - User ID
+     * @returns {string|null} - 'like', 'dislike', or null
+     */
+    function getUserLikeStatus(videoId, userId = 'anonymous') {
+        const storageKey = `wigtube_user_likes_${userId}`;
+        try {
+            const stored = localStorage.getItem(storageKey);
+            const userLikes = stored ? JSON.parse(stored) : {};
+            return userLikes[videoId] || null;
+        } catch (e) {
+            console.error('Error reading user like status:', e);
+            return null;
+        }
+    }
+
+    /**
      * Add a comment to a video
      */
     async function addComment(videoId, commentData) {
@@ -988,7 +1154,7 @@ window.WigTubeDB = (function() {
     /**
      * Add video to user's watch history
      */
-    function addToHistory(videoId, videoData) {
+    async function addToHistory(videoId, videoData) {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1005,21 +1171,37 @@ window.WigTubeDB = (function() {
             history = history.filter(item => item.videoId !== videoId);
             
             // Add to beginning of history
-            history.unshift({
+            const historyEntry = {
                 videoId: videoId,
                 title: videoData.title,
                 thumbnail: videoData.thumbnail,
                 duration: videoData.duration,
                 author: videoData.author || videoData.uploader,
                 timestamp: new Date().toISOString()
-            });
+            };
+            history.unshift(historyEntry);
             
             // Keep only last 50 videos
             if (history.length > 50) {
                 history = history.slice(0, 50);
             }
             
+            // Save to localStorage
             localStorage.setItem(historyKey, JSON.stringify(history));
+            
+            // Save to Firebase
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, setDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    await setDoc(userDataRef, { history }, { merge: true });
+                    debugLog(`Added ${videoId} to history in Firebase for ${username}`);
+                } catch (fbError) {
+                    console.error('Error saving history to Firebase:', fbError);
+                }
+            }
+            
             debugLog(`Added ${videoId} to history for ${username}`);
         } catch (error) {
             console.error('Error adding to history:', error);
@@ -1029,7 +1211,7 @@ window.WigTubeDB = (function() {
     /**
      * Get user's watch history
      */
-    function getHistory(limit = 50) {
+    async function getHistory(limit = 50) {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1039,8 +1221,29 @@ window.WigTubeDB = (function() {
             }
             
             const historyKey = `wigtube_history_${username}`;
-            const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
             
+            // Try to load from Firebase first
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, getDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    const docSnap = await getDoc(userDataRef);
+                    
+                    if (docSnap.exists() && docSnap.data().history) {
+                        const history = docSnap.data().history;
+                        // Cache in localStorage
+                        localStorage.setItem(historyKey, JSON.stringify(history));
+                        debugLog(`Loaded ${history.length} history items from Firebase for ${username}`);
+                        return history.slice(0, limit);
+                    }
+                } catch (fbError) {
+                    console.error('Error loading history from Firebase:', fbError);
+                }
+            }
+            
+            // Fallback to localStorage
+            const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
             return history.slice(0, limit);
         } catch (error) {
             console.error('Error getting history:', error);
@@ -1051,7 +1254,7 @@ window.WigTubeDB = (function() {
     /**
      * Clear user's watch history
      */
-    function clearHistory() {
+    async function clearHistory() {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1062,6 +1265,20 @@ window.WigTubeDB = (function() {
             
             const historyKey = `wigtube_history_${username}`;
             localStorage.removeItem(historyKey);
+            
+            // Clear from Firebase
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, setDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    await setDoc(userDataRef, { history: [] }, { merge: true });
+                    debugLog(`Cleared history in Firebase for ${username}`);
+                } catch (fbError) {
+                    console.error('Error clearing history from Firebase:', fbError);
+                }
+            }
+            
             debugLog(`Cleared history for ${username}`);
             return true;
         } catch (error) {
@@ -1077,7 +1294,7 @@ window.WigTubeDB = (function() {
     /**
      * Add video to user's favorites
      */
-    function addToFavorites(videoId, videoData) {
+    async function addToFavorites(videoId, videoData) {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1095,16 +1312,32 @@ window.WigTubeDB = (function() {
             }
             
             // Add to favorites
-            favorites.unshift({
+            const favoriteEntry = {
                 videoId: videoId,
                 title: videoData.title,
                 thumbnail: videoData.thumbnail,
                 duration: videoData.duration,
                 author: videoData.author || videoData.uploader,
                 timestamp: new Date().toISOString()
-            });
+            };
+            favorites.unshift(favoriteEntry);
             
+            // Save to localStorage
             localStorage.setItem(favoritesKey, JSON.stringify(favorites));
+            
+            // Save to Firebase
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, setDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    await setDoc(userDataRef, { favorites }, { merge: true });
+                    debugLog(`Added ${videoId} to favorites in Firebase for ${username}`);
+                } catch (fbError) {
+                    console.error('Error saving favorites to Firebase:', fbError);
+                }
+            }
+            
             debugLog(`Added ${videoId} to favorites for ${username}`);
             return true;
         } catch (error) {
@@ -1116,7 +1349,7 @@ window.WigTubeDB = (function() {
     /**
      * Remove video from user's favorites
      */
-    function removeFromFavorites(videoId) {
+    async function removeFromFavorites(videoId) {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1130,6 +1363,20 @@ window.WigTubeDB = (function() {
             
             favorites = favorites.filter(item => item.videoId !== videoId);
             localStorage.setItem(favoritesKey, JSON.stringify(favorites));
+            
+            // Update Firebase
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, setDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    await setDoc(userDataRef, { favorites }, { merge: true });
+                    debugLog(`Removed ${videoId} from favorites in Firebase for ${username}`);
+                } catch (fbError) {
+                    console.error('Error updating favorites in Firebase:', fbError);
+                }
+            }
+            
             debugLog(`Removed ${videoId} from favorites for ${username}`);
             return true;
         } catch (error) {
@@ -1141,7 +1388,7 @@ window.WigTubeDB = (function() {
     /**
      * Get user's favorites
      */
-    function getFavorites() {
+    async function getFavorites() {
         try {
             const username = typeof window !== 'undefined' ? 
                 (localStorage.getItem('username') || 'guest') : 'guest';
@@ -1151,6 +1398,28 @@ window.WigTubeDB = (function() {
             }
             
             const favoritesKey = `wigtube_favorites_${username}`;
+            
+            // Try to load from Firebase first
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                try {
+                    const { doc, getDoc } = window.firebaseAPI;
+                    const userDataRef = doc(db, COLLECTION, DATA_DOC, 'userdata', username);
+                    const docSnap = await getDoc(userDataRef);
+                    
+                    if (docSnap.exists() && docSnap.data().favorites) {
+                        const favorites = docSnap.data().favorites;
+                        // Cache in localStorage
+                        localStorage.setItem(favoritesKey, JSON.stringify(favorites));
+                        debugLog(`Loaded ${favorites.length} favorites from Firebase for ${username}`);
+                        return favorites;
+                    }
+                } catch (fbError) {
+                    console.error('Error loading favorites from Firebase:', fbError);
+                }
+            }
+            
+            // Fallback to localStorage
             return JSON.parse(localStorage.getItem(favoritesKey) || '[]');
         } catch (error) {
             console.error('Error getting favorites:', error);
@@ -1180,6 +1449,385 @@ window.WigTubeDB = (function() {
     }
 
     // ============================================
+    // Subscription Operations
+    // ============================================
+    
+    /**
+     * Subscribe to a channel
+     */
+    async function subscribeToChannel(channelName) {
+        debugLog(`subscribeToChannel: Subscribing to ${channelName}`);
+        const username = localStorage.getItem('username');
+        
+        if (!username || username.toLowerCase() === 'guest' || username === channelName) {
+            return false;
+        }
+        
+        const db = getDB();
+        if (!db) {
+            // Offline mode - use localStorage
+            const key = `subscriptions_${username}`;
+            const subscriptions = JSON.parse(localStorage.getItem(key) || '[]');
+            if (!subscriptions.includes(channelName)) {
+                subscriptions.push(channelName);
+                localStorage.setItem(key, JSON.stringify(subscriptions));
+            }
+            return true;
+        }
+        
+        try {
+            const { doc, setDoc, arrayUnion } = window.firebaseAPI;
+            const userDocRef = doc(db, 'users', username);
+            const channelDocRef = doc(db, 'users', channelName);
+            
+            // Add to subscriber's subscriptions
+            await setDoc(userDocRef, {
+                subscriptions: arrayUnion(channelName)
+            }, { merge: true });
+            
+            // Add to channel's subscribers
+            await setDoc(channelDocRef, {
+                subscribers: arrayUnion(username)
+            }, { merge: true });
+            
+            // Cache locally
+            const key = `subscriptions_${username}`;
+            const subscriptions = JSON.parse(localStorage.getItem(key) || '[]');
+            if (!subscriptions.includes(channelName)) {
+                subscriptions.push(channelName);
+                localStorage.setItem(key, JSON.stringify(subscriptions));
+            }
+            
+            debugLog(`subscribeToChannel: Successfully subscribed to ${channelName}`);
+            return true;
+        } catch (error) {
+            console.error('Error subscribing to channel:', error);
+            debugLog(`subscribeToChannel: Error:`, error);
+            return false;
+        }
+    }
+    
+    /**
+     * Unsubscribe from a channel
+     */
+    async function unsubscribeFromChannel(channelName) {
+        debugLog(`unsubscribeFromChannel: Unsubscribing from ${channelName}`);
+        const username = localStorage.getItem('username');
+        
+        if (!username || username.toLowerCase() === 'guest') {
+            return false;
+        }
+        
+        const db = getDB();
+        if (!db) {
+            // Offline mode - use localStorage
+            const key = `subscriptions_${username}`;
+            const subscriptions = JSON.parse(localStorage.getItem(key) || '[]');
+            const index = subscriptions.indexOf(channelName);
+            if (index > -1) {
+                subscriptions.splice(index, 1);
+                localStorage.setItem(key, JSON.stringify(subscriptions));
+            }
+            return true;
+        }
+        
+        try {
+            const { doc, setDoc, arrayRemove } = window.firebaseAPI;
+            const userDocRef = doc(db, 'users', username);
+            const channelDocRef = doc(db, 'users', channelName);
+            
+            // Remove from subscriber's subscriptions
+            await setDoc(userDocRef, {
+                subscriptions: arrayRemove(channelName)
+            }, { merge: true });
+            
+            // Remove from channel's subscribers
+            await setDoc(channelDocRef, {
+                subscribers: arrayRemove(username)
+            }, { merge: true });
+            
+            // Update local cache
+            const key = `subscriptions_${username}`;
+            const subscriptions = JSON.parse(localStorage.getItem(key) || '[]');
+            const index = subscriptions.indexOf(channelName);
+            if (index > -1) {
+                subscriptions.splice(index, 1);
+                localStorage.setItem(key, JSON.stringify(subscriptions));
+            }
+            
+            debugLog(`unsubscribeFromChannel: Successfully unsubscribed from ${channelName}`);
+            return true;
+        } catch (error) {
+            console.error('Error unsubscribing from channel:', error);
+            debugLog(`unsubscribeFromChannel: Error:`, error);
+            return false;
+        }
+    }
+    
+    /**
+     * Check if subscribed to a channel
+     */
+    async function isSubscribed(channelName) {
+        const username = localStorage.getItem('username');
+        
+        if (!username || username.toLowerCase() === 'guest' || username === channelName) {
+            return false;
+        }
+        
+        // Check localStorage cache first
+        const key = `subscriptions_${username}`;
+        const cachedSubs = JSON.parse(localStorage.getItem(key) || '[]');
+        if (cachedSubs.includes(channelName)) {
+            return true;
+        }
+        
+        const db = getDB();
+        if (!db) {
+            return false;
+        }
+        
+        try {
+            const { doc, getDoc } = window.firebaseAPI;
+            const userDocRef = doc(db, 'users', username);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) {
+                const subscriptions = userDoc.data().subscriptions || [];
+                // Update cache
+                localStorage.setItem(key, JSON.stringify(subscriptions));
+                return subscriptions.includes(channelName);
+            }
+        } catch (error) {
+            console.error('Error checking subscription:', error);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get subscriber count for a channel
+     */
+    async function getSubscriberCount(channelName) {
+        const db = getDB();
+        if (!db) {
+            return 0;
+        }
+        
+        try {
+            const { doc, getDoc } = window.firebaseAPI;
+            const channelDocRef = doc(db, 'users', channelName);
+            const channelDoc = await getDoc(channelDocRef);
+            
+            if (channelDoc.exists()) {
+                const subscribers = channelDoc.data().subscribers || [];
+                return subscribers.length;
+            }
+        } catch (error) {
+            console.error('Error getting subscriber count:', error);
+        }
+        
+        return 0;
+    }
+    
+    // ============================================
+    // Comment Reply Operations
+    // ============================================
+    
+    /**
+     * Helper function to find a reply by ID recursively
+     */
+    function findReplyById(replies, replyId) {
+        if (!replies) return null;
+        
+        for (const reply of replies) {
+            if (reply.id === replyId) {
+                return reply;
+            }
+            if (reply.replies && reply.replies.length > 0) {
+                const found = findReplyById(reply.replies, replyId);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Add a reply to a comment or another reply (nested replies)
+     * @param {string} videoId - Video ID
+     * @param {string} commentId - Comment ID
+     * @param {object} replyData - Reply data {author, text, parentReplyId}
+     */
+    async function addReply(videoId, commentId, replyData) {
+        debugLog(`addReply: Adding reply to comment ${commentId}`);
+        const db = getDB();
+        
+        const reply = {
+            author: replyData.author || 'Anonymous',
+            text: replyData.text || '',
+            timestamp: db ? window.firebaseAPI.serverTimestamp() : new Date().toISOString(),
+            replies: [] // Support nested replies
+        };
+        
+        if (!db) {
+            // Offline mode
+            const offlineData = getOfflineData();
+            const replyId = 'reply_' + Date.now();
+            reply.id = replyId;
+            reply.timestamp = new Date().toISOString();
+            
+            if (!offlineData.comments?.[videoId]) {
+                return null;
+            }
+            
+            const comment = offlineData.comments[videoId].find(c => c.id === commentId);
+            if (comment) {
+                if (!comment.replies) comment.replies = [];
+                
+                // If parentReplyId is provided, add as nested reply
+                if (replyData.parentReplyId) {
+                    const parentReply = findReplyById(comment.replies, replyData.parentReplyId);
+                    if (parentReply) {
+                        if (!parentReply.replies) parentReply.replies = [];
+                        parentReply.replies.push(reply);
+                        saveOfflineData(offlineData);
+                        return reply;
+                    }
+                } else {
+                    // Add as top-level reply
+                    comment.replies.push(reply);
+                    saveOfflineData(offlineData);
+                    return reply;
+                }
+            }
+            return null;
+        }
+        
+        try {
+            const { doc, getDoc, setDoc } = window.firebaseAPI;
+            const commentsRef = doc(db, COLLECTION, COMMENTS_DOC);
+            const commentsSnap = await getDoc(commentsRef);
+            
+            if (!commentsSnap.exists()) {
+                return null;
+            }
+            
+            const commentsData = commentsSnap.data();
+            const comments = commentsData.comments || {};
+            const videoComments = comments[videoId] || [];
+            
+            const comment = videoComments.find(c => c.id === commentId);
+            if (!comment) {
+                return null;
+            }
+            
+            const replyId = 'reply_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            reply.id = replyId;
+            reply.timestamp = new Date().toISOString();
+            
+            if (!comment.replies) comment.replies = [];
+            
+            // If parentReplyId is provided, add as nested reply
+            if (replyData.parentReplyId) {
+                const parentReply = findReplyById(comment.replies, replyData.parentReplyId);
+                if (parentReply) {
+                    if (!parentReply.replies) parentReply.replies = [];
+                    parentReply.replies.push(reply);
+                } else {
+                    // Parent not found, add as top-level reply
+                    comment.replies.push(reply);
+                }
+            } else {
+                // Add as top-level reply
+                comment.replies.push(reply);
+            }
+            
+            // Update comments document
+            await setDoc(commentsRef, { comments }, { merge: true });
+            debugLog(`addReply: Reply saved with ID ${replyId}`);
+            
+            return reply;
+        } catch (error) {
+            console.error('Error adding reply:', error);
+            debugLog(`addReply: Error:`, error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Helper function to recursively delete a reply from nested structure
+     */
+    function deleteReplyRecursive(replies, replyId) {
+        if (!replies) return false;
+        
+        for (let i = 0; i < replies.length; i++) {
+            if (replies[i].id === replyId) {
+                replies.splice(i, 1);
+                return true;
+            }
+            if (replies[i].replies && deleteReplyRecursive(replies[i].replies, replyId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Delete a reply from a comment (supports nested replies)
+     */
+    async function deleteReply(videoId, commentId, replyId) {
+        debugLog(`deleteReply: Deleting reply ${replyId} from comment ${commentId}`);
+        const db = getDB();
+        
+        if (!db) {
+            // Offline mode
+            const offlineData = getOfflineData();
+            if (offlineData.comments?.[videoId]) {
+                const comment = offlineData.comments[videoId].find(c => c.id === commentId);
+                if (comment && comment.replies) {
+                    deleteReplyRecursive(comment.replies, replyId);
+                    saveOfflineData(offlineData);
+                    debugLog(`deleteReply: Deleted offline reply ${replyId}`);
+                }
+            }
+            return;
+        }
+        
+        try {
+            const { doc, getDoc, setDoc } = window.firebaseAPI;
+            const commentsRef = doc(db, COLLECTION, COMMENTS_DOC);
+            const commentsSnap = await getDoc(commentsRef);
+            
+            if (!commentsSnap.exists()) {
+                debugLog(`deleteReply: No comments document found`);
+                return;
+            }
+            
+            const commentsData = commentsSnap.data();
+            const comments = commentsData.comments || {};
+            const videoComments = comments[videoId] || [];
+            
+            const comment = videoComments.find(c => c.id === commentId);
+            if (comment && comment.replies) {
+                const deleted = deleteReplyRecursive(comment.replies, replyId);
+                
+                if (deleted) {
+                    // Update comments document
+                    await setDoc(commentsRef, { comments }, { merge: true });
+                    debugLog(`deleteReply: Reply ${replyId} deleted from Firestore`);
+                } else {
+                    debugLog(`deleteReply: Reply ${replyId} not found`);
+                }
+            } else {
+                debugLog(`deleteReply: Comment ${commentId} not found`);
+            }
+        } catch (error) {
+            console.error('Error deleting reply:', error);
+            debugLog(`deleteReply: Error:`, error);
+            throw error;
+        }
+    }
+
+    // ============================================
     // Public API
     // ============================================
 
@@ -1202,10 +1850,22 @@ window.WigTubeDB = (function() {
         getAverageRating,
         getAllRatings,
         
+        // Like/Dislike operations
+        toggleLikeDislike,
+        getUserLikeStatus,
+        
         // Comment operations
         addComment,
         getComments,
         deleteComment,
+        addReply,
+        deleteReply,
+        
+        // Subscription operations
+        subscribeToChannel,
+        unsubscribeFromChannel,
+        isSubscribed,
+        getSubscriberCount,
         
         // Search operations
         searchVideos,
@@ -1221,6 +1881,15 @@ window.WigTubeDB = (function() {
         getFavorites,
         isFavorited,
         
+        // Playlist operations
+        createPlaylist,
+        deletePlaylist,
+        updatePlaylist,
+        addVideoToPlaylist,
+        removeVideoFromPlaylist,
+        getUserPlaylists,
+        getPlaylistById,
+        
         // Utility functions
         formatTimestamp,
         formatViewCount,
@@ -1229,6 +1898,263 @@ window.WigTubeDB = (function() {
         // State
         isOnline: () => getDB() !== null
     };
+    
+    // ============================================
+    // Playlist Operations
+    // ============================================
+    
+    /**
+     * Create a new playlist
+     */
+    async function createPlaylist(playlistData) {
+        const { name, description = '', isPublic = true, owner } = playlistData;
+        
+        if (!owner) {
+            throw new Error('Playlist owner is required');
+        }
+        
+        const playlistId = `playlist_${owner}_${Date.now()}`;
+        const playlist = {
+            id: playlistId,
+            name: name || 'Untitled Playlist',
+            description,
+            isPublic,
+            owner,
+            videos: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, setDoc } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                await setDoc(playlistRef, playlist);
+                debugLog('Playlist created in Firebase:', playlistId);
+            }
+        } catch (error) {
+            console.error('Error creating playlist in Firebase:', error);
+        }
+        
+        // Always save to localStorage
+        const playlists = getLocalPlaylists(owner);
+        playlists.push(playlist);
+        localStorage.setItem(`wigtube_playlists_${owner}`, JSON.stringify(playlists));
+        
+        return playlist;
+    }
+    
+    /**
+     * Delete a playlist
+     */
+    async function deletePlaylist(playlistId, owner) {
+        if (!owner) {
+            throw new Error('Owner is required to delete playlist');
+        }
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, deleteDoc } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                await deleteDoc(playlistRef);
+                debugLog('Playlist deleted from Firebase:', playlistId);
+            }
+        } catch (error) {
+            console.error('Error deleting playlist from Firebase:', error);
+        }
+        
+        // Remove from localStorage
+        const playlists = getLocalPlaylists(owner);
+        const filtered = playlists.filter(p => p.id !== playlistId);
+        localStorage.setItem(`wigtube_playlists_${owner}`, JSON.stringify(filtered));
+        
+        return true;
+    }
+    
+    /**
+     * Update playlist metadata
+     */
+    async function updatePlaylist(playlistId, updates, owner) {
+        if (!owner) {
+            throw new Error('Owner is required to update playlist');
+        }
+        
+        const updatedData = {
+            ...updates,
+            updatedAt: Date.now()
+        };
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, updateDoc } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                await updateDoc(playlistRef, updatedData);
+                debugLog('Playlist updated in Firebase:', playlistId);
+            }
+        } catch (error) {
+            console.error('Error updating playlist in Firebase:', error);
+        }
+        
+        // Update localStorage
+        const playlists = getLocalPlaylists(owner);
+        const index = playlists.findIndex(p => p.id === playlistId);
+        if (index !== -1) {
+            playlists[index] = { ...playlists[index], ...updatedData };
+            localStorage.setItem(`wigtube_playlists_${owner}`, JSON.stringify(playlists));
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Add video to playlist
+     */
+    async function addVideoToPlaylist(playlistId, videoId, owner) {
+        if (!owner) {
+            throw new Error('Owner is required');
+        }
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, getDoc, updateDoc, arrayUnion } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                const playlistDoc = await getDoc(playlistRef);
+                
+                if (playlistDoc.exists()) {
+                    await updateDoc(playlistRef, {
+                        videos: arrayUnion(videoId),
+                        updatedAt: Date.now()
+                    });
+                    debugLog('Video added to playlist in Firebase:', videoId);
+                }
+            }
+        } catch (error) {
+            console.error('Error adding video to playlist in Firebase:', error);
+        }
+        
+        // Update localStorage
+        const playlists = getLocalPlaylists(owner);
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (playlist) {
+            if (!playlist.videos.includes(videoId)) {
+                playlist.videos.push(videoId);
+                playlist.updatedAt = Date.now();
+                localStorage.setItem(`wigtube_playlists_${owner}`, JSON.stringify(playlists));
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Remove video from playlist
+     */
+    async function removeVideoFromPlaylist(playlistId, videoId, owner) {
+        if (!owner) {
+            throw new Error('Owner is required');
+        }
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, updateDoc, arrayRemove } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                await updateDoc(playlistRef, {
+                    videos: arrayRemove(videoId),
+                    updatedAt: Date.now()
+                });
+                debugLog('Video removed from playlist in Firebase:', videoId);
+            }
+        } catch (error) {
+            console.error('Error removing video from playlist in Firebase:', error);
+        }
+        
+        // Update localStorage
+        const playlists = getLocalPlaylists(owner);
+        const playlist = playlists.find(p => p.id === playlistId);
+        if (playlist) {
+            playlist.videos = playlist.videos.filter(v => v !== videoId);
+            playlist.updatedAt = Date.now();
+            localStorage.setItem(`wigtube_playlists_${owner}`, JSON.stringify(playlists));
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Get all playlists for a user
+     */
+    async function getUserPlaylists(username) {
+        let playlists = [];
+        
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { collection, query, where, getDocs } = window.firebaseAPI;
+                const playlistsRef = collection(db, COLLECTION, DATA_DOC, 'playlists');
+                const q = query(playlistsRef, where('owner', '==', username));
+                const snapshot = await getDocs(q);
+                
+                playlists = snapshot.docs.map(doc => doc.data());
+                debugLog(`Loaded ${playlists.length} playlists from Firebase for ${username}`);
+                
+                // Cache in localStorage
+                localStorage.setItem(`wigtube_playlists_${username}`, JSON.stringify(playlists));
+            }
+        } catch (error) {
+            console.error('Error loading playlists from Firebase:', error);
+        }
+        
+        // Fallback to localStorage
+        if (playlists.length === 0) {
+            playlists = getLocalPlaylists(username);
+        }
+        
+        return playlists;
+    }
+    
+    /**
+     * Get a specific playlist by ID
+     */
+    async function getPlaylistById(playlistId, username) {
+        try {
+            const db = getDB();
+            if (db && window.firebaseOnline) {
+                const { doc, getDoc } = window.firebaseAPI;
+                const playlistRef = doc(db, COLLECTION, DATA_DOC, 'playlists', playlistId);
+                const playlistDoc = await getDoc(playlistRef);
+                
+                if (playlistDoc.exists()) {
+                    const playlist = playlistDoc.data();
+                    debugLog('Loaded playlist from Firebase:', playlistId);
+                    return playlist;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading playlist from Firebase:', error);
+        }
+        
+        // Fallback to localStorage
+        const playlists = getLocalPlaylists(username);
+        return playlists.find(p => p.id === playlistId) || null;
+    }
+    
+    /**
+     * Get playlists from localStorage
+     */
+    function getLocalPlaylists(username) {
+        try {
+            const data = localStorage.getItem(`wigtube_playlists_${username}`);
+            return data ? JSON.parse(data) : [];
+        } catch (e) {
+            console.error('Error loading playlists from localStorage:', e);
+            return [];
+        }
+    }
 })();
 
 console.log('WigTube Database API loaded');

@@ -21,7 +21,7 @@
 
         try {
             const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
-            const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, serverTimestamp, limit: firestoreLimit } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
+            const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp, limit: firestoreLimit } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
             const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js");
             const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js");
 
@@ -70,6 +70,7 @@
                 deleteDoc,
                 increment,
                 arrayUnion,
+                arrayRemove,
                 serverTimestamp,
                 limit: firestoreLimit,
                 storageRef,

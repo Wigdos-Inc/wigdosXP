@@ -87,23 +87,21 @@
                 </div>
                 
                 <div class="action-buttons">
+                    <button class="like-btn" id="likeBtn">
+                        <span id="likeIcon">👍</span> Like (<span id="likeCount">0</span>)
+                    </button>
+                    <button class="dislike-btn" id="dislikeBtn">
+                        <span id="dislikeIcon">👎</span> Dislike (<span id="dislikeCount">0</span>)
+                    </button>
                     <button class="action-btn">Add to Favorites</button>
+                    <button class="action-btn" id="addToPlaylistBtn">➕ Add to Playlist</button>
                     <button class="action-btn">Share Video</button>
                     <button class="action-btn">Flag as Inappropriate</button>
                 </div>
             </div>
-        </div>
-        
-        <div class="sidebar">
-            <div class="related-videos">
-                <div class="sidebar-header">Related Videos</div>
-                <div class="related-video-list" id="relatedVideosList">
-                    <!-- Related videos will be populated by JavaScript -->
-                </div>
-            </div>
             
             <div class="comments-section">
-                <div class="sidebar-header">Comments (0)</div>
+                <div class="comments-header">Comments (<span id="commentCount">0</span>)</div>
                 <div class="comment-form">
                     <textarea class="comment-input" placeholder="Add a comment..." rows="3"></textarea>
                     <div class="comment-form-bottom">
@@ -120,7 +118,15 @@
                 <div class="comments-list">
 
 
-                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="related-videos">
+                <div class="sidebar-header">Related Videos</div>
+                <div class="related-video-list" id="relatedVideosList">
+                    <!-- Related videos will be populated by JavaScript -->
                 </div>
             </div>
         </div>

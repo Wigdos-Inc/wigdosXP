@@ -366,6 +366,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Try to load videos from database first
     await loadVideosWithStats();
     
+    // Populate top user tags after videos are loaded
+    await populateTopUserTags();
+    
     // Check if we should navigate to a specific channel (from URL parameter)
     const urlParams = new URLSearchParams(window.location.search);
     const channelParam = urlParams.get('channel');
@@ -396,11 +399,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Add active class to clicked button
             this.classList.add('active');
             
-            // Get category from button text
+            // Get category from button text or data-tag attribute
             const categoryText = this.textContent.toLowerCase();
+            const tagData = this.getAttribute('data-tag');
             let category = 'all';
             
-            if (categoryText.includes('music')) category = 'music';
+            if (tagData) {
+                // This is a user tag button
+                category = 'tag:' + tagData;
+            } else if (categoryText.includes('music')) category = 'music';
             else if (categoryText.includes('gaming')) category = 'gaming';
             else if (categoryText.includes('comedy')) category = 'comedy';
             else if (categoryText.includes('tech')) category = 'tech';
@@ -416,7 +423,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             showLoadingProgress();
             
             // Update status
-            updateStatus(`Showing ${categoryMap[category]} videos`);
+            if (category.startsWith('tag:')) {
+                const tagName = category.substring(4);
+                const displayTag = tagName.charAt(0).toUpperCase() + tagName.slice(1);
+                updateStatus(`Showing videos tagged: ${displayTag}`);
+            } else {
+                updateStatus(`Showing ${categoryMap[category]} videos`);
+            }
         });
     });
 
@@ -502,6 +515,67 @@ document.addEventListener('DOMContentLoaded', async function() {
 // Utility functions
 
 /**
+ * Populate top 3 user-made tags in the category buttons
+ */
+async function populateTopUserTags() {
+    debugLog('populateTopUserTags: Starting');
+    
+    // Get all videos (both premade and user-uploaded)
+    let allVideos = [...videoData];
+    
+    // Add user-uploaded videos if available
+    if (typeof WigTubeDB !== 'undefined') {
+        try {
+            const dbVideos = await WigTubeDB.getAllVideos();
+            allVideos = [...allVideos, ...dbVideos];
+        } catch (error) {
+            console.error('Error loading videos for tag analysis:', error);
+        }
+    }
+    
+    // Collect all tags from all videos
+    const tagCounts = {};
+    const excludedCategories = ['music', 'gaming', 'comedy', 'tech', 'educational', 'sports'];
+    
+    allVideos.forEach(video => {
+        const videoTags = video.tags || [];
+        videoTags.forEach(tag => {
+            const normalizedTag = tag.toLowerCase().trim();
+            // Exclude tags that match existing category names
+            if (normalizedTag && !excludedCategories.includes(normalizedTag)) {
+                tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+            }
+        });
+    });
+    
+    // Sort tags by frequency and get top 3
+    const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([tag]) => tag);
+    
+    debugLog('populateTopUserTags: Top tags:', sortedTags);
+    
+    // Update the user tag buttons
+    const userTagButtons = document.querySelectorAll('.user-tag-btn');
+    sortedTags.forEach((tag, index) => {
+        if (userTagButtons[index]) {
+            // Capitalize first letter of tag
+            const displayTag = tag.charAt(0).toUpperCase() + tag.slice(1);
+            userTagButtons[index].textContent = displayTag;
+            userTagButtons[index].setAttribute('data-tag', tag);
+            userTagButtons[index].style.display = '';
+            debugLog(`populateTopUserTags: Set button ${index} to "${displayTag}"`);
+        }
+    });
+    
+    // If fewer than 3 tags, keep remaining buttons hidden
+    for (let i = sortedTags.length; i < userTagButtons.length; i++) {
+        userTagButtons[i].style.display = 'none';
+    }
+}
+
+/**
  * Load videos with real-time stats from database
  */
 async function loadVideosWithStats() {
@@ -553,13 +627,16 @@ async function loadVideosWithStats() {
                     author: dbVideo.uploaderName || dbVideo.uploaderId || 'Unknown',
                     uploaderName: dbVideo.uploaderName || dbVideo.uploaderId,
                     uploaderId: dbVideo.uploaderId,
-                    uploadDate: dbVideo.uploadDate || 'Unknown',
+                    uploadDate: dbVideo.uploadDate ? WigTubeDB.formatTimestamp(dbVideo.uploadDate) : 'Unknown',
                     duration: dbVideo.duration || '0:00',
                     views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
                     rating: WigTubeDB.calculateStarRating(userRatings),
-                    thumbnail: dbVideo.thumbnail || 'assets/images/thumbnail/default.png',
+                    thumbnail: dbVideo.thumbnail || dbVideo.thumbnailUrl || 'assets/images/thumbnail/default.png',
                     category: dbVideo.category || 'other',
-                    videoUrl: dbVideo.videoUrl
+                    videoUrl: dbVideo.videoUrl,
+                    tags: dbVideo.tags || [],
+                    likeCount: dbVideo.likeCount || 0,
+                    dislikeCount: dbVideo.dislikeCount || 0
                 };
             });
             
@@ -611,6 +688,13 @@ function createVideoCard(video) {
     const uploaderName = video.uploaderName || video.author || video.uploaderId || 'Unknown';
     const uploaderId = video.uploaderId || video.uploaderName || video.author;
     
+    // Calculate like ratio percentage
+    const likeCount = video.likeCount || 0;
+    const dislikeCount = video.dislikeCount || 0;
+    const totalVotes = likeCount + dislikeCount;
+    const likePercentage = totalVotes > 0 ? Math.round((likeCount / totalVotes) * 100) : 0;
+    const ratingDisplay = totalVotes > 0 ? `👍 ${likePercentage}% (${totalVotes} votes)` : video.rating || '☆☆☆☆☆';
+    
     card.innerHTML = `
         <div class="video-thumbnail">
             <img src="${video.thumbnail}" alt="${video.title}" onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #c0c0c0 25%, transparent 25%)'; this.parentElement.style.backgroundSize='20px 20px';">
@@ -624,7 +708,7 @@ function createVideoCard(video) {
             </div>
             <div class="video-stats">
                 <span>👁️ ${video.views}</span>
-                <span class="rating-stars">${video.rating}</span>
+                <span class="rating-stars">${ratingDisplay}</span>
             </div>
         </div>
     `;
@@ -668,22 +752,70 @@ function attachVideoCardEvents() {
 
 async function filterVideosByCategory(category) {
     let filteredVideos;
+    let allVideos = [...videoData]; // Start with premade videos
     
-    if (category === 'all') {
-        filteredVideos = videoData;
-    } else {
-        filteredVideos = videoData.filter(video => video.category === category);
+    // Fetch user-uploaded videos from database and combine with premade videos
+    if (typeof WigTubeDB !== 'undefined') {
+        try {
+            debugLog('filterVideosByCategory: Fetching user-uploaded videos from database');
+            const dbVideos = await WigTubeDB.getAllVideos();
+            debugLog('filterVideosByCategory: Found', dbVideos.length, 'user-uploaded videos');
+            
+            // Convert database videos to display format and add to allVideos
+            const userVideos = dbVideos.map(dbVideo => ({
+                id: dbVideo.id,
+                title: dbVideo.title,
+                uploader: dbVideo.uploaderName || dbVideo.uploaderId,
+                uploaderId: dbVideo.uploaderId,
+                uploaderName: dbVideo.uploaderName,
+                uploadDate: WigTubeDB.formatTimestamp ? WigTubeDB.formatTimestamp(dbVideo.uploadDate) : 'Recently',
+                views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                duration: dbVideo.duration,
+                thumbnail: dbVideo.thumbnail || dbVideo.thumbnailUrl || 'assets/images/thumbnail/default.png',
+                category: dbVideo.category || 'other',
+                description: dbVideo.description || '',
+                isUserUploaded: true,
+                rating: WigTubeDB.calculateStarRating(dbVideo.ratings || []),
+                tags: dbVideo.tags || [],
+                likeCount: dbVideo.likeCount || 0,
+                dislikeCount: dbVideo.dislikeCount || 0
+            }));
+            
+            allVideos = [...userVideos, ...videoData];
+            debugLog('filterVideosByCategory: Combined total of', allVideos.length, 'videos');
+        } catch (error) {
+            console.error('Error loading user videos:', error);
+        }
     }
     
-    // Load real-time stats from database for filtered videos
+    // Filter by category or tag
+    if (category === 'all') {
+        filteredVideos = allVideos;
+    } else if (category.startsWith('tag:')) {
+        // Filter by user tag
+        const tagName = category.substring(4).toLowerCase();
+        filteredVideos = allVideos.filter(video => {
+            const videoTags = video.tags || [];
+            return videoTags.some(tag => tag.toLowerCase() === tagName);
+        });
+    } else {
+        filteredVideos = allVideos.filter(video => video.category === category);
+    }
+    
+    debugLog('filterVideosByCategory: Filtered to', filteredVideos.length, 'videos for category', category);
+    
+    // Load real-time stats from database for premade videos (user videos already have stats)
     if (typeof WigTubeDB !== 'undefined') {
-        debugLog('filterVideosByCategory: Loading stats for', filteredVideos.length, 'videos');
         try {
             const videosWithStats = await Promise.all(filteredVideos.map(async (video) => {
+                // Skip if already has stats from user upload
+                if (video.isUserUploaded) {
+                    return video;
+                }
+                
                 try {
                     const dbVideo = await WigTubeDB.getVideoById(video.id);
                     if (dbVideo) {
-                        debugLog('filterVideosByCategory: Got stats for', video.id, '-', dbVideo.viewCount, 'views');
                         return {
                             ...video,
                             views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
@@ -1046,34 +1178,50 @@ async function showWhatsHot() {
     showLoadingProgress();
     
     try {
-        // Load videos with stats from database
+        // Load ALL videos including user-uploaded ones from database
+        let allVideos = [];
         let videosWithStats;
         
         if (typeof WigTubeDB !== 'undefined') {
-            debugLog('showWhatsHot: Loading stats from database');
-            videosWithStats = await Promise.all(videoData.map(async (video) => {
-                try {
-                    const dbVideo = await WigTubeDB.getVideoById(video.id);
-                    if (dbVideo) {
-                        return {
-                            ...video,
-                            viewCount: dbVideo.viewCount || 0,
-                            views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
-                            rating: WigTubeDB.calculateStarRating(dbVideo.ratings || [])
-                        };
-                    }
-                } catch (err) {
-                    console.error(`Error loading stats for ${video.id}:`, err);
-                }
-                return {
+            debugLog('showWhatsHot: Loading all videos including user uploads from database');
+            
+            // Get all videos from database (includes both default and user-uploaded)
+            const dbVideos = await WigTubeDB.getAllVideos();
+            
+            if (dbVideos && dbVideos.length > 0) {
+                // Use database videos directly (they already have stats)
+                videosWithStats = dbVideos.map(video => ({
                     ...video,
-                    viewCount: 0,
-                    views: '0 views',
-                    rating: '☆☆☆☆☆'
-                };
-            }));
+                    viewCount: video.viewCount || 0,
+                    views: WigTubeDB.formatViewCount(video.viewCount || 0),
+                    rating: WigTubeDB.calculateStarRating(video.userRatings || video.ratings || [])
+                }));
+            } else {
+                // Fallback to static videos if database is empty
+                videosWithStats = await Promise.all(videoData.map(async (video) => {
+                    try {
+                        const dbVideo = await WigTubeDB.getVideoById(video.id);
+                        if (dbVideo) {
+                            return {
+                                ...video,
+                                viewCount: dbVideo.viewCount || 0,
+                                views: WigTubeDB.formatViewCount(dbVideo.viewCount || 0),
+                                rating: WigTubeDB.calculateStarRating(dbVideo.userRatings || dbVideo.ratings || [])
+                            };
+                        }
+                    } catch (err) {
+                        console.error(`Error loading stats for ${video.id}:`, err);
+                    }
+                    return {
+                        ...video,
+                        viewCount: 0,
+                        views: '0 views',
+                        rating: '☆☆☆☆☆'
+                    };
+                }));
+            }
         } else {
-            // Fallback: use zeros
+            // Fallback: use static videos with zeros
             videosWithStats = videoData.map(video => ({
                 ...video,
                 viewCount: 0,
@@ -1182,7 +1330,7 @@ async function showHistory() {
             return;
         }
         
-        const history = WigTubeDB.getHistory(50);
+        const history = await WigTubeDB.getHistory(50);
         
         // Clear grid
         videoGrid.innerHTML = '';
@@ -1276,7 +1424,7 @@ async function showFavorites() {
             return;
         }
         
-        const favorites = WigTubeDB.getFavorites();
+        const favorites = await WigTubeDB.getFavorites();
         
         // Clear grid
         videoGrid.innerHTML = '';
@@ -2069,19 +2217,94 @@ async function showChannel(channelName) {
         // Calculate channel stats
         const totalVideos = channelVideos.length;
         const totalViews = channelVideos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
-        const totalSubscribers = 0;
         
-        // Get user customizations from localStorage
-        const channelBanner = localStorage.getItem(`channel_banner_${channelName}`) || '';
-        const channelDescription = localStorage.getItem(`channel_description_${channelName}`) || '';
-        
-        // Load profile picture
-        let profilePic = null;
-        if (typeof getUserProfilePicture !== 'undefined') {
-            profilePic = getUserProfilePicture(channelName);
+        // Get subscriber count from Firebase
+        let totalSubscribers = 0;
+        try {
+            totalSubscribers = await WigTubeDB.getSubscriberCount(channelName);
+        } catch (error) {
+            console.error('Error loading subscriber count:', error);
         }
-        if (!profilePic && typeof loadUserProfilePicture !== 'undefined') {
-            profilePic = await loadUserProfilePicture(channelName);
+        
+        // Get user customizations from Firebase or localStorage fallback
+        let channelBanner = '';
+        let channelDescription = '';
+        
+        // Try to load from Firebase first
+        try {
+            const db = window.firebaseAPI?.db;
+            if (db && window.firebaseOnline === true) {
+                const { doc, getDoc } = window.firebaseAPI;
+                const userDocRef = doc(db, 'users', channelName);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    channelBanner = userData.channelBanner || '';
+                    channelDescription = userData.channelDescription || '';
+                    
+                    // Update localStorage cache
+                    if (channelBanner) localStorage.setItem(`channel_banner_${channelName}`, channelBanner);
+                    if (channelDescription) localStorage.setItem(`channel_description_${channelName}`, channelDescription);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading channel data from Firebase:', error);
+        }
+        
+        // Fallback to localStorage if Firebase didn't provide data
+        if (!channelBanner) {
+            channelBanner = localStorage.getItem(`channel_banner_${channelName}`) || '';
+        }
+        if (!channelDescription) {
+            channelDescription = localStorage.getItem(`channel_description_${channelName}`) || '';
+        }
+        
+        // Load profile picture from Firebase or localStorage cache
+        let profilePic = null;
+        
+        // Try Firebase first
+        try {
+            const db = window.firebaseAPI?.db;
+            if (db && window.firebaseOnline === true) {
+                const { doc, getDoc } = window.firebaseAPI;
+                const userDocRef = doc(db, 'users', channelName);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    if (userData.profilePicture) {
+                        profilePic = userData.profilePicture;
+                        // Cache it
+                        localStorage.setItem(`pfp_${channelName}`, profilePic);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile picture from Firebase:', error);
+        }
+        
+        // Fallback to localStorage cache
+        if (!profilePic) {
+            profilePic = localStorage.getItem(`pfp_${channelName}`);
+        }
+        
+        // Check if current user is subscribed to this channel
+        const currentUsername = localStorage.getItem('username');
+        let isSubscribed = false;
+        let showSubscribeButton = false;
+        let isOwner = false;
+        
+        // Check if viewer is the channel owner
+        if (currentUsername && currentUsername === channelName) {
+            isOwner = true;
+        } else if (currentUsername && currentUsername !== 'guest' && currentUsername !== channelName) {
+            showSubscribeButton = true;
+            try {
+                isSubscribed = await WigTubeDB.isSubscribed(channelName);
+            } catch (error) {
+                console.error('Error checking subscription status:', error);
+            }
         }
         
         // Update header
@@ -2159,6 +2382,34 @@ async function showChannel(channelName) {
                                     line-height: 1.4;
                                 ">${channelDescription}</div>
                                 ` : ''}
+                                
+                                ${isOwner ? `
+                                <button type="button" onclick="showChannelSettings()" style="
+                                    padding: 4px 12px;
+                                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                                    color: #000;
+                                    border: 2px outset #d4d0c8;
+                                    cursor: pointer;
+                                    font-size: 11px;
+                                    font-family: 'MS Sans Serif', sans-serif;
+                                    font-weight: bold;
+                                ">Customize channel</button>
+                                ` : showSubscribeButton ? `
+                                <button 
+                                    id="subscribeBtn"
+                                    onclick="toggleSubscription('${channelName}')"
+                                    style="
+                                        padding: 6px 20px;
+                                        background: ${isSubscribed ? 'linear-gradient(to bottom, #ddd 0%, #bbb 100%)' : 'linear-gradient(to bottom, #ff0000 0%, #cc0000 100%)'};
+                                        color: ${isSubscribed ? '#000' : '#fff'};
+                                        border: 2px outset ${isSubscribed ? '#d4d0c8' : '#ff0000'};
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-family: 'MS Sans Serif', sans-serif;
+                                        font-weight: bold;
+                                    "
+                                >${isSubscribed ? '✓ Subscribed' : '+ Subscribe'}</button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -2172,7 +2423,7 @@ async function showChannel(channelName) {
                             background: #d4d0c8;
                             border-top: 1px solid #808080;
                         ">
-                            <a href="javascript:void(0)" onclick="showChannel('${channelName}'); return false;" style="
+                            <a href="javascript:void(0)" onclick="showChannelTab('${channelName}', 'home'); return false;" id="otherChannelTabHome" style="
                                 color: #000;
                                 text-decoration: none;
                                 padding: 6px 16px;
@@ -2183,7 +2434,7 @@ async function showChannel(channelName) {
                                 border: 2px outset #d4d0c8;
                                 border-bottom: none;
                             ">HOME</a>
-                            <a href="javascript:void(0)" style="
+                            <a href="javascript:void(0)" onclick="showChannelTab('${channelName}', 'videos'); return false;" id="otherChannelTabVideos" style="
                                 color: #000;
                                 text-decoration: none;
                                 padding: 6px 16px;
@@ -2192,7 +2443,7 @@ async function showChannel(channelName) {
                                 font-family: 'MS Sans Serif', sans-serif;
                                 background: #c0c0c0;
                             ">VIDEOS</a>
-                            <a href="javascript:void(0)" style="
+                            <a href="javascript:void(0)" onclick="showChannelTab('${channelName}', 'playlists'); return false;" id="otherChannelTabPlaylists" style="
                                 color: #000;
                                 text-decoration: none;
                                 padding: 6px 16px;
@@ -2201,7 +2452,7 @@ async function showChannel(channelName) {
                                 font-family: 'MS Sans Serif', sans-serif;
                                 background: #c0c0c0;
                             ">PLAYLISTS</a>
-                            <a href="javascript:void(0)" style="
+                            <a href="javascript:void(0)" onclick="showChannelTab('${channelName}', 'about'); return false;" id="otherChannelTabAbout" style="
                                 color: #000;
                                 text-decoration: none;
                                 padding: 6px 16px;
@@ -2227,67 +2478,14 @@ async function showChannel(channelName) {
                 </div>
                 
                 <!-- Main Content Area -->
-                <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-                    <!-- Uploads Section -->
-                    ${channelVideos.length > 0 ? `
-                    <div style="margin-bottom: 24px;">
-                        <div style="
-                            background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
-                            padding: 6px 12px;
-                            margin-bottom: 12px;
-                            border: 2px outset #d4d0c8;
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                        ">
-                            <h2 style="
-                                font-size: 11px;
-                                font-weight: bold;
-                                color: #fff;
-                                margin: 0;
-                                font-family: 'MS Sans Serif', sans-serif;
-                                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
-                            ">Uploads</h2>
-                            <span style="
-                                font-size: 11px;
-                                color: #e0e0e0;
-                                font-family: 'MS Sans Serif', sans-serif;
-                            ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
-                        </div>
-                        
-                        <div id="channelVideosGrid" style="
-                            display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                            gap: 12px;
-                        ">
-                        </div>
-                    </div>
-                    ` : `
-                    <div style="
-                        background: #f0f0f0;
-                        padding: 40px;
-                        text-align: center;
-                        margin-bottom: 20px;
-                        border: 2px inset #d4d0c8;
-                    ">
-                        <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📹</div>
-                        <div style="font-size: 11px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No videos uploaded yet</div>
-                        <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">This channel hasn't uploaded any videos</div>
-                    </div>
-                    `}
+                <div id="otherChannelMainContent" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+                    <!-- Content will be loaded by showChannelTab -->
                 </div>
             </div>
         `;
         
-        // Add video cards if there are any
-        if (channelVideos.length > 0) {
-            const channelVideosGrid = document.getElementById('channelVideosGrid');
-            
-            for (const video of channelVideos) {
-                const videoCard = createChannelVideoCard(video, false);
-                channelVideosGrid.appendChild(videoCard);
-            }
-        }
+        // Show HOME tab by default
+        await showChannelTab(channelName, 'home');
         
         updateStatus(`Showing ${channelName}'s channel with ${totalVideos} video(s)`);
         
@@ -2314,7 +2512,84 @@ async function showChannel(channelName) {
 }
 
 /**
+ * Show specific tab in other user's channel page
+ */
+async function showChannelTab(channelName, tabName) {
+    if (!channelName) return;
+    
+    // Check if viewer is the channel owner
+    const currentUsername = localStorage.getItem('username');
+    const isOwner = currentUsername && currentUsername === channelName;
+    
+    // Update tab styling
+    const tabs = ['home', 'videos', 'playlists', 'about'];
+    tabs.forEach(tab => {
+        const tabElement = document.getElementById(`otherChannelTab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
+        if (tabElement) {
+            if (tab === tabName) {
+                tabElement.style.background = '#f0f0f0';
+                tabElement.style.border = '2px outset #d4d0c8';
+                tabElement.style.borderBottom = 'none';
+                tabElement.style.fontWeight = 'bold';
+                tabElement.style.color = '#000';
+            } else {
+                tabElement.style.background = '#c0c0c0';
+                tabElement.style.border = 'none';
+                tabElement.style.fontWeight = 'bold';
+                tabElement.style.color = '#000';
+            }
+        }
+    });
+    
+    const contentArea = document.getElementById('otherChannelMainContent');
+    if (!contentArea) return;
+    
+    // Get user data
+    const allVideos = typeof WigTubeDB !== 'undefined' ? await WigTubeDB.getAllVideos() : [];
+    const channelVideos = allVideos.filter(video => video.uploaderId === channelName || video.uploaderName === channelName);
+    
+    // Load channel description from Firebase or localStorage
+    let channelDescription = '';
+    try {
+        const db = window.firebaseAPI?.db;
+        if (db && window.firebaseOnline === true) {
+            const { doc, getDoc } = window.firebaseAPI;
+            const userDocRef = doc(db, 'users', channelName);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                channelDescription = userData.channelDescription || '';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading channel description:', error);
+    }
+    
+    // Fallback to localStorage
+    if (!channelDescription) {
+        channelDescription = localStorage.getItem(`channel_description_${channelName}`) || '';
+    }
+    
+    switch (tabName) {
+        case 'home':
+            showChannelHomeTab(contentArea, channelVideos, isOwner);
+            break;
+        case 'videos':
+            showChannelVideosTab(contentArea, channelVideos, isOwner);
+            break;
+        case 'playlists':
+            showChannelPlaylistsTab(contentArea, channelName);
+            break;
+        case 'about':
+            showChannelAboutTab(contentArea, channelDescription, channelVideos.length, isOwner);
+            break;
+    }
+}
+
+/**
  * Show user's channel page in YouTube 2009 style
+ * Redirects to showChannel to ensure consistent tab functionality
  */
 async function showMyChannel() {
     const currentUsername = localStorage.getItem('username');
@@ -2323,373 +2598,9 @@ async function showMyChannel() {
         alert('You must be logged in to view your channel!');
         return;
     }
-
-    const videoGrid = document.querySelector('.video-grid');
-    const contentHeader = document.querySelector('.content-header');
-    const categoryButtons = document.querySelector('.video-categories');
-    const sidebar = document.querySelector('.sidebar');
-    const content = document.querySelector('.content');
-    const featuredBox = document.querySelector('.featured-box');
-    const mainContainer = document.querySelector('.main-container');
     
-    if (!videoGrid || !contentHeader) return;
-    
-    // Hide sidebar, category buttons, featured box, and header
-    if (sidebar) sidebar.style.display = 'none';
-    if (categoryButtons) categoryButtons.style.display = 'none';
-    if (featuredBox) featuredBox.style.display = 'none';
-    if (contentHeader) contentHeader.style.display = 'none';
-    
-    // Expand content to full width
-    if (content) {
-        content.style.flex = 'none';
-        content.style.width = '100%';
-        content.style.maxWidth = 'none';
-        content.style.padding = '0';
-        content.style.margin = '0';
-    }
-    if (mainContainer) {
-        mainContainer.style.display = 'block';
-        mainContainer.style.width = '100%';
-    }
-    
-    // Override video-grid styling for full width
-    videoGrid.style.display = 'block';
-    videoGrid.style.width = '100%';
-    videoGrid.style.maxWidth = 'none';
-    videoGrid.style.margin = '0';
-    videoGrid.style.padding = '0';
-    videoGrid.style.gridTemplateColumns = 'none';
-    
-    updateStatus('Loading your channel...');
-    showLoadingProgress();
-    
-    try {
-        // Get all videos and filter by current user
-        const allVideos = typeof WigTubeDB !== 'undefined' ? await WigTubeDB.getAllVideos() : [];
-        const myVideos = allVideos.filter(video => video.uploaderId === currentUsername || video.uploaderName === currentUsername);
-        
-        // Calculate channel stats
-        const totalVideos = myVideos.length;
-        const totalViews = myVideos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
-        const totalSubscribers = 0; // You could store subscribers in user profile
-        
-        // Get user customizations from localStorage
-        const channelBanner = localStorage.getItem(`channel_banner_${currentUsername}`) || '';
-        const channelDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
-        
-        // Load profile picture - try to get it from cache or load from Firebase
-        let profilePic = null;
-        if (typeof getUserProfilePicture !== 'undefined') {
-            profilePic = getUserProfilePicture(currentUsername);
-        }
-        if (!profilePic && typeof loadUserProfilePicture !== 'undefined') {
-            profilePic = await loadUserProfilePicture(currentUsername);
-        }
-        
-        // Update header
-        contentHeader.innerHTML = `📺 ${currentUsername}'s Channel`;
-        
-        // Create YouTube-style channel page with customizable banner
-        videoGrid.innerHTML = `
-            <!-- Channel Container -->
-            <div style="width: 100%; background: #f0f0f0; margin: 0; padding: 0;">
-                <!-- Channel Banner (Customizable) -->
-                <div id="channelBanner" style="
-                    width: 100%;
-                    height: 200px;
-                    background: ${channelBanner ? `url('${channelBanner}')` : 'linear-gradient(to bottom, #4e8bc7 0%, #2a5a8a 100%)'};
-                    background-size: cover;
-                    background-position: center;
-                    position: relative;
-                    border-bottom: 1px solid #003366;
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 5px rgba(0,0,0,0.3);
-                ">
-                    <!-- Edit Banner Button -->
-                    <button type="button" onclick="showBannerCustomization()" style="
-                        position: absolute;
-                        top: 10px;
-                        right: 10px;
-                        padding: 4px 10px;
-                        background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
-                        color: #000;
-                        border: 2px outset #d4d0c8;
-                        cursor: pointer;
-                        font-size: 11px;
-                        font-family: 'MS Sans Serif', sans-serif;
-                    ">✏️ Customize Banner</button>
-                </div>
-                
-                <!-- Channel Header -->
-                <div style="background: linear-gradient(to bottom, #ffffff 0%, #e8e8e8 100%); border-bottom: 1px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-                        <div style="display: flex; gap: 20px; align-items: flex-start;">
-                            <!-- Avatar -->
-                            <div style="
-                                width: 80px;
-                                height: 80px;
-                                background: ${profilePic ? `url('${profilePic}')` : 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)'};
-                                background-size: cover;
-                                background-position: center;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 36px;
-                                color: white;
-                                font-weight: bold;
-                                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                                flex-shrink: 0;
-                                border: 2px outset #d4d0c8;
-                            ">${!profilePic ? currentUsername.charAt(0).toUpperCase() : ''}</div>
-                            
-                            <!-- Channel Info -->
-                            <div style="flex: 1;">
-                                <h1 style="
-                                    font-size: 20px;
-                                    color: #000080;
-                                    margin: 0 0 8px 0;
-                                    font-weight: bold;
-                                    font-family: 'MS Sans Serif', sans-serif;
-                                ">${currentUsername}</h1>
-                                
-                                <div style="
-                                    color: #000;
-                                    font-size: 11px;
-                                    margin-bottom: 12px;
-                                    font-family: 'MS Sans Serif', sans-serif;
-                                ">
-                                    @${currentUsername.toLowerCase()} • 
-                                    ${totalSubscribers} subscribers • 
-                                    ${totalVideos} video${totalVideos !== 1 ? 's' : ''}
-                                </div>
-                                
-                                ${channelDescription ? `
-                                <div style="
-                                    color: #000;
-                                    font-size: 11px;
-                                    margin-bottom: 12px;
-                                    font-family: 'MS Sans Serif', sans-serif;
-                                    line-height: 1.4;
-                                ">${channelDescription}</div>
-                                ` : ''}
-                                
-                                <button type="button" onclick="showChannelSettings()" style="
-                                    padding: 4px 12px;
-                                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
-                                    color: #000;
-                                    border: 2px outset #d4d0c8;
-                                    cursor: pointer;
-                                    font-size: 11px;
-                                    font-family: 'MS Sans Serif', sans-serif;
-                                ">Customize channel</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Navigation Tabs -->
-                    <div style="max-width: 1200px; margin: 0 auto;">
-                        <div style="
-                            display: flex;
-                            gap: 2px;
-                            padding: 0 20px;
-                            background: linear-gradient(to bottom, #e8e8e8 0%, #d0d0d0 100%);
-                            border-top: 1px solid #bbb;
-                        ">
-                            <a href="javascript:void(0)" onclick="showMyChannelTab('home'); return false;" id="channelTabHome" style="
-                                color: #000;
-                                text-decoration: none;
-                                padding: 6px 16px;
-                                font-size: 11px;
-                                font-weight: bold;
-                                font-family: 'MS Sans Serif', sans-serif;
-                                background: #f0f0f0;
-                                border: 2px outset #d4d0c8;
-                                border-bottom: none;
-                            ">HOME</a>
-                            <a href="javascript:void(0)" onclick="showMyChannelTab('videos'); return false;" id="channelTabVideos" style="
-                                color: #000;
-                                text-decoration: none;
-                                padding: 6px 16px;
-                                font-size: 11px;
-                                font-weight: bold;
-                                font-family: 'MS Sans Serif', sans-serif;
-                                background: #c0c0c0;
-                            ">VIDEOS</a>
-                            <a href="javascript:void(0)" onclick="showMyChannelTab('playlists'); return false;" id="channelTabPlaylists" style="
-                                color: #000;
-                                text-decoration: none;
-                                padding: 6px 16px;
-                                font-size: 11px;
-                                font-weight: bold;
-                                font-family: 'MS Sans Serif', sans-serif;
-                                background: #c0c0c0;
-                            ">PLAYLISTS</a>
-                            <a href="javascript:void(0)" onclick="showMyChannelTab('about'); return false;" id="channelTabAbout" style="
-                                color: #000;
-                                text-decoration: none;
-                                padding: 6px 16px;
-                                font-size: 11px;
-                                font-weight: bold;
-                                font-family: 'MS Sans Serif', sans-serif;
-                                background: #c0c0c0;
-                            ">ABOUT</a>
-                            <div style="flex: 1;"></div>
-                            <button type="button" onclick="showHomePage()" style="
-                                padding: 6px 12px;
-                                background: linear-gradient(to bottom, #f8f8f8 0%, #d8d8d8 100%);
-                                color: #000;
-                                border: 1px solid #999;
-                                border-radius: 3px;
-                                cursor: pointer;
-                                font-size: 11px;
-                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                                align-self: center;
-                                margin: 4px 0;
-                                box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.8);
-                            ">← Back to Home</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Main Content Area -->
-                <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
-                    
-                    <!-- Upload Section -->
-                    <div style="
-                        background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 100%);
-                        padding: 30px;
-                        text-align: center;
-                        margin-bottom: 20px;
-                        border-radius: 4px;
-                        border: 1px solid #ccc;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
-                    ">
-                        <div style="
-                            display: inline-flex;
-                            flex-direction: column;
-                            align-items: center;
-                            gap: 12px;
-                            max-width: 500px;
-                        ">
-                            <!-- Upload Icon -->
-                            <svg width="100" height="100" viewBox="0 0 120 120" style="opacity: 0.5;">
-                                <circle cx="60" cy="60" r="58" fill="none" stroke="#999" stroke-width="2"/>
-                                <path d="M60 30 L60 70 M40 50 L60 30 L80 50" stroke="#666" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                                <rect x="40" y="75" width="40" height="15" rx="2" fill="#666"/>
-                            </svg>
-                            
-                            <div>
-                                <h2 style="
-                                    margin: 0 0 6px 0;
-                                    font-size: 16px;
-                                    color: #003366;
-                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                                    font-weight: 600;
-                                ">Upload a video to get started</h2>
-                                
-                                <p style="
-                                    margin: 0 0 16px 0;
-                                    font-size: 12px;
-                                    color: #555;
-                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                                    line-height: 1.6;
-                                ">
-                                    Share your videos with your subscribers and the world
-                                </p>
-                                
-                                <button type="button" onclick="showUploadVideoDialog()" style="
-                                    padding: 8px 16px;
-                                    background: linear-gradient(to bottom, #ffd700 0%, #f5a623 100%);
-                                    color: #000;
-                                    border: 1px solid #d39e00;
-                                    border-radius: 3px;
-                                    cursor: pointer;
-                                    font-size: 12px;
-                                    font-weight: bold;
-                                    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                                    text-transform: uppercase;
-                                    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
-                                ">Upload video</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Uploads Section -->
-                    ${myVideos.length > 0 ? `
-                    <div style="margin-bottom: 24px;">
-                        <div style="
-                            background: linear-gradient(to bottom, #4e8bc7 0%, #2a5a8a 100%);
-                            padding: 8px 12px;
-                            margin-bottom: 12px;
-                            border-radius: 3px;
-                            border: 1px solid #003366;
-                            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.2);
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                        ">
-                            <h2 style="
-                                font-size: 14px;
-                                font-weight: 600;
-                                color: #fff;
-                                margin: 0;
-                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-                            ">Uploads</h2>
-                            <span style="
-                                font-size: 11px;
-                                color: #e0e0e0;
-                                font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                            ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
-                        </div>
-                        
-                        <div id="channelVideosGrid" style="
-                            display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                            gap: 12px;
-                        ">
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-        
-        // Add video cards if there are any
-        if (myVideos.length > 0) {
-            const channelVideosGrid = document.getElementById('channelVideosGrid');
-            
-            for (const video of myVideos) {
-                const videoCard = createChannelVideoCard(video, true);
-                channelVideosGrid.appendChild(videoCard);
-            }
-        }
-        
-        updateStatus(`Showing ${currentUsername}'s channel with ${totalVideos} video(s)`);
-        
-        // Show the HOME tab by default
-        await showMyChannelTab('home');
-        
-    } catch (error) {
-        console.error('Error loading channel:', error);
-        updateStatus('Error loading channel');
-        
-        videoGrid.innerHTML = `
-            <div style="padding: 40px 20px; text-align: center;">
-                <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
-                <div style="font-size: 14px; color: #666;">Failed to load channel</div>
-                <button type="button" onclick="showHomePage()" style="
-                    margin-top: 20px;
-                    padding: 8px 16px;
-                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
-                    border: 2px outset #d4d0c8;
-                    cursor: pointer;
-                    font-size: 11px;
-                    font-family: 'MS Sans Serif', sans-serif;
-                ">Back to Home</button>
-            </div>
-        `;
-    }
+    // Use showChannel for consistent tab functionality
+    await showChannel(currentUsername);
 }
 
 /**
@@ -2994,18 +2905,32 @@ function showBannerCustomization() {
         
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
-                Banner Image URL
+                Upload Banner Image
             </label>
-            <input type="text" id="bannerUrlInput" value="${currentBanner}" placeholder="Enter image URL (https://...)" style="
+            <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="
+                width: 100%;
+                padding: 8px;
+                border: 2px inset #d4d0c8;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                background: white;
+            ">
+            <div style="margin-top: 8px; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">
+                Recommended size: 2560 x 1440px. Accepted formats: JPG, PNG, GIF, WebP
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
+                Or enter image URL
+            </label>
+            <input type="text" id="bannerUrlInput" value="${currentBanner.startsWith('data:') ? '' : currentBanner}" placeholder="Enter image URL (https://...)" style="
                 width: 100%;
                 padding: 10px;
                 border: 2px inset #d4d0c8;
                 font-size: 11px;
                 font-family: 'MS Sans Serif', sans-serif;
             ">
-            <div style="margin-top: 8px; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">
-                Recommended size: 2560 x 1440px. Accepted formats: JPG, PNG, GIF
-            </div>
         </div>
         
         <div style="margin-bottom: 16px;">
@@ -3069,7 +2994,7 @@ function showBannerCustomization() {
             <div id="bannerPreview" style="
                 width: 100%;
                 height: 120px;
-                background: ${currentBanner ? `url('${currentBanner}')` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+                background: ${currentBanner ? (currentBanner.startsWith('linear-gradient') ? currentBanner : `url('${currentBanner}')`) : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
                 background-size: cover;
                 background-position: center;
                 border: 2px inset #d4d0c8;
@@ -3102,17 +3027,50 @@ function showBannerCustomization() {
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
     
+    const bannerFileInput = dialog.querySelector('#bannerFileInput');
     const bannerUrlInput = dialog.querySelector('#bannerUrlInput');
     const bannerPreview = dialog.querySelector('#bannerPreview');
     const gradientPresets = dialog.querySelectorAll('.gradient-preset');
     
-    // Update preview on input change
+    let uploadedImageData = null;
+    
+    // Handle file upload
+    bannerFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File is too large. Please choose an image smaller than 5MB.');
+                bannerFileInput.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                uploadedImageData = event.target.result;
+                bannerPreview.style.background = `url('${uploadedImageData}')`;
+                bannerPreview.style.backgroundSize = 'cover';
+                bannerPreview.style.backgroundPosition = 'center';
+                // Clear URL input when file is uploaded
+                bannerUrlInput.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Update preview on URL input change
     bannerUrlInput.addEventListener('input', () => {
         const url = bannerUrlInput.value.trim();
         if (url) {
-            bannerPreview.style.background = `url('${url}')`;
-            bannerPreview.style.backgroundSize = 'cover';
-            bannerPreview.style.backgroundPosition = 'center';
+            uploadedImageData = null; // Clear uploaded file if URL is entered
+            bannerFileInput.value = ''; // Clear file input
+            if (url.startsWith('linear-gradient')) {
+                bannerPreview.style.background = url;
+            } else {
+                bannerPreview.style.background = `url('${url}')`;
+                bannerPreview.style.backgroundSize = 'cover';
+                bannerPreview.style.backgroundPosition = 'center';
+            }
         } else {
             bannerPreview.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
         }
@@ -3124,13 +3082,49 @@ function showBannerCustomization() {
             const gradient = preset.getAttribute('data-gradient');
             bannerPreview.style.background = gradient;
             bannerUrlInput.value = gradient;
+            uploadedImageData = null; // Clear uploaded file
+            bannerFileInput.value = ''; // Clear file input
         });
     });
     
     // Handle save
-    dialog.querySelector('#saveBannerBtn').addEventListener('click', () => {
-        const bannerValue = bannerUrlInput.value.trim();
+    dialog.querySelector('#saveBannerBtn').addEventListener('click', async () => {
+        let bannerValue;
+        
+        // Priority: uploaded file > URL input
+        if (uploadedImageData) {
+            bannerValue = uploadedImageData;
+        } else {
+            bannerValue = bannerUrlInput.value.trim();
+        }
+        
+        if (!bannerValue) {
+            alert('Please upload an image, enter a URL, or select a gradient.');
+            return;
+        }
+        
+        // Save to localStorage first (for immediate effect)
         localStorage.setItem(`channel_banner_${currentUsername}`, bannerValue);
+        
+        // Save to Firebase if available
+        try {
+            const db = window.firebaseAPI?.db;
+            if (db && window.firebaseOnline === true) {
+                const { doc, setDoc, serverTimestamp } = window.firebaseAPI;
+                const userDocRef = doc(db, 'users', currentUsername);
+                
+                await setDoc(userDocRef, {
+                    channelBanner: bannerValue,
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+                
+                console.log('Banner saved to Firebase successfully');
+            }
+        } catch (error) {
+            console.error('Error saving banner to Firebase:', error);
+            // Continue anyway - localStorage save already succeeded
+        }
+        
         updateStatus('Banner updated successfully');
         overlay.remove();
         showMyChannel(); // Reload to show new banner
@@ -3152,9 +3146,36 @@ function showBannerCustomization() {
 /**
  * Show channel settings dialog
  */
-function showChannelSettings() {
+async function showChannelSettings() {
     const currentUsername = localStorage.getItem('username');
-    const currentDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
+    let currentDescription = '';
+    
+    // Try to load from Firebase first
+    try {
+        const db = window.firebaseAPI?.db;
+        if (db && window.firebaseOnline === true) {
+            const { doc, getDoc } = window.firebaseAPI;
+            const userDocRef = doc(db, 'users', currentUsername);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                currentDescription = userData.channelDescription || '';
+                
+                // Update localStorage cache
+                if (currentDescription) {
+                    localStorage.setItem(`channel_description_${currentUsername}`, currentDescription);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading channel description from Firebase:', error);
+    }
+    
+    // Fallback to localStorage if Firebase didn't provide data
+    if (!currentDescription) {
+        currentDescription = localStorage.getItem(`channel_description_${currentUsername}`) || '';
+    }
     
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -3248,9 +3269,31 @@ function showChannelSettings() {
     const descriptionInput = dialog.querySelector('#descriptionInput');
     
     // Handle save
-    dialog.querySelector('#saveSettingsBtn').addEventListener('click', () => {
+    dialog.querySelector('#saveSettingsBtn').addEventListener('click', async () => {
         const description = descriptionInput.value.trim().substring(0, 1000);
+        
+        // Save to localStorage first (for immediate effect)
         localStorage.setItem(`channel_description_${currentUsername}`, description);
+        
+        // Save to Firebase if available
+        try {
+            const db = window.firebaseAPI?.db;
+            if (db && window.firebaseOnline === true) {
+                const { doc, setDoc, serverTimestamp } = window.firebaseAPI;
+                const userDocRef = doc(db, 'users', currentUsername);
+                
+                await setDoc(userDocRef, {
+                    channelDescription: description,
+                    lastUpdated: serverTimestamp()
+                }, { merge: true });
+                
+                console.log('Channel description saved to Firebase successfully');
+            }
+        } catch (error) {
+            console.error('Error saving description to Firebase:', error);
+            // Continue anyway - localStorage save already succeeded
+        }
+        
         updateStatus('Channel settings saved');
         overlay.remove();
         showMyChannel(); // Reload to show changes
@@ -3306,16 +3349,16 @@ async function showMyChannelTab(tabName) {
     
     switch (tabName) {
         case 'home':
-            showChannelHomeTab(contentArea, myVideos);
+            showChannelHomeTab(contentArea, myVideos, true);
             break;
         case 'videos':
-            showChannelVideosTab(contentArea, myVideos);
+            showChannelVideosTab(contentArea, myVideos, true);
             break;
         case 'playlists':
             showChannelPlaylistsTab(contentArea, currentUsername);
             break;
         case 'about':
-            showChannelAboutTab(contentArea, channelDescription, myVideos.length);
+            showChannelAboutTab(contentArea, channelDescription, myVideos.length, true);
             break;
     }
 }
@@ -3323,10 +3366,11 @@ async function showMyChannelTab(tabName) {
 /**
  * Show HOME tab content
  */
-function showChannelHomeTab(contentArea, myVideos) {
+function showChannelHomeTab(contentArea, myVideos, isOwner = false) {
     const totalVideos = myVideos.length;
     
     contentArea.innerHTML = `
+        ${isOwner ? `
         <!-- Upload Section -->
         <div style="
             background: #f0f0f0;
@@ -3381,6 +3425,7 @@ function showChannelHomeTab(contentArea, myVideos) {
                 </div>
             </div>
         </div>
+        ` : ''}
         
         ${totalVideos > 0 ? `
         <div style="margin-bottom: 24px;">
@@ -3422,7 +3467,7 @@ function showChannelHomeTab(contentArea, myVideos) {
         const recentVideos = myVideos.slice(0, 6);
         const grid = document.getElementById('channelHomeVideosGrid');
         recentVideos.forEach(video => {
-            grid.appendChild(createChannelVideoCard(video));
+            grid.appendChild(createChannelVideoCard(video, isOwner));
         });
     }
 }
@@ -3430,8 +3475,15 @@ function showChannelHomeTab(contentArea, myVideos) {
 /**
  * Show VIDEOS tab content
  */
-function showChannelVideosTab(contentArea, myVideos) {
+function showChannelVideosTab(contentArea, myVideos, isOwner = false) {
     const totalVideos = myVideos.length;
+    
+    // Sort videos by view count (descending) to show top videos
+    const sortedVideos = [...myVideos].sort((a, b) => {
+        const viewsA = a.viewCount || 0;
+        const viewsB = b.viewCount || 0;
+        return viewsB - viewsA;
+    });
     
     contentArea.innerHTML = `
         <div style="margin-bottom: 24px;">
@@ -3450,12 +3502,12 @@ function showChannelVideosTab(contentArea, myVideos) {
                     color: #fff;
                     margin: 0;
                     font-family: 'MS Sans Serif', sans-serif;
-                ">All Uploads</h2>
+                ">Top Videos</h2>
                 <span style="
                     font-size: 11px;
                     color: #fff;
                     font-family: 'MS Sans Serif', sans-serif;
-                ">${totalVideos} video${totalVideos !== 1 ? 's' : ''}</span>
+                ">${totalVideos} video${totalVideos !== 1 ? 's' : ''} • Sorted by views</span>
             </div>
             
             ${totalVideos > 0 ? `
@@ -3474,7 +3526,7 @@ function showChannelVideosTab(contentArea, myVideos) {
             ">
                 <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📹</div>
                 <div style="font-size: 20px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No videos uploaded yet</div>
-                <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">Start uploading to build your channel</div>
+                <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">${isOwner ? 'Start uploading to build your channel' : 'This channel hasn\'t uploaded any videos'}</div>
             </div>
             `}
         </div>
@@ -3482,8 +3534,8 @@ function showChannelVideosTab(contentArea, myVideos) {
     
     if (totalVideos > 0) {
         const grid = document.getElementById('channelAllVideosGrid');
-        myVideos.forEach(video => {
-            grid.appendChild(createChannelVideoCard(video, true));
+        sortedVideos.forEach(video => {
+            grid.appendChild(createChannelVideoCard(video, isOwner));
         });
     }
 }
@@ -3491,7 +3543,10 @@ function showChannelVideosTab(contentArea, myVideos) {
 /**
  * Show PLAYLISTS tab content
  */
-function showChannelPlaylistsTab(contentArea, username) {
+async function showChannelPlaylistsTab(contentArea, username) {
+    const currentUsername = localStorage.getItem('username');
+    const isOwner = currentUsername && currentUsername === username;
+    
     contentArea.innerHTML = `
         <div style="margin-bottom: 24px;">
             <div style="
@@ -3499,6 +3554,9 @@ function showChannelPlaylistsTab(contentArea, username) {
                 padding: 8px 12px;
                 margin-bottom: 12px;
                 border: 2px outset #d4d0c8;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             ">
                 <h2 style="
                     font-size: 20px;
@@ -3507,6 +3565,18 @@ function showChannelPlaylistsTab(contentArea, username) {
                     margin: 0;
                     font-family: 'MS Sans Serif', sans-serif;
                 ">My Playlists</h2>
+                ${isOwner ? `
+                <button type="button" onclick="showCreatePlaylistDialog()" style="
+                    padding: 6px 12px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    font-weight: bold;
+                ">+ Create Playlist</button>
+                ` : ''}
             </div>
             
             <div id="channelPlaylistsGrid" style="
@@ -3514,89 +3584,155 @@ function showChannelPlaylistsTab(contentArea, username) {
                 grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
                 gap: 16px;
             ">
+                <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                    <div style="font-size: 14px; color: #666; font-family: 'MS Sans Serif', sans-serif;">Loading playlists...</div>
+                </div>
             </div>
         </div>
     `;
     
-    // Load playlists/albums
+    // Load playlists from Firebase/localStorage
     const grid = document.getElementById('channelPlaylistsGrid');
     
-    if (albumMetadata && albumMetadata.length > 0) {
-        albumMetadata.forEach(album => {
-            const playlistCard = document.createElement('div');
-            playlistCard.style.cssText = `
-                background: #f0f0f0;
-                border: 2px outset #d4d0c8;
-                padding: 16px;
-                cursor: pointer;
-            `;
-            
-            playlistCard.innerHTML = `
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <div style="
-                        width: 80px;
-                        height: 80px;
-                        background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
-                        border: 2px outset #d4d0c8;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 32px;
-                        flex-shrink: 0;
-                    ">📀</div>
-                    <div style="flex: 1;">
-                        <div style="
-                            font-size: 11px;
-                            font-weight: bold;
-                            color: #000080;
-                            margin-bottom: 4px;
-                            font-family: 'MS Sans Serif', sans-serif;
-                        ">${album.name}</div>
-                        <div style="
-                            font-size: 11px;
-                            color: #000;
-                            font-family: 'MS Sans Serif', sans-serif;
-                        ">${albumTracks[album.id] ? albumTracks[album.id].length : 0} videos</div>
-                    </div>
+    try {
+        const playlists = await WigTubeDB.getUserPlaylists(username);
+        grid.innerHTML = '';
+        
+        if (playlists.length > 0) {
+            for (const playlist of playlists) {
+                const playlistCard = createPlaylistCard(playlist, isOwner);
+                grid.appendChild(playlistCard);
+            }
+        } else {
+            grid.innerHTML = `
+                <div style="
+                    grid-column: 1 / -1;
+                    background: #f0f0f0;
+                    padding: 40px;
+                    text-align: center;
+                    border: 2px inset #d4d0c8;
+                ">
+                    <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📀</div>
+                    <div style="font-size: 20px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No playlists yet</div>
+                    <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">${isOwner ? 'Create playlists to organize your videos' : 'This channel hasn\'t created any playlists'}</div>
                 </div>
             `;
-            
-            playlistCard.addEventListener('click', () => {
-                // Navigate to album/playlist view
-                showAlbumDetail(album.id);
-            });
-            
-            playlistCard.addEventListener('mouseenter', () => {
-                playlistCard.style.border = '2px inset #d4d0c8';
-            });
-            
-            playlistCard.addEventListener('mouseleave', () => {
-                playlistCard.style.border = '2px outset #d4d0c8';
-            });
-            
-            grid.appendChild(playlistCard);
-        });
-    } else {
+        }
+    } catch (error) {
+        console.error('Error loading playlists:', error);
         grid.innerHTML = `
-            <div style="
-                grid-column: 1 / -1;
-                background: #f0f0f0;
-                padding: 40px;
-                text-align: center;
-                border: 2px inset #d4d0c8;
-            ">
-                <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.5;">📀</div>
-                <div style="font-size: 20px; color: #000080; font-weight: bold; margin-bottom: 8px; font-family: 'MS Sans Serif', sans-serif;">No playlists yet</div>
-                <div style="font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">Create playlists to organize your videos</div>
+            <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">
+                <div style="font-size: 14px; color: #cc0000; font-family: 'MS Sans Serif', sans-serif;">Error loading playlists</div>
             </div>
         `;
     }
 }
 
 /**
+ * Create a playlist card element
+ */
+function createPlaylistCard(playlist, isOwner) {
+    const playlistCard = document.createElement('div');
+    playlistCard.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 16px;
+        cursor: pointer;
+        position: relative;
+    `;
+    
+    const videoCount = playlist.videos ? playlist.videos.length : 0;
+    const visibility = playlist.isPublic ? '🌐 Public' : '🔒 Private';
+    
+    playlistCard.innerHTML = `
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(135deg, #ff4500, #ff8c00);
+                border: 2px outset #d4d0c8;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 32px;
+                flex-shrink: 0;
+            ">📺</div>
+            <div style="flex: 1;">
+                <div style="
+                    font-size: 11px;
+                    font-weight: bold;
+                    color: #000080;
+                    margin-bottom: 4px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">${playlist.name || 'Untitled Playlist'}</div>
+                <div style="
+                    font-size: 10px;
+                    color: #000;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    margin-bottom: 4px;
+                ">${videoCount} video${videoCount !== 1 ? 's' : ''}</div>
+                <div style="
+                    font-size: 9px;
+                    color: #666;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">${visibility}</div>
+            </div>
+        </div>
+        ${isOwner ? `
+        <div style="
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+        ">
+            <button onclick="event.stopPropagation(); editPlaylist('${playlist.id}')" style="
+                padding: 4px 8px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+            " title="Edit">✏️</button>
+            <button onclick="event.stopPropagation(); deletePlaylistConfirm('${playlist.id}', '${playlist.owner}')" style="
+                padding: 4px 8px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 10px;
+                font-family: 'MS Sans Serif', sans-serif;
+            " title="Delete">🗑️</button>
+        </div>
+        ` : ''}
+    `;
+    
+    playlistCard.addEventListener('click', async () => {
+        // Load first video in playlist with playlist context
+        if (playlist.videos && playlist.videos.length > 0) {
+            const firstVideoId = playlist.videos[0];
+            window.location.href = `apps/browser/pages/wigtube-player.html?v=${firstVideoId}&playlist=${playlist.id}`;
+        } else {
+            alert('This playlist is empty');
+        }
+    });
+    
+    playlistCard.addEventListener('mouseenter', () => {
+        playlistCard.style.border = '2px inset #d4d0c8';
+    });
+    
+    playlistCard.addEventListener('mouseleave', () => {
+        playlistCard.style.border = '2px outset #d4d0c8';
+    });
+    
+    return playlistCard;
+}
+
+/**
  * Show ABOUT tab content
  */
-function showChannelAboutTab(contentArea, description, videoCount) {
+function showChannelAboutTab(contentArea, description, videoCount, isOwner = false) {
     const currentUsername = localStorage.getItem('username');
     const joinDate = 'January 2009'; // Could be stored in user profile
     
@@ -3614,7 +3750,49 @@ function showChannelAboutTab(contentArea, description, videoCount) {
                     color: #fff;
                     margin: 0;
                     font-family: 'MS Sans Serif', sans-serif;
-                ">About</h2>
+                ">Channel Description</h2>
+            </div>
+            
+            <div style="
+                background: #fff;
+                border: 2px inset #d4d0c8;
+                padding: 20px;
+                margin-bottom: 20px;
+                min-height: 120px;
+            ">
+                ${description ? `
+                <div style="
+                    font-size: 12px;
+                    color: #000;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                ">${description}</div>
+                ` : `
+                <div style="
+                    font-size: 11px;
+                    color: #666;
+                    font-style: italic;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">${isOwner ? 'No channel description yet. Click "Customize channel" to add one.' : 'No channel description available.'}</div>
+                `}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+            <div style="
+                background: linear-gradient(to bottom, #316ac5 0%, #1e4088 100%);
+                padding: 8px 12px;
+                margin-bottom: 12px;
+                border: 2px outset #d4d0c8;
+            ">
+                <h2 style="
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #fff;
+                    margin: 0;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Channel Stats</h2>
             </div>
             
             <div style="
@@ -3622,6 +3800,7 @@ function showChannelAboutTab(contentArea, description, videoCount) {
                 border: 2px inset #d4d0c8;
                 padding: 20px;
             ">
+                ${isOwner ? `
                 <div style="margin-bottom: 20px;">
                     <h3 style="
                         font-size: 11px;
@@ -3653,6 +3832,7 @@ function showChannelAboutTab(contentArea, description, videoCount) {
                     border-top: 2px groove #d4d0c8;
                     padding-top: 16px;
                 ">
+                ` : ''}
                     <h3 style="
                         font-size: 11px;
                         font-weight: bold;
@@ -3794,6 +3974,45 @@ function createChannelVideoCard(video, showDelete = false) {
         });
     }
     
+    // Add to Playlist button (show for logged-in users)
+    const currentUsername = localStorage.getItem('username');
+    if (currentUsername && currentUsername !== 'guest') {
+        const playlistBtn = document.createElement('button');
+        playlistBtn.innerHTML = '➕';
+        playlistBtn.title = 'Add to playlist';
+        playlistBtn.style.cssText = `
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+            color: #000;
+            border: 2px outset #d4d0c8;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        `;
+        thumbnailDiv.appendChild(playlistBtn);
+        
+        // Show playlist button on hover
+        videoCard.addEventListener('mouseenter', () => {
+            playlistBtn.style.display = 'flex';
+        });
+        videoCard.addEventListener('mouseleave', () => {
+            playlistBtn.style.display = 'none';
+        });
+        
+        // Handle add to playlist click
+        playlistBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await showAddToPlaylistMenu(video.id);
+        });
+    }
+    
     // Video info container
     const infoDiv = document.createElement('div');
     infoDiv.style.cssText = `
@@ -3841,4 +4060,708 @@ function createChannelVideoCard(video, showDelete = false) {
     });
     
     return videoCard;
+}
+
+// ============================================
+// Subscription Management
+// ============================================
+
+/**
+ * Toggle subscription to a channel
+ */
+async function toggleSubscription(channelName) {
+    const username = localStorage.getItem('username');
+    
+    if (!username || username === 'guest') {
+        updateStatus('Please log in to subscribe');
+        return;
+    }
+    
+    const subscribeBtn = document.getElementById('subscribeBtn');
+    if (!subscribeBtn) return;
+    
+    // Disable button during operation
+    subscribeBtn.disabled = true;
+    
+    try {
+        const isCurrentlySubscribed = await WigTubeDB.isSubscribed(channelName);
+        
+        if (isCurrentlySubscribed) {
+            await WigTubeDB.unsubscribeFromChannel(channelName);
+            subscribeBtn.textContent = '+ Subscribe';
+            subscribeBtn.style.background = 'linear-gradient(to bottom, #ff0000 0%, #cc0000 100%)';
+            subscribeBtn.style.color = '#fff';
+            subscribeBtn.style.borderColor = '#ff0000';
+            updateStatus(`Unsubscribed from ${channelName}`);
+            
+            // Update subscriber count immediately in the DOM
+            updateSubscriberCountDisplay(-1);
+        } else {
+            await WigTubeDB.subscribeToChannel(channelName);
+            subscribeBtn.textContent = '✓ Subscribed';
+            subscribeBtn.style.background = 'linear-gradient(to bottom, #ddd 0%, #bbb 100())';
+            subscribeBtn.style.color = '#000';
+            subscribeBtn.style.borderColor = '#d4d0c8';
+            updateStatus(`Subscribed to ${channelName}!`);
+            
+            // Update subscriber count immediately in the DOM
+            updateSubscriberCountDisplay(1);
+        }
+    } catch (error) {
+        console.error('Error toggling subscription:', error);
+        updateStatus('Error updating subscription');
+    } finally {
+        subscribeBtn.disabled = false;
+    }
+}
+
+/**
+ * Update subscriber count display in the DOM
+ */
+function updateSubscriberCountDisplay(change) {
+    // Find the subscriber count text in the page
+    const channelInfo = document.querySelector('[style*="@"]');
+    if (!channelInfo) return;
+    
+    const infoText = channelInfo.textContent;
+    const match = infoText.match(/(\d+)\s+subscribers?/);
+    
+    if (match) {
+        const currentCount = parseInt(match[1]);
+        const newCount = Math.max(0, currentCount + change);
+        const newText = infoText.replace(/\d+\s+subscribers?/, `${newCount} subscriber${newCount !== 1 ? 's' : ''}`);
+        channelInfo.textContent = newText;
+    }
+}
+
+// ============================================
+// Playlist Management
+// ============================================
+
+/**
+ * Show create playlist dialog
+ */
+function showCreatePlaylistDialog() {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        alert('Please log in to create playlists');
+        return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    dialog.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #000080; font-weight: bold;">Create New Playlist</h2>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Playlist Name *</label>
+            <input type="text" id="playlistName" placeholder="Enter playlist name..." style="
+                width: 100%;
+                padding: 6px;
+                border: 2px inset #d4d0c8;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            " maxlength="100">
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Description (Optional)</label>
+            <textarea id="playlistDescription" placeholder="Add a description..." style="
+                width: 100%;
+                height: 60px;
+                padding: 6px;
+                border: 2px inset #d4d0c8;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                resize: vertical;
+            " maxlength="500"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="playlistPublic" checked style="width: 16px; height: 16px;">
+                <span style="font-size: 11px; font-weight: bold;">Public (anyone can view)</span>
+            </label>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 2px groove #d4d0c8; padding-top: 16px;">
+            <button type="button" id="cancelPlaylistBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">Cancel</button>
+            <button type="button" id="createPlaylistBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+                font-weight: bold;
+            ">Create</button>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Focus name input
+    const nameInput = dialog.querySelector('#playlistName');
+    setTimeout(() => nameInput.focus(), 100);
+    
+    // Handle cancel
+    dialog.querySelector('#cancelPlaylistBtn').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Handle create
+    dialog.querySelector('#createPlaylistBtn').addEventListener('click', async () => {
+        const name = nameInput.value.trim();
+        const description = dialog.querySelector('#playlistDescription').value.trim();
+        const isPublic = dialog.querySelector('#playlistPublic').checked;
+        
+        if (!name) {
+            alert('Please enter a playlist name');
+            nameInput.focus();
+            return;
+        }
+        
+        try {
+            updateStatus('Creating playlist...');
+            await WigTubeDB.createPlaylist({
+                name,
+                description,
+                isPublic,
+                owner: username
+            });
+            
+            updateStatus('Playlist created!');
+            overlay.remove();
+            
+            // Refresh playlists tab
+            const contentArea = document.getElementById('otherChannelMainContent') || document.getElementById('channelMainContent');
+            if (contentArea) {
+                await showChannelPlaylistsTab(contentArea, username);
+            }
+        } catch (error) {
+            console.error('Error creating playlist:', error);
+            alert('Error creating playlist. Please try again.');
+        }
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
+
+/**
+ * Edit playlist
+ */
+async function editPlaylist(playlistId) {
+    const username = localStorage.getItem('username');
+    if (!username) return;
+    
+    try {
+        const playlist = await WigTubeDB.getPlaylistById(playlistId, username);
+        if (!playlist) {
+            alert('Playlist not found');
+            return;
+        }
+        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: #f0f0f0;
+            border: 2px outset #d4d0c8;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            font-family: 'MS Sans Serif', sans-serif;
+        `;
+        
+        dialog.innerHTML = `
+            <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #000080; font-weight: bold;">Edit Playlist</h2>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Playlist Name *</label>
+                <input type="text" id="editPlaylistName" value="${playlist.name || ''}" style="
+                    width: 100%;
+                    padding: 6px;
+                    border: 2px inset #d4d0c8;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                " maxlength="100">
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Description</label>
+                <textarea id="editPlaylistDescription" style="
+                    width: 100%;
+                    height: 60px;
+                    padding: 6px;
+                    border: 2px inset #d4d0c8;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    resize: vertical;
+                " maxlength="500">${playlist.description || ''}</textarea>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="editPlaylistPublic" ${playlist.isPublic ? 'checked' : ''} style="width: 16px; height: 16px;">
+                    <span style="font-size: 11px; font-weight: bold;">Public (anyone can view)</span>
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 2px groove #d4d0c8; padding-top: 16px;">
+                <button type="button" id="cancelEditBtn" style="
+                    padding: 6px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Cancel</button>
+                <button type="button" id="saveEditBtn" style="
+                    padding: 6px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                    font-weight: bold;
+                ">Save Changes</button>
+            </div>
+        `;
+        
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        // Handle cancel
+        dialog.querySelector('#cancelEditBtn').addEventListener('click', () => {
+            overlay.remove();
+        });
+        
+        // Handle save
+        dialog.querySelector('#saveEditBtn').addEventListener('click', async () => {
+            const name = dialog.querySelector('#editPlaylistName').value.trim();
+            const description = dialog.querySelector('#editPlaylistDescription').value.trim();
+            const isPublic = dialog.querySelector('#editPlaylistPublic').checked;
+            
+            if (!name) {
+                alert('Please enter a playlist name');
+                return;
+            }
+            
+            try {
+                updateStatus('Updating playlist...');
+                await WigTubeDB.updatePlaylist(playlistId, { name, description, isPublic }, username);
+                
+                updateStatus('Playlist updated!');
+                overlay.remove();
+                
+                // Refresh playlists tab
+                const contentArea = document.getElementById('otherChannelMainContent') || document.getElementById('channelMainContent');
+                if (contentArea) {
+                    await showChannelPlaylistsTab(contentArea, username);
+                }
+            } catch (error) {
+                console.error('Error updating playlist:', error);
+                alert('Error updating playlist. Please try again.');
+            }
+        });
+        
+        // Close on overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    } catch (error) {
+        console.error('Error loading playlist:', error);
+        alert('Error loading playlist');
+    }
+}
+
+/**
+ * Delete playlist with confirmation
+ */
+async function deletePlaylistConfirm(playlistId, owner) {
+    if (!confirm('Are you sure you want to delete this playlist? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        updateStatus('Deleting playlist...');
+        await WigTubeDB.deletePlaylist(playlistId, owner);
+        updateStatus('Playlist deleted');
+        
+        // Refresh playlists tab
+        const contentArea = document.getElementById('otherChannelMainContent') || document.getElementById('channelMainContent');
+        if (contentArea) {
+            await showChannelPlaylistsTab(contentArea, owner);
+        }
+    } catch (error) {
+        console.error('Error deleting playlist:', error);
+        alert('Error deleting playlist. Please try again.');
+    }
+}
+
+/**
+ * Show playlist detail view
+ */
+async function showPlaylistDetail(playlistId, owner) {
+    const videoGrid = document.querySelector('.video-grid');
+    const contentHeader = document.querySelector('.content-header');
+    const categoryButtons = document.querySelector('.video-categories');
+    
+    if (!videoGrid || !contentHeader) return;
+    
+    // Hide category buttons
+    if (categoryButtons) {
+        categoryButtons.style.display = 'none';
+    }
+    
+    updateStatus('Loading playlist...');
+    
+    try {
+        const playlist = await WigTubeDB.getPlaylistById(playlistId, owner);
+        if (!playlist) {
+            alert('Playlist not found');
+            return;
+        }
+        
+        const currentUsername = localStorage.getItem('username');
+        const isOwner = currentUsername && currentUsername === playlist.owner;
+        
+        contentHeader.innerHTML = `📺 ${playlist.name}`;
+        
+        videoGrid.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <button onclick="showChannel('${owner}')" style="
+                    padding: 6px 12px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    color: #000;
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">← Back to Channel</button>
+            </div>
+            
+            <div style="
+                background: #f0f0f0;
+                padding: 20px;
+                margin-bottom: 20px;
+                border: 2px outset #d4d0c8;
+            ">
+                <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #000080; font-family: 'MS Sans Serif', sans-serif; font-weight: bold;">${playlist.name}</h2>
+                ${playlist.description ? `<p style="margin: 0 0 12px 0; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif; line-height: 1.4;">${playlist.description}</p>` : ''}
+                <div style="font-size: 10px; color: #666; font-family: 'MS Sans Serif', sans-serif;">
+                    ${playlist.videos.length} video${playlist.videos.length !== 1 ? 's' : ''} • 
+                    ${playlist.isPublic ? '🌐 Public' : '🔒 Private'} • 
+                    Created by ${playlist.owner}
+                </div>
+            </div>
+            
+            <div id="playlistVideosGrid" style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 12px;
+            "></div>
+        `;
+        
+        const grid = document.getElementById('playlistVideosGrid');
+        
+        if (playlist.videos.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">📺</div>
+                    <div style="font-size: 14px; color: #666; font-family: 'MS Sans Serif', sans-serif;">No videos in this playlist yet</div>
+                </div>
+            `;
+        } else {
+            // Load video details
+            for (const videoId of playlist.videos) {
+                const video = await WigTubeDB.getVideoById(videoId);
+                if (video) {
+                    const videoCard = createChannelVideoCard(video, false);
+                    
+                    // Add remove button if owner
+                    if (isOwner) {
+                        const removeBtn = document.createElement('button');
+                        removeBtn.textContent = 'Remove';
+                        removeBtn.style.cssText = `
+                            position: absolute;
+                            top: 4px;
+                            right: 4px;
+                            padding: 4px 8px;
+                            background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                            color: #000;
+                            border: 2px outset #d4d0c8;
+                            cursor: pointer;
+                            font-size: 10px;
+                            font-family: 'MS Sans Serif', sans-serif;
+                            z-index: 10;
+                        `;
+                        removeBtn.onclick = async (e) => {
+                            e.stopPropagation();
+                            if (confirm('Remove this video from the playlist?')) {
+                                await WigTubeDB.removeVideoFromPlaylist(playlistId, videoId, owner);
+                                showPlaylistDetail(playlistId, owner);
+                            }
+                        };
+                        videoCard.style.position = 'relative';
+                        videoCard.appendChild(removeBtn);
+                    }
+                    
+                    grid.appendChild(videoCard);
+                }
+            }
+        }
+        
+        updateStatus(`Viewing playlist: ${playlist.name}`);
+    } catch (error) {
+        console.error('Error loading playlist:', error);
+        videoGrid.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                <div style="font-size: 14px; color: #666;">Failed to load playlist</div>
+                <button onclick="showHomePage()" style="
+                    margin-top: 20px;
+                    padding: 8px 16px;
+                    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                    border: 2px outset #d4d0c8;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-family: 'MS Sans Serif', sans-serif;
+                ">Back to Home</button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Show add to playlist menu
+ */
+async function showAddToPlaylistMenu(videoId) {
+    const username = localStorage.getItem('username');
+    if (!username || username === 'guest') {
+        alert('Please log in to add videos to playlists');
+        return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: #f0f0f0;
+        border: 2px outset #d4d0c8;
+        padding: 20px;
+        max-width: 400px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-family: 'MS Sans Serif', sans-serif;
+    `;
+    
+    dialog.innerHTML = `
+        <h2 style="margin: 0 0 16px 0; font-size: 16px; color: #000080; font-weight: bold;">Add to Playlist</h2>
+        <div id="playlistSelectionList" style="
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px inset #d4d0c8;
+            background: white;
+            padding: 8px;
+        ">
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 11px;">
+                Loading playlists...
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: space-between; border-top: 2px groove #d4d0c8; padding-top: 16px;">
+            <button type="button" id="createNewPlaylistBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">+ New Playlist</button>
+            <button type="button" id="closePlaylistMenuBtn" style="
+                padding: 6px 16px;
+                background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+                color: #000;
+                border: 2px outset #d4d0c8;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: 'MS Sans Serif', sans-serif;
+            ">Close</button>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Load user's playlists
+    try {
+        const playlists = await WigTubeDB.getUserPlaylists(username);
+        const listContainer = document.getElementById('playlistSelectionList');
+        
+        if (playlists.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="font-size: 36px; margin-bottom: 8px; opacity: 0.5;">📺</div>
+                    <div style="font-size: 11px; color: #666;">No playlists yet</div>
+                    <div style="font-size: 10px; color: #888; margin-top: 4px;">Create your first playlist to get started</div>
+                </div>
+            `;
+        } else {
+            listContainer.innerHTML = '';
+            
+            for (const playlist of playlists) {
+                // Check if video is already in playlist
+                const isInPlaylist = playlist.videos && playlist.videos.includes(videoId);
+                
+                const playlistItem = document.createElement('div');
+                playlistItem.style.cssText = `
+                    padding: 8px;
+                    margin-bottom: 6px;
+                    border: 1px solid #d4d0c8;
+                    background: ${isInPlaylist ? '#e0e0e0' : '#f9f9f9'};
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isInPlaylist;
+                checkbox.disabled = isInPlaylist;
+                checkbox.style.cssText = 'width: 16px; height: 16px;';
+                
+                const label = document.createElement('span');
+                label.textContent = `${playlist.name} (${playlist.videos?.length || 0} videos)`;
+                label.style.cssText = `
+                    font-size: 11px;
+                    flex: 1;
+                    ${isInPlaylist ? 'color: #666;' : 'color: #000;'}
+                `;
+                
+                playlistItem.appendChild(checkbox);
+                playlistItem.appendChild(label);
+                
+                if (!isInPlaylist) {
+                    playlistItem.addEventListener('click', async () => {
+                        try {
+                            checkbox.disabled = true;
+                            await WigTubeDB.addVideoToPlaylist(playlist.id, videoId, username);
+                            checkbox.checked = true;
+                            playlistItem.style.background = '#e0e0e0';
+                            label.style.color = '#666';
+                            label.textContent = `${playlist.name} (${(playlist.videos?.length || 0) + 1} videos)`;
+                            updateStatus(`Added to ${playlist.name}`);
+                        } catch (error) {
+                            console.error('Error adding to playlist:', error);
+                            alert('Error adding video to playlist');
+                            checkbox.disabled = false;
+                        }
+                    });
+                    
+                    playlistItem.addEventListener('mouseenter', () => {
+                        playlistItem.style.background = '#e8e8e8';
+                    });
+                    playlistItem.addEventListener('mouseleave', () => {
+                        playlistItem.style.background = '#f9f9f9';
+                    });
+                }
+                
+                listContainer.appendChild(playlistItem);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading playlists:', error);
+        document.getElementById('playlistSelectionList').innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #666; font-size: 11px;">
+                Error loading playlists
+            </div>
+        `;
+    }
+    
+    // Handle create new playlist
+    dialog.querySelector('#createNewPlaylistBtn').addEventListener('click', () => {
+        overlay.remove();
+        showCreatePlaylistDialog();
+    });
+    
+    // Handle close
+    dialog.querySelector('#closePlaylistMenuBtn').addEventListener('click', () => {
+        overlay.remove();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
 }

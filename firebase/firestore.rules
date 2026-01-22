@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     // WigTube collection with map-based documents
-    match /wigtube/{document} {
+    match /wigtube/data {
       allow read: if true; // Anyone can read
       allow write: if true; // Anyone can write (for now - should be restricted later)
       
@@ -21,6 +21,26 @@ service cloud.firestore {
         allow update: if true; // Anyone can update (for views/ratings)
         allow delete: if true; // Anyone can delete (should be restricted to owner)
       }
+      
+      // WigTube user data (history, favorites) subcollection
+      match /userdata/{username} {
+        allow read: if true; // Anyone can read (client filters by username)
+        allow write: if true; // Anyone can write (client validates username)
+      }
+      
+      // WigTube playlists subcollection (moved from top-level)
+      match /playlists/{playlistId} {
+        allow read: if true; // Anyone can read playlists (client filters by owner)
+        allow create: if true; // Anyone can create playlists (client sets owner field)
+        allow update: if true; // Anyone can update playlists (client validates ownership)
+        allow delete: if true; // Anyone can delete playlists (client validates ownership)
+      }
+    }
+    
+    // Allow access to other wigtube documents
+    match /wigtube/{document=**} {
+      allow read: if true;
+      allow write: if true;
     }
 
     // User achievements collection
