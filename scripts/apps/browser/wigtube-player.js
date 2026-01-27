@@ -183,6 +183,29 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
     
+    // Wait for Firebase to be ready before initializing player
+    debugLog('Waiting for Firebase initialization...');
+    await new Promise(resolve => {
+        if (window.firebaseOnline === true) {
+            debugLog('Firebase already online');
+            resolve();
+        } else {
+            debugLog('Waiting for dbReady event...');
+            const handler = () => {
+                debugLog('Firebase ready event received, status:', window.firebaseOnline);
+                resolve();
+            };
+            window.addEventListener('dbReady', handler, { once: true });
+            
+            // Timeout after 10 seconds if Firebase doesn't load
+            setTimeout(() => {
+                console.warn('Firebase initialization timeout after 10s, continuing anyway...');
+                window.removeEventListener('dbReady', handler);
+                resolve();
+            }, 10000);
+        }
+    });
+    
     // Load username from localStorage
     const username = localStorage.getItem('username');
     debugLog('Username from localStorage:', username);
