@@ -58,21 +58,17 @@ function generateVideoUrl(videoPath) {
         return videoPath;
     }
     
-    // If it's a local asset path, try external repo first
+    // If it's a local asset path, use it directly from this repository
     if (videoPath.startsWith('assets/')) {
-        // Extract just the filename from the path
-        const fileName = videoPath.split('/').pop();
-        const { owner, name, branch, folder } = getVideoRepoConfig();
-        
-        // Construct external repository URL
-        const externalUrl = `https://raw.githubusercontent.com/${owner}/${name}/${branch}/${folder}/${fileName}`;
-        debugLog('Generating external video URL:', externalUrl);
-        return externalUrl;
+        debugLog('Using local asset path:', videoPath);
+        return videoPath;
     }
     
-    // Otherwise assume it's just a filename and construct external URL
+    // Otherwise assume it's just a filename and construct external URL from video repo
     const { owner, name, branch, folder } = getVideoRepoConfig();
-    return `https://raw.githubusercontent.com/${owner}/${name}/${branch}/${folder}/${videoPath}`;
+    const externalUrl = `https://raw.githubusercontent.com/${owner}/${name}/${branch}/${folder}/${videoPath}`;
+    debugLog('Generating external video URL:', externalUrl);
+    return externalUrl;
 }
 
 /**

@@ -216,13 +216,19 @@ async function initializePlayer() {
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
     const albumId = urlParams.get('album');
+    const playlistParam = urlParams.get('playlist');
     
-    debugLog('initializePlayer: videoId=', videoId, 'albumId=', albumId);
+    debugLog('initializePlayer: videoId=', videoId, 'albumId=', albumId, 'playlist=', playlistParam);
     
     if (albumId && albumData[albumId]) {
         debugLog('initializePlayer: Loading album', albumId);
         // Load album playlist
         await loadAlbum(albumId);
+    } else if (playlistParam) {
+        debugLog('initializePlayer: Loading video in playlist context');
+        // When playlist parameter is present, just load the video
+        // The playlist will be populated in the sidebar by populateRelatedVideos
+        await loadVideo(videoId || 'epic-minecraft-castle-build');
     } else {
         debugLog('initializePlayer: Loading single video', videoId || 'epic-minecraft-castle-build');
         // Load single video
@@ -737,30 +743,17 @@ function createVideoElement() {
     // Set video source directly (better compatibility than <source> elements)
     videoElement.src = videoUrl;
     
-    // Track if we've tried fallback
-    let fallbackAttempted = false;
-    
-    // Add error handler with fallback to local assets
+    // Add error handler for video loading
     videoElement.addEventListener('error', function(e) {
-        console.warn('Video load error:', e);
-        console.warn('Failed URL:', videoUrl);
-        console.warn('Video error details:', {
+        console.error('Video load error:', e);
+        console.error('Failed URL:', videoUrl);
+        console.error('Video error details:', {
             error: videoElement.error,
             networkState: videoElement.networkState,
             readyState: videoElement.readyState
         });
         
-        // Try local fallback if this was an external URL and we haven't tried fallback yet
-        if (!fallbackAttempted && originalPath.startsWith('assets/') && videoUrl !== originalPath) {
-            fallbackAttempted = true;
-            console.log('External URL failed, trying local fallback:', originalPath);
-            debugLog('Attempting local fallback source:', originalPath);
-            videoElement.src = originalPath;
-            videoElement.load(); // Force reload with new source
-            return; // Don't show error yet, give fallback a chance
-        }
-        
-        // Show error message if both sources failed (or no fallback available)
+        // Show error message
         const errorMsg = document.createElement('div');
         errorMsg.style.cssText = `
             position: absolute;
@@ -1523,7 +1516,15 @@ function getVideoIdFromURL() {
 
 function getPlaylistIdFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('playlist');
+    const playlistParam = urlParams.get('playlist');
+    
+    // Handle playlist parameter with optional index suffix (e.g., "playlist_id:1")
+    // Strip off the index if present
+    if (playlistParam && playlistParam.includes(':')) {
+        return playlistParam.split(':')[0];
+    }
+    
+    return playlistParam;
 }
 
 function showImagePreview(imageData) {
@@ -1751,8 +1752,16 @@ async function populatePlaylistVideos(playlistId, currentVideoId) {
             
             // Click handler to play this video in playlist context
             if (!isCurrentVideo) {
-                videoElement.onclick = () => {
-                    window.location.href = `wigtube-player.html?v=${videoId}&playlist=${playlistId}`;
+                videoElement.onclick = async () => {
+                    // Update URL without page reload
+                    const newUrl = `${window.location.pathname}?v=${videoId}&playlist=${playlistId}`;
+                    window.history.pushState({}, '', newUrl);
+                    
+                    // Stop current video and load new one
+                    stopVideo();
+                    await loadVideo(videoId);
+                    await populateRelatedVideos();
+                    window.scrollTo(0, 0);
                 };
                 
                 videoElement.addEventListener('mouseenter', () => {
@@ -1804,8 +1813,16 @@ function setupAutoPlayNext(playlist, currentVideoId, playlistId) {
                     clearInterval(checkVideoEnd);
                     
                     // Small delay before auto-playing next
-                    setTimeout(() => {
-                        window.location.href = `?v=${nextVideoId}&playlist=${playlistId}`;
+                    setTimeout(async () => {
+                        // Update URL without page reload
+                        const newUrl = `${window.location.pathname}?v=${nextVideoId}&playlist=${playlistId}`;
+                        window.history.pushState({}, '', newUrl);
+                        
+                        // Stop current video and load new one
+                        stopVideo();
+                        await loadVideo(nextVideoId);
+                        await populateRelatedVideos();
+                        window.scrollTo(0, 0);
                     }, 1000);
                 }
             }

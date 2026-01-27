@@ -1202,9 +1202,8 @@ function createPlaylistCard(playlist) {
     card.className = 'video-card playlist-card';
     card.style.cursor = 'pointer';
     
-    // Get first video thumbnail or use default
-    const firstVideoId = playlist.videos && playlist.videos.length > 0 ? playlist.videos[0] : null;
-    const thumbnailUrl = 'assets/images/thumbnail/default.png'; // Will be improved with actual video thumbnail
+    // Use display picture if available, otherwise use default
+    const thumbnailUrl = playlist.displayPicture || 'assets/images/thumbnail/default.png';
     
     card.innerHTML = `
         <div class="video-thumbnail" style="position: relative;">
@@ -4036,7 +4035,7 @@ async function showChannelPlaylistsTab(contentArea, username) {
         
         if (playlists.length > 0) {
             for (const playlist of playlists) {
-                const playlistCard = createPlaylistCard(playlist, isOwner);
+                const playlistCard = createChannelPlaylistCard(playlist, isOwner);
                 grid.appendChild(playlistCard);
             }
         } else {
@@ -4065,9 +4064,9 @@ async function showChannelPlaylistsTab(contentArea, username) {
 }
 
 /**
- * Create a playlist card element
+ * Create a playlist card element for channel playlists tab
  */
-function createPlaylistCard(playlist, isOwner) {
+function createChannelPlaylistCard(playlist, isOwner) {
     const playlistCard = document.createElement('div');
     playlistCard.style.cssText = `
         background: #f0f0f0;
@@ -4080,19 +4079,24 @@ function createPlaylistCard(playlist, isOwner) {
     const videoCount = playlist.videos ? playlist.videos.length : 0;
     const visibility = playlist.isPublic ? '🌐 Public' : '🔒 Private';
     
+    const displayPicture = playlist.displayPicture;
+    const thumbnailStyle = displayPicture 
+        ? `background-image: url('${displayPicture}'); background-size: cover; background-position: center;`
+        : 'background: linear-gradient(135deg, #ff4500, #ff8c00);';
+    
     playlistCard.innerHTML = `
         <div style="display: flex; gap: 12px; align-items: center;">
             <div style="
                 width: 80px;
                 height: 80px;
-                background: linear-gradient(135deg, #ff4500, #ff8c00);
+                ${thumbnailStyle}
                 border: 2px outset #d4d0c8;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-size: 32px;
                 flex-shrink: 0;
-            ">📺</div>
+            ">${displayPicture ? '' : '📺'}</div>
             <div style="flex: 1;">
                 <div style="
                     font-size: 11px;
@@ -4575,6 +4579,24 @@ function updateSubscriberCountDisplay(change) {
 // ============================================
 
 /**
+ * Convert playlist image to base64 data URL for storage in Firestore
+ * @param {File} imageFile - The image file to convert
+ * @returns {Promise<string>} The base64 data URL
+ */
+async function uploadPlaylistImage(imageFile) {
+    if (!imageFile) return null;
+    
+    // Convert image to base64 data URL for storage in Firestore
+    // (We don't use Firebase Storage since videos are stored in GitHub repo)
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.readAsDataURL(imageFile);
+    });
+}
+
+/**
  * Show create playlist dialog
  */
 function showCreatePlaylistDialog() {
@@ -4642,6 +4664,31 @@ function showCreatePlaylistDialog() {
             </label>
         </div>
         
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Display Picture (Optional)</label>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div id="playlistImagePreview" style="
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #ff4500, #ff8c00);
+                    border: 2px outset #d4d0c8;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 32px;
+                    flex-shrink: 0;
+                ">📺</div>
+                <div style="flex: 1;">
+                    <input type="file" id="playlistImageInput" accept="image/*" style="
+                        font-size: 11px;
+                        font-family: 'MS Sans Serif', sans-serif;
+                        margin-bottom: 4px;
+                    ">
+                    <div style="font-size: 9px; color: #666;">Recommended: 500x500px or larger</div>
+                </div>
+            </div>
+        </div>
+        
         <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 2px groove #d4d0c8; padding-top: 16px;">
             <button type="button" id="cancelPlaylistBtn" style="
                 padding: 6px 16px;
@@ -4672,6 +4719,23 @@ function showCreatePlaylistDialog() {
     const nameInput = dialog.querySelector('#playlistName');
     setTimeout(() => nameInput.focus(), 100);
     
+    // Handle image preview
+    const imageInput = dialog.querySelector('#playlistImageInput');
+    const imagePreview = dialog.querySelector('#playlistImagePreview');
+    imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagePreview.style.backgroundImage = `url('${event.target.result}')`;
+                imagePreview.style.backgroundSize = 'cover';
+                imagePreview.style.backgroundPosition = 'center';
+                imagePreview.textContent = '';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
     // Handle cancel
     dialog.querySelector('#cancelPlaylistBtn').addEventListener('click', () => {
         overlay.remove();
@@ -4682,6 +4746,7 @@ function showCreatePlaylistDialog() {
         const name = nameInput.value.trim();
         const description = dialog.querySelector('#playlistDescription').value.trim();
         const isPublic = dialog.querySelector('#playlistPublic').checked;
+        const imageFile = imageInput.files[0];
         
         if (!name) {
             alert('Please enter a playlist name');
@@ -4691,12 +4756,29 @@ function showCreatePlaylistDialog() {
         
         try {
             updateStatus('Creating playlist...');
-            await WigTubeDB.createPlaylist({
+            
+            // Create playlist first to get ID
+            const playlist = await WigTubeDB.createPlaylist({
                 name,
                 description,
                 isPublic,
-                owner: username
+                owner: username,
+                displayPicture: null
             });
+            
+            // Convert image to base64 if provided
+            let displayPictureURL = null;
+            if (imageFile) {
+                updateStatus('Processing display picture...');
+                try {
+                    displayPictureURL = await uploadPlaylistImage(imageFile);
+                    // Update playlist with image data URL
+                    await WigTubeDB.updatePlaylist(playlist.id, { displayPicture: displayPictureURL }, username);
+                } catch (error) {
+                    console.error('Error processing display picture:', error);
+                    // Continue anyway, playlist is created without image
+                }
+            }
             
             updateStatus('Playlist created!');
             
@@ -4798,6 +4880,31 @@ async function editPlaylist(playlistId) {
                 </label>
             </div>
             
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: bold;">Display Picture</label>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div id="editPlaylistImagePreview" style="
+                        width: 80px;
+                        height: 80px;
+                        ${playlist.displayPicture ? `background-image: url('${playlist.displayPicture}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg, #ff4500, #ff8c00);'}
+                        border: 2px outset #d4d0c8;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 32px;
+                        flex-shrink: 0;
+                    ">${playlist.displayPicture ? '' : '📺'}</div>
+                    <div style="flex: 1;">
+                        <input type="file" id="editPlaylistImageInput" accept="image/*" style="
+                            font-size: 11px;
+                            font-family: 'MS Sans Serif', sans-serif;
+                            margin-bottom: 4px;
+                        ">
+                        <div style="font-size: 9px; color: #666;">Upload new image or leave unchanged</div>
+                    </div>
+                </div>
+            </div>
+            
             <div style="display: flex; gap: 12px; justify-content: flex-end; border-top: 2px groove #d4d0c8; padding-top: 16px;">
                 <button type="button" id="cancelEditBtn" style="
                     padding: 6px 16px;
@@ -4824,6 +4931,23 @@ async function editPlaylist(playlistId) {
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
         
+        // Handle image preview for edit
+        const editImageInput = dialog.querySelector('#editPlaylistImageInput');
+        const editImagePreview = dialog.querySelector('#editPlaylistImagePreview');
+        editImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    editImagePreview.style.backgroundImage = `url('${event.target.result}')`;
+                    editImagePreview.style.backgroundSize = 'cover';
+                    editImagePreview.style.backgroundPosition = 'center';
+                    editImagePreview.textContent = '';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
         // Handle cancel
         dialog.querySelector('#cancelEditBtn').addEventListener('click', () => {
             overlay.remove();
@@ -4834,6 +4958,7 @@ async function editPlaylist(playlistId) {
             const name = dialog.querySelector('#editPlaylistName').value.trim();
             const description = dialog.querySelector('#editPlaylistDescription').value.trim();
             const isPublic = dialog.querySelector('#editPlaylistPublic').checked;
+            const imageFile = editImageInput.files[0];
             
             if (!name) {
                 alert('Please enter a playlist name');
@@ -4842,7 +4967,21 @@ async function editPlaylist(playlistId) {
             
             try {
                 updateStatus('Updating playlist...');
-                await WigTubeDB.updatePlaylist(playlistId, { name, description, isPublic }, username);
+                
+                // Upload new image if provided
+                let updates = { name, description, isPublic };
+                if (imageFile) {
+                    updateStatus('Uploading new display picture...');
+                    try {
+                        const displayPictureURL = await uploadPlaylistImage(imageFile, playlistId);
+                        updates.displayPicture = displayPictureURL;
+                    } catch (error) {
+                        console.error('Error uploading display picture:', error);
+                        // Continue with other updates
+                    }
+                }
+                
+                await WigTubeDB.updatePlaylist(playlistId, updates, username);
                 
                 updateStatus('Playlist updated!');
                 overlay.remove();

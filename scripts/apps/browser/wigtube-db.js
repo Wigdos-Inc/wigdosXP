@@ -1912,7 +1912,7 @@ window.WigTubeDB = (function() {
      * Create a new playlist
      */
     async function createPlaylist(playlistData) {
-        const { name, description = '', isPublic = true, owner } = playlistData;
+        const { name, description = '', isPublic = true, owner, displayPicture = null } = playlistData;
         
         if (!owner) {
             throw new Error('Playlist owner is required');
@@ -1926,6 +1926,7 @@ window.WigTubeDB = (function() {
             isPublic,
             owner,
             videos: [],
+            displayPicture: displayPicture || null,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };

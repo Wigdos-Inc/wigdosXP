@@ -16,6 +16,13 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.token.email.split('@')[0] == username; // Only owner can delete
     }
     
+    // Playlist display pictures
+    match /playlists/{playlistId}/{fileName} {
+      allow read: if true; // Anyone can view playlist images
+      allow write: if request.auth != null; // Only authenticated users can upload
+      allow delete: if request.auth != null; // Only authenticated users can delete
+    }
+    
     // Deny all other access
     match /{allPaths=**} {
       allow read, write: if false;
