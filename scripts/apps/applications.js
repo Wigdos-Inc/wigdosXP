@@ -34,7 +34,7 @@ class Application {
             for (const size in this.icon) this.icon[size] = exist[0] ? url[0] : exist[1] ? url[1] : `/assets/images/icons/${size}/bombs.png`;
 
         }
-        else for (const size in this.icon) this.icon[size] = `/assets/images/icons/${size}/${this.name.s}.png`;
+        else for (const size in this.icon) this.icon[size] = `/assets/images/icons/${this.icon[size]}/${this.name.s}.png`;
     }
 }
 
@@ -222,14 +222,14 @@ const applications = {
     
     breakout: new Application(
         ["breakout", "Breakout"],
-        "other",
+        "ofes",
         false,
         ["internal", "apps/games/"]
     ),
     
     sublimator: new Application(
         ["sublimator", "Sublimator"],
-        "other",
+        "ofes",
         false,
         ["internal", "apps/games/"]
     ),
