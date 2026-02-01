@@ -180,7 +180,7 @@ const applications = {
         ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
         "other",
         true,
-        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carl2D/"],
+        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carlStudios/carl2D/"],
     ),
 
 
