@@ -11,16 +11,42 @@ class Application {
         
         this.series= series;
         this.full  = full;
-        this.path  = (path[0] == "external" ? path[1] : (path[1] + name[0] + ".html"));
+        this.path  = path[0] === "external" ? path[1] : (path[1] + name[0] + ".html");
 
-        this.icon = {
-            s: !series ? `/assets/images/icons/16x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`,
-            m: !series ? `/assets/images/icons/32x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`,
-            l: !series ? `/assets/images/icons/48x/${name[0]}.png` : `/assets/images/icons/games/${series}/${name[0]}.png`
-        }
+        this.icon = { s: "16x", m: "32x", l: "48x" };
 
         this.save = save;
     }
+
+    async getIcon() {
+
+        if (this.series) {
+
+            const url = [
+                `/assets/images/icons/games/${this.series}/${this.name.s}.png`,
+                `/assets/images/icons/games/${this.series}/${this.series}.png`
+            ];
+            const exist = [
+                await imageExist(url[0]),
+                await imageExist(url[1])
+            ];
+
+            for (const size in this.icon) this.icon[size] = exist[0] ? url[0] : exist[1] ? url[1] : `/assets/images/icons/${size}/bombs.png`;
+
+        }
+        else for (const size in this.icon) this.icon[size] = `/assets/images/icons/${size}/${this.name.s}.png`;
+    }
+}
+
+
+function imageExist(url) {
+
+    return new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res(true);
+        img.onerror = () => res(false);
+        img.src = url;
+    });
 }
 
 
@@ -154,7 +180,7 @@ const applications = {
 
     ut: new Application(
         ["ut", "Undertale"],
-        "other",
+        "ut",
         true, 
         ["external", "https://wigdos-inc.github.io/Undertale-HTML/"],
         true
@@ -162,7 +188,7 @@ const applications = {
 
     dt: new Application(
         ["dt", "Deltarune"],
-        "other",
+        "ut",
         true, 
         ["external", "https://wigdos-inc.github.io/Deltarune-HTML/"],
         true
@@ -174,13 +200,6 @@ const applications = {
         true, 
         ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"],
         true
-    ),
-
-    carl2D: new Application(
-        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
-        "other",
-        true,
-        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carlStudios/carl2D/"],
     ),
 
 
@@ -224,30 +243,37 @@ const applications = {
     
     jeff: new Application(
         ["jeff", "Super Jeff"],
-        "other",
+        "jeff",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/superjeff/"]
     ),
     
     ggJeff: new Application(
         ["ggJeff", "Super Jeff 2 Galaxy Jeff"],
-        "other",
+        "jeff",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/galaxyjeff/"]
     ),
     
     kJeff: new Application(
         ["kJeff", "Super Jeff Kart (& Carl is here)"],
-        "other",
+        "jeff",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffCart/"]
     ),
     
     oddJeff: new Application(
         ["oddJeff", "Super Jeff 3 Super Odyssey"],
-        "other",
+        "jeff",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey/"]
+    ),
+
+    carl2D: new Application(
+        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
+        "carl",
+        true,
+        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carlStudios/carl2D/"],
     ),
     
     pHub: new Application(
@@ -274,11 +300,18 @@ const applications = {
     )
 }
 
-// Expose applications globally for Start Menu and other systems
-window.applications = applications;
+// Async Wrapper (cuz this file ain't a module)
+(async () => {
+    
+    // Load Icons
+    for (const app of Object.values(applications)) await app.getIcon();
 
-// Notify other modules that the applications registry is ready
-try { window.dispatchEvent(new Event('apps-ready')); } catch (e) { /* noop */ }
+    // Expose applications globally for Start Menu and other systems
+    window.applications = applications;
+
+    // Notify other modules that the applications registry is ready
+    window.dispatchEvent(new Event('apps-ready'));
+})();
 
 
 
