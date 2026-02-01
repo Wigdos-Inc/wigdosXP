@@ -298,7 +298,7 @@ const applications = {
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/WiggyEngine"]
     )
-}
+};
 
 // Async Wrapper (cuz this file ain't a module)
 (async () => {
