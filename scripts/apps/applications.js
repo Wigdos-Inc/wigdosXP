@@ -128,6 +128,7 @@ const applications = {
         ["internal", "/apps/"]
     ),
 
+
     /* EXTERNAL */
     feddy1: new Application(
         ["feddy1", "FNAF 1", "Five Nights at Freddy's"],
@@ -178,6 +179,7 @@ const applications = {
         ["external", "https://danie-glr.github.io/wigdos_games/ucn/"]
     ),
 
+    // Undertale Series
     ut: new Application(
         ["ut", "Undertale"],
         "ut",
@@ -192,6 +194,14 @@ const applications = {
         true, 
         ["external", "https://wigdos-inc.github.io/Deltarune-HTML/"],
         true
+    ),
+    
+    // s102462
+    hlf: new Application(
+        ["hlf", "Half-Life"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/halflife/"]
     ),
 
     sm64: new Application(
@@ -220,6 +230,7 @@ const applications = {
         true
     ),
     
+    // OFES Games
     breakout: new Application(
         ["breakout", "Breakout"],
         "ofes",
@@ -234,13 +245,7 @@ const applications = {
         ["internal", "apps/games/"]
     ),
     
-    hlf: new Application(
-        ["hlf", "Half-Life"],
-        "other",
-        true,
-        ["external", "https://wigdos-inc.github.io/102462_wigDos/halflife/"]
-    ),
-    
+    // Super Jeff
     jeff: new Application(
         ["jeff", "Super Jeff"],
         "jeff",
@@ -269,13 +274,15 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey/"]
     ),
 
+    // Carl the Urgent Slug Urchin
     carl2D: new Application(
         ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
         "carl",
         true,
-        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carlStudios/carl2D/"],
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
     ),
     
+    // Stu102871
     pHub: new Application(
         ["pHub", "PokeHub"],
         "other",
