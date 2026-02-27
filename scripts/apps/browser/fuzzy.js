@@ -434,6 +434,7 @@ const searchableItems = [
   { name: "WigTube", url: "wigtube", keywords: ["wigtube", "video", "tube", "wig", "wt"] },
   { name: "Wiano", url: "wiano", keywords: ["wiano", "piano", "music"] },
   { name: "Winesweeper", url: "winesweeper", keywords: ["winesweeper", "minesweeper", "wine", "game"] },
+  { name: "WigCord", url: "wigcord", keywords: ["wigcord", "discord", "chat", "server", "message", "cord"] },
 ];
 
 // Create and manage autocomplete dropdown
@@ -667,6 +668,8 @@ function handleWiggleSearch(searchTerm, tabId) {
       navigateToWiano(tabId);
     } else if (match.url === 'winesweeper') {
       navigateToWinesweeper(tabId);
+    } else if (match.url === 'wigcord') {
+      navigateToWigCord(tabId);
     } else {
       alert(`Navigating to ${match.name}...`);
     }
@@ -861,6 +864,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (match.url === 'winesweeper') {
         navigateToWinesweeper(pageId);
         addressInput.value = 'winesweeper.com';
+      } else if (match.url === 'wigcord') {
+        navigateToWigCord(pageId);
+        addressInput.value = 'wigcord.com';
       } else {
         alert(`Navigating to ${match.name}...`);
       }
@@ -926,6 +932,8 @@ function handleGoogle2003Search(searchTerm, tabId) {
       navigateToWiano(tabId);
     } else if (match.url === 'winesweeper') {
       navigateToWinesweeper(tabId);
+    } else if (match.url === 'wigcord') {
+      navigateToWigCord(tabId);
     } else {
       alert(`Navigating to ${match.name}...`);
     }
@@ -933,4 +941,30 @@ function handleGoogle2003Search(searchTerm, tabId) {
     // Perform regular search
     alert(`Searching for: ${searchTerm}`);
   }
+}
+
+function navigateToWigCord(tabId) {
+  const tabContent = document.getElementById(tabId);
+  if (!tabContent) return;
+  
+  // Find the tab index
+  const allTabs = document.querySelectorAll('.tab');
+  const predefinedPages = ['wiggle-search', 'new-tab'];
+  let tabIndex = predefinedPages.indexOf(tabId);
+  
+  if (tabIndex === -1) {
+    tabIndex = parseInt(tabId.replace('tab-', '')) - 1;
+  }
+  
+  const activeTab = allTabs[tabIndex];
+  
+  if (activeTab) {
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    titleSpan.textContent = 'WigCord';
+    faviconImg.src = 'assets/images/icons/32x/rBrowser.png';
+  }
+  
+  // Load WigCord content
+  tabContent.innerHTML = `<iframe src="apps/browser/pages/wigcord.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
 }

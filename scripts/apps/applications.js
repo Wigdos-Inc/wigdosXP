@@ -212,8 +212,68 @@ const applications = {
         true
     ),
 
+    carl2D: new Application(
+        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carl2D/"],
+    ),
+   
+    uh: new Application(
+        ["uh", "ultrahill", "ultrakill autistic little brother"],
+        "other",
+        true,
+        ["external", "https://danie-glr.github.io/ultrahill/"],
+    ),
+       
+    bk: new Application(
+        ["bk", "banjo", "Banjo-Kazooie"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=bk"],
+    ),
 
+    cbfd: new Application(
+        ["cbfd", "conker", "Conker's Bad Fur Day"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=cbfd"],
+    ),
 
+        dk: new Application(
+        ["dk", "donkey kong", "Donkey Kong 64"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=dk"],
+    ),
+
+      dkr: new Application(
+        ["dkr", "Diddy kong racing", "Diddy Kong Racing"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=dkr"],
+    ),
+
+     zoot: new Application(
+        ["zoot", "Zoot", "Zoot"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=zoot"],
+    ),
+
+     mp3: new Application(
+        ["mp3", "MP3", "MP3 (not the file extension)"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=mp3"],
+    ),
+
+    ys: new Application(
+        ["ys", "YS", "Yoshi story (stupid ass dino)"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=ys"],
+    ),
     /* INTERNAL-GAMES (Repository) */
     bombs: new Application(
         ["bombs", "Wigsplosionator"],

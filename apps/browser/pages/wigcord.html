@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WigCord - Chat & Servers</title>
+    <link rel="stylesheet" href="../../../styles/apps/browser/wigcord.css">
+</head>
+<body>
+    <div class="wigcord-container">
+        <!-- Server List Sidebar -->
+        <div class="server-sidebar">
+            <div class="server-home active" id="home-server" title="Home">
+                <div class="server-icon"><img src="../../../assets/images/icons/wigcord/chat.svg" class="wc-icon" alt="Home"></div>
+            </div>
+            <div class="server-divider"></div>
+            <div id="server-list"></div>
+            <div class="add-server" id="add-server-btn" title="Add Server">
+                <div class="server-icon">+</div>
+            </div>
+        </div>
+
+        <!-- Channel List -->
+        <div class="channel-list">
+            <div class="server-header">
+                <span id="server-name">WigCord Home</span>
+                <button class="header-btn" id="server-menu-btn">▼</button>
+            </div>
+            
+            <!-- DM Navigation -->
+            <div class="dm-navigation" id="dm-navigation">
+                <div class="dm-nav-item active" id="dm-friends-nav">
+                    <span class="dm-nav-icon"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-sm" alt="Friends"></span>
+                    <span class="dm-nav-text">Friends</span>
+                </div>
+                <div class="dm-nav-item" id="dm-requests-nav">
+                    <span class="dm-nav-icon">📨</span>
+                    <span class="dm-nav-text">Message Requests</span>
+                </div>
+                <div class="dm-category-header">
+                    <span>DIRECT MESSAGES</span>
+                    <button class="add-dm-btn" id="add-dm-btn" title="Create DM">+</button>
+                </div>
+                <div id="dm-list"></div>
+            </div>
+            
+            <div class="invite-section" id="invite-section" style="display: none;">
+                <div class="invite-icon"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-lg" alt="Invite"></div>
+                <div class="invite-text">
+                    <strong>An adventure begins.</strong><br>
+                    Let's add some friends!
+                </div>
+                <button class="invite-btn" id="invite-btn">Invite People</button>
+            </div>
+
+            <div class="channel-category" id="channel-category" style="display: none;">
+                <div class="category-header">
+                    <span>▼ TEXT CHANNELS</span>
+                    <button class="add-channel-btn" title="Create Channel">+</button>
+                </div>
+                <div id="text-channels"></div>
+            </div>
+
+            <div class="channel-category" id="voice-category" style="display: none;">
+                <div class="category-header">
+                    <span>▼ VOICE CHANNELS</span>
+                    <button class="add-channel-btn" title="Create Channel">+</button>
+                </div>
+                <div id="voice-channels"></div>
+            </div>
+
+            <div class="user-panel">
+                <div class="user-info">
+                    <div class="user-avatar" id="user-panel-avatar">U</div>
+                    <div class="user-details">
+                        <div class="username" id="user-panel-name">User</div>
+                        <div class="user-status">online</div>
+                    </div>
+                </div>
+                <div class="user-controls">
+                    <button class="control-btn" title="Mute" id="btn-mute">🔇</button>
+                    <button class="control-btn" title="Deafen" id="btn-deafen">🎧</button>
+                    <button class="control-btn" title="User Settings" id="btn-user-settings"><img src="../../../assets/images/icons/wigcord/paintbrush.svg" class="wc-icon-xs" alt="Settings"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <span class="channel-icon" id="header-icon">#</span>
+                <span class="channel-title" id="current-channel">Friends</span>
+                <div class="chat-header-actions">
+                    <button class="header-action-btn" id="toggle-members" title="Toggle Member List"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-xs" alt="Members"></button>
+                </div>
+            </div>
+            
+            <!-- DM Friends/Requests View -->
+            <div class="dm-main-view" id="dm-main-view">
+                <div class="dm-tabs" id="dm-tabs">
+                    <button class="dm-tab active" id="dm-tab-online">Online</button>
+                    <button class="dm-tab" id="dm-tab-all">All</button>
+                    <button class="dm-tab" id="dm-tab-pending">Pending</button>
+                    <button class="dm-tab" id="dm-tab-blocked">Blocked</button>
+                    <button class="dm-tab dm-tab-add" id="dm-tab-add">Add Friend</button>
+                </div>
+                <div class="dm-content" id="dm-content">
+                    <div class="dm-empty-state">
+                        <div class="dm-empty-icon"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-xl" alt="No friends"></div>
+                        <div class="dm-empty-title">No one's around to play with Danny.</div>
+                        <div class="dm-empty-text">Add some friends to get started!</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Message Requests View -->
+            <div class="dm-requests-view" id="dm-requests-view" style="display: none;">
+                <div class="dm-requests-header">
+                    <span>MESSAGE REQUESTS</span>
+                </div>
+                <div class="dm-content">
+                    <div class="dm-empty-state">
+                        <div class="dm-empty-icon">📨</div>
+                        <div class="dm-empty-title">No message requests</div>
+                        <div class="dm-empty-text">When someone sends you a message request, it will appear here.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="welcome-screen" id="welcome-screen" style="display: none;">
+                <h1>Welcome to <span id="welcome-server">WigCord</span></h1>
+                <p>This is your brand new, shiny server. Here are some steps to help you get started.</p>
+                
+                <div class="welcome-option" id="welcome-invite">
+                    <div class="welcome-icon"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-md" alt="Invite"></div>
+                    <div class="welcome-text">Invite your friends</div>
+                    <div class="welcome-arrow">›</div>
+                </div>
+                
+                <div class="welcome-option" id="welcome-customize">
+                    <div class="welcome-icon"><img src="../../../assets/images/icons/wigcord/paintbrush.svg" class="wc-icon-md" alt="Customize"></div>
+                    <div class="welcome-text">Personalize your server with an icon</div>
+                    <div class="welcome-arrow">›</div>
+                </div>
+                
+                <div class="welcome-option" id="welcome-message">
+                    <div class="welcome-icon"><img src="../../../assets/images/icons/wigcord/chat.svg" class="wc-icon-md" alt="Message"></div>
+                    <div class="welcome-text">Send your first message</div>
+                    <div class="welcome-arrow">›</div>
+                </div>
+            </div>
+
+            <!-- Messages area with scroll sentinel for pagination -->
+            <div class="messages-container" id="messages-container" style="display: none;">
+                <div id="scroll-sentinel" class="scroll-sentinel"></div>
+                <div class="loading-older" id="loading-older" style="display:none;">Loading older messages...</div>
+                <div id="messages"></div>
+            </div>
+
+            <!-- DM Chat View (for direct message conversations) -->
+            <div class="dm-chat-view" id="dm-chat-view" style="display: none;">
+                <div id="dm-scroll-sentinel" class="scroll-sentinel"></div>
+                <div class="loading-older" id="dm-loading-older" style="display:none;">Loading older messages...</div>
+                <div id="dm-messages"></div>
+            </div>
+
+            <div class="message-input-area" id="message-input-area">
+                <!-- Reply bar -->
+                <div class="reply-bar" id="reply-bar" style="display:none;">
+                    <div class="reply-bar-content">
+                        <span class="reply-bar-icon">↩</span>
+                        <span class="reply-bar-text">Replying to <strong id="reply-bar-username"></strong></span>
+                    </div>
+                    <button class="reply-bar-close" id="reply-bar-close" title="Cancel Reply">×</button>
+                </div>
+                <div class="message-input-row">
+                    <button class="attach-btn" title="Attach File"><img src="../../../assets/images/icons/wigcord/gallery.svg" class="wc-icon-xs" alt="Attach"></button>
+                    <input type="text" class="message-input" id="message-input" placeholder="Message #general">
+                    <button class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
+                    <button class="gif-btn" id="gif-btn" title="GIF">GIF</button>
+                </div>
+                
+                <!-- Emoji Picker -->
+                <div class="emoji-picker" id="emoji-picker" style="display: none;">
+                    <div class="emoji-picker-header">Emoji</div>
+                    <div class="emoji-grid" id="emoji-grid"></div>
+                </div>
+
+                <!-- GIF Picker -->
+                <div class="gif-picker" id="gif-picker" style="display: none;">
+                    <div class="gif-picker-header">
+                        <span>GIF</span>
+                        <button class="gif-close" id="gif-close">×</button>
+                    </div>
+                    <div class="gif-tabs">
+                        <button class="gif-tab active" id="gif-tab-trending">Trending</button>
+                        <button class="gif-tab" id="gif-tab-favorites">Favorites</button>
+                    </div>
+                    <input type="text" class="gif-search" id="gif-search" placeholder="Search Tenor">
+                    <div class="gif-grid" id="gif-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Member List (hidden by default; only shown when inside a server) -->
+        <div class="member-list hidden" id="member-list">
+            <div id="member-list-content"></div>
+        </div>
+    </div>
+
+    <!-- Add Server Modal -->
+    <div class="modal" id="add-server-modal">
+        <div class="modal-content server-modal">
+            <div class="modal-header">
+                <h2>Customize Your Server</h2>
+                <button class="modal-close" id="close-modal">×</button>
+            </div>
+            <div class="modal-body server-customize">
+                <p class="modal-description">Give your new server a personality with a name and an icon. You can always change it later.</p>
+                
+                <div class="server-icon-upload">
+                    <div class="upload-circle" id="upload-circle">
+                        <div class="upload-icon">📷</div>
+                        <div class="upload-text">UPLOAD</div>
+                        <input type="file" id="server-image-input" accept="image/*" style="display: none;">
+                    </div>
+                    <button class="upload-add-btn" id="upload-add-btn">+</button>
+                    <img id="server-icon-preview" class="server-icon-preview" style="display: none;">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">SERVER NAME</label>
+                    <input type="text" id="server-name-input" placeholder="create server" class="modal-input server-name-input">
+                </div>
+                
+                <p class="guidelines-text">By creating a server, you agree to WigCord's <span class="guidelines-link">Community Guidelines</span>.</p>
+            </div>
+            <div class="modal-footer server-footer">
+                <button class="modal-btn secondary back-btn" id="cancel-btn">Back</button>
+                <button class="modal-btn primary create-btn" id="create-server-btn">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div class="modal" id="invite-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Invite Friends</h2>
+                <button class="modal-close" id="close-invite-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Share this invite link with your friends!</p>
+                <div class="invite-link-container">
+                    <input type="text" id="invite-link" class="modal-input" readonly value="https://wigcord.xp/invite/ABC123XYZ">
+                    <button class="copy-btn" id="copy-invite">Copy</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn primary" id="close-invite-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Context Menu -->
+    <div class="server-context-menu" id="server-context-menu" style="display: none;">
+        <div class="context-menu-item" id="ctx-invite-people">
+            <span>Invite People</span>
+            <span class="ctx-icon"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-xs" alt=""></span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctx-server-settings">
+            <span>Server Settings</span>
+            <span class="ctx-icon"><img src="../../../assets/images/icons/wigcord/paintbrush.svg" class="wc-icon-xs" alt=""></span>
+        </div>
+        <div class="context-menu-item" id="ctx-create-channel">
+            <span>Create Channel</span>
+            <span class="ctx-icon">➕</span>
+        </div>
+        <div class="context-menu-item" id="ctx-create-category">
+            <span>Create Category</span>
+            <span class="ctx-icon">📁</span>
+        </div>
+        <div class="context-menu-item" id="ctx-create-event">
+            <span>Create Event</span>
+            <span class="ctx-icon">📅</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctx-notification-settings">
+            <span>Notification Settings</span>
+            <span class="ctx-icon">🔔</span>
+        </div>
+        <div class="context-menu-item" id="ctx-privacy-settings">
+            <span>Privacy Settings</span>
+            <span class="ctx-icon">🛡️</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="ctx-edit-profile">
+            <span>Edit Server Profile</span>
+            <span class="ctx-icon">✏️</span>
+        </div>
+        <div class="context-menu-item" id="ctx-hide-muted">
+            <span>Hide Muted Channels</span>
+            <span class="ctx-icon">☐</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" id="ctx-delete-server">
+            <span>Delete Server</span>
+            <span class="ctx-icon">🗑️</span>
+        </div>
+    </div>
+
+    <!-- Server Settings Modal -->
+    <div class="modal settings-modal" id="server-settings-modal">
+        <div class="modal-content settings-content">
+            <div class="settings-container">
+                <div class="settings-sidebar">
+                    <div class="settings-server-info">
+                        <span id="settings-server-name">Server Name</span>
+                    </div>
+                    <div class="settings-nav-item active" data-tab="overview">Overview</div>
+                    <div class="settings-nav-item" data-tab="roles">Roles</div>
+                    <div class="settings-nav-item" data-tab="emoji">Emoji</div>
+                    <div class="settings-nav-item" data-tab="stickers">Stickers</div>
+                    <div class="settings-nav-item" data-tab="soundboard">Soundboard</div>
+                    <div class="settings-nav-item" data-tab="widget">Widget</div>
+                    <div class="settings-nav-item" data-tab="template">Server Template</div>
+                    <div class="settings-nav-item" data-tab="invite-link">Custom Invite Link</div>
+                    <div class="settings-category">APPS</div>
+                    <div class="settings-nav-item" data-tab="integrations">Integrations</div>
+                    <div class="settings-nav-item" data-tab="app-directory">App Directory</div>
+                    <div class="settings-category">MODERATION</div>
+                    <div class="settings-nav-item" data-tab="safety">Safety Setup</div>
+                    <div class="settings-nav-item" data-tab="automod">AutoMod</div>
+                    <div class="settings-nav-item" data-tab="audit-log">Audit Log</div>
+                    <div class="settings-nav-item" data-tab="bans">Bans</div>
+                    <div class="settings-category">COMMUNITY</div>
+                    <div class="settings-nav-item" data-tab="enable-community">Enable Community</div>
+                    <div class="settings-category">MONETIZATION</div>
+                    <div class="settings-nav-item" data-tab="subscriptions">Server Subscriptions</div>
+                </div>
+                <div class="settings-main">
+                    <div class="settings-header">
+                        <button class="settings-back-btn" id="settings-back-btn">← BACK</button>
+                        <h2 id="settings-title">SERVER OVERVIEW</h2>
+                        <button class="settings-close-btn" id="settings-close-btn">× <span class="esc-text">ESC</span></button>
+                    </div>
+                    <div class="settings-content-area" id="settings-content-area"></div>
+                </div>
+                <div class="settings-preview" id="settings-preview" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Channel Modal -->
+    <div class="modal" id="create-channel-modal">
+        <div class="modal-content channel-modal">
+            <div class="modal-header">
+                <h2>Create Channel</h2>
+                <button class="modal-close" id="close-channel-modal">×</button>
+            </div>
+            <div class="modal-body channel-create-body">
+                <div class="form-group">
+                    <label class="form-label channel-type-label">CHANNEL TYPE</label>
+                    <div class="channel-type-options">
+                        <div class="channel-type-option selected" data-type="text">
+                            <div class="channel-type-left">
+                                <span class="channel-type-icon">#</span>
+                                <div class="channel-type-info">
+                                    <div class="channel-type-name">Text</div>
+                                    <div class="channel-type-desc">Send messages, images, GIFs, emoji, opinions, and puns</div>
+                                </div>
+                            </div>
+                            <div class="channel-type-radio"><div class="radio-circle"></div></div>
+                        </div>
+                        <div class="channel-type-option" data-type="voice">
+                            <div class="channel-type-left">
+                                <span class="channel-type-icon"><img src="../../../assets/images/icons/wigcord/speaker.svg" class="wc-icon-sm" alt="Voice"></span>
+                                <div class="channel-type-info">
+                                    <div class="channel-type-name">Voice</div>
+                                    <div class="channel-type-desc">Hang out together with voice, video, and screen share</div>
+                                </div>
+                            </div>
+                            <div class="channel-type-radio"><div class="radio-circle"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">CHANNEL NAME</label>
+                    <div class="channel-name-input-wrapper">
+                        <span class="channel-name-prefix" id="channel-name-prefix">#</span>
+                        <input type="text" id="channel-name-input" placeholder="new-channel" class="modal-input channel-name-input">
+                    </div>
+                </div>
+                <div class="form-group private-channel-group">
+                    <div class="private-channel-header">
+                        <div class="private-channel-left">
+                            <span class="private-icon">🔒</span>
+                            <span class="private-label">Private Channel</span>
+                        </div>
+                        <button class="toggle-btn" id="private-toggle" data-active="false">
+                            <div class="toggle-slider"></div>
+                        </button>
+                    </div>
+                    <div class="private-channel-desc">Only selected members and roles will be able to view this channel.</div>
+                </div>
+            </div>
+            <div class="modal-footer channel-footer">
+                <button class="modal-btn secondary" id="cancel-channel-btn">Cancel</button>
+                <button class="modal-btn primary" id="create-channel-btn-confirm">Create Channel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Editor Modal -->
+    <div class="modal" id="profile-editor-modal">
+        <div class="modal-content profile-editor-content">
+            <div class="modal-header">
+                <h2>My Profile</h2>
+                <button class="modal-close" id="close-profile-editor">× <span class="esc-text">ESC</span></button>
+            </div>
+            <div class="modal-body profile-editor-body">
+                <div class="profile-editor-layout">
+                    <div class="profile-editor-form">
+                        <!-- Profile Effect -->
+                        <div class="profile-section-group">
+                            <label class="form-label">PROFILE EFFECT 🔒</label>
+                            <div class="profile-effect-controls">
+                                <button class="modal-btn primary" id="profile-change-effect">Change Effect</button>
+                                <button class="modal-btn secondary" id="profile-remove-effect">Remove Effect</button>
+                            </div>
+                        </div>
+                        <div class="profile-section-divider"></div>
+
+                        <!-- Profile Banner -->
+                        <div class="profile-section-group">
+                            <label class="form-label">PROFILE BANNER 🔒</label>
+                            <div class="profile-banner-controls">
+                                <button class="modal-btn primary" id="profile-change-banner">Change Banner</button>
+                                <button class="modal-btn secondary" id="profile-remove-banner">Remove Banner</button>
+                                <input type="file" id="profile-banner-input" accept="image/*" style="display:none;">
+                            </div>
+                        </div>
+                        <div class="profile-section-divider"></div>
+
+                        <!-- Profile Theme -->
+                        <div class="profile-section-group">
+                            <label class="form-label">PROFILE THEME 🔒</label>
+                            <div class="profile-theme-controls">
+                                <div class="theme-color-picker">
+                                    <div class="theme-color-swatch" id="theme-primary-swatch" style="background: #316ac5;">
+                                        <span class="swatch-edit-icon">✏️</span>
+                                    </div>
+                                    <label class="theme-color-label">Primary</label>
+                                    <input type="color" id="theme-primary-input" value="#316ac5" style="display:none;">
+                                </div>
+                                <div class="theme-color-picker">
+                                    <div class="theme-color-swatch" id="theme-accent-swatch" style="background: #e74c3c;">
+                                        <span class="swatch-edit-icon">✏️</span>
+                                    </div>
+                                    <label class="theme-color-label">Accent</label>
+                                    <input type="color" id="theme-accent-input" value="#e74c3c" style="display:none;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-section-divider"></div>
+
+                        <!-- Avatar -->
+                        <div class="profile-section-group">
+                            <label class="form-label">AVATAR</label>
+                            <div class="profile-avatar-controls">
+                                <button class="modal-btn primary" id="profile-change-avatar">Change Avatar</button>
+                                <input type="file" id="profile-avatar-input" accept="image/*" style="display:none;">
+                            </div>
+                        </div>
+                        <div class="profile-section-divider"></div>
+
+                        <!-- Display Name -->
+                        <div class="form-group">
+                            <label class="form-label">DISPLAY NAME</label>
+                            <input type="text" id="profile-display-name" class="modal-input" placeholder="Your display name">
+                        </div>
+
+                        <!-- Pronouns -->
+                        <div class="form-group">
+                            <label class="form-label">PRONOUNS</label>
+                            <input type="text" id="profile-pronouns" class="modal-input" placeholder="Add your pronouns">
+                        </div>
+
+                        <!-- Bio -->
+                        <div class="profile-section-group">
+                            <label class="form-label">BIO</label>
+                            <p class="form-label-hint">You can use markdown and links if you'd like.</p>
+                            <textarea id="profile-bio" class="modal-input profile-textarea" placeholder="Tell people about yourself" rows="4"></textarea>
+                            <div class="bio-char-count"><span id="bio-char-current">0</span> / 190</div>
+                        </div>
+                        <div class="profile-section-divider"></div>
+
+                        <!-- Connections -->
+                        <div class="profile-connections-section">
+                            <label class="form-label">CONNECTIONS</label>
+                            <div class="form-group">
+                                <label class="form-label-sm">YouTube</label>
+                                <input type="text" id="profile-conn-youtube" class="modal-input" placeholder="YouTube channel URL">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label-sm">Twitter</label>
+                                <input type="text" id="profile-conn-twitter" class="modal-input" placeholder="Twitter profile URL">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label-sm">Twitch</label>
+                                <input type="text" id="profile-conn-twitch" class="modal-input" placeholder="Twitch channel URL">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-editor-preview">
+                        <label class="form-label">PREVIEW</label>
+                        <div class="profile-card" id="profile-preview-card">
+                            <div class="profile-card-banner" id="preview-banner"></div>
+                            <div class="profile-card-avatar" id="preview-avatar">
+                                <div class="avatar-status-dot online"></div>
+                                U
+                            </div>
+                            <div class="profile-card-body">
+                                <div class="profile-card-name" id="preview-name">User</div>
+                                <div class="profile-card-pronouns" id="preview-pronouns"></div>
+                                <div class="profile-card-divider"></div>
+                                <div class="profile-card-section">
+                                    <div class="profile-card-label">ABOUT ME</div>
+                                    <div class="profile-card-bio" id="preview-bio"></div>
+                                </div>
+                                <div class="profile-card-section">
+                                    <button class="profile-example-btn" id="preview-example-btn" style="display:none;">Example Button</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-nameplate-section">
+                            <label class="form-label">NAMEPLATE</label>
+                            <div class="profile-nameplate" id="preview-nameplate">
+                                <div class="nameplate-avatar" id="nameplate-avatar">U</div>
+                                <span class="nameplate-name" id="nameplate-name">User</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" id="cancel-profile-edit">Cancel</button>
+                <button class="modal-btn primary" id="save-profile-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Viewer Modal (read-only, for viewing other users) -->
+    <div class="modal" id="profile-viewer-modal">
+        <div class="modal-content profile-viewer-content">
+            <div class="pv-card" id="viewer-profile-card">
+                <!-- Banner -->
+                <div class="pv-banner" id="viewer-banner"></div>
+                <!-- Top-right action buttons row -->
+                <div class="pv-top-actions">
+                    <button class="pv-top-btn" id="close-profile-viewer" title="Close">×</button>
+                </div>
+                <!-- Avatar overlapping banner -->
+                <div class="pv-avatar-row">
+                    <div class="pv-avatar" id="viewer-avatar">
+                        <div class="pv-status-dot online"></div>
+                        U
+                    </div>
+                    <!-- Action buttons beside avatar -->
+                    <div class="pv-header-actions" id="viewer-actions">
+                        <button class="pv-action-btn pv-action-message" id="viewer-message" title="Send Message">💬 Message</button>
+                        <button class="pv-action-btn pv-action-friend" id="viewer-add-friend">Add Friend</button>
+                    </div>
+                </div>
+                <!-- Identity -->
+                <div class="pv-identity">
+                    <div class="pv-name" id="viewer-name">User</div>
+                    <div class="pv-name-row">
+                        <span class="pv-username" id="viewer-username">user</span>
+                        <span class="pv-dot">•</span>
+                        <span class="pv-pronouns" id="viewer-pronouns"></span>
+                    </div>
+                </div>
+                <!-- Tabs -->
+                <div class="pv-tabs">
+                    <div class="pv-tab active" data-tab="about">About Me</div>
+                    <div class="pv-tab" data-tab="connections" id="viewer-connections-tab">Connections</div>
+                </div>
+                <!-- Tab body -->
+                <div class="pv-tab-body">
+                    <!-- About Me tab -->
+                    <div class="pv-tab-content active" id="pv-tab-about">
+                        <!-- About Me -->
+                        <div class="pv-section" id="viewer-bio-section" style="display:none;">
+                            <div class="pv-label">About Me</div>
+                            <div class="pv-bio" id="viewer-bio"></div>
+                        </div>
+                        <!-- Roles -->
+                        <div class="pv-section" id="viewer-roles-section" style="display:none;">
+                            <div class="pv-label">Roles</div>
+                            <div class="pv-roles" id="viewer-roles"></div>
+                        </div>
+                        <!-- Member Since -->
+                        <div class="pv-section" id="viewer-membersince-section" style="display:none;">
+                            <div class="pv-label">Member Since</div>
+                            <div class="pv-membersince-row">
+                                <div class="pv-membersince-item">
+                                    <span class="pv-membersince-icon">🖥️</span>
+                                    <span class="pv-membersince-date" id="viewer-membersince"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Connections tab -->
+                    <div class="pv-tab-content" id="pv-tab-connections">
+                        <div class="pv-section" id="viewer-connections-section" style="display:none;">
+                            <div class="pv-connections-grid" id="viewer-connections"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../scripts/apps/browser/wigcord.js"></script>
+</body>
+</html>

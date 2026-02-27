@@ -52,5 +52,46 @@ service cloud.firestore {
     match /winesweeper_badges/{username} {
       allow read, write: if true; // Open access for now
     }
+
+    // WigCord collection — all data under wigcord/data (mirrors wigtube/data pattern)
+    match /wigcord/data {
+      allow read: if true;
+      allow write: if true;
+
+      // Servers
+      match /servers/{serverId} {
+        allow read, write: if true;
+      }
+
+      // Channel messages
+      match /messages/{channelKey}/msgs/{msgId} {
+        allow read, write: if true;
+      }
+
+      // Friends list
+      match /friends/{username} {
+        allow read, write: if true;
+      }
+
+      // Direct messages
+      match /dms/{dmId} {
+        allow read, write: if true;
+
+        match /messages/{msgId} {
+          allow read, write: if true;
+        }
+      }
+
+      // User profiles
+      match /profiles/{username} {
+        allow read, write: if true;
+      }
+    }
+
+    // Allow access to other wigcord documents
+    match /wigcord/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }

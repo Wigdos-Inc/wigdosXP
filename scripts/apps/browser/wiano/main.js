@@ -185,16 +185,17 @@ class Wiano {
       top: 20px;
       right: 20px;
       z-index: 1000;
-      padding: 12px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 4px 12px;
+      background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+      color: black;
+      border: 2px outset #d4d0c8;
+      border-radius: 0;
+      font-size: 11px;
       font-weight: bold;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      transition: all 0.3s ease;
+      font-family: 'MS Sans Serif', sans-serif;
+      box-shadow: none;
+      transition: none;
     `;
     
     button.addEventListener('click', () => {
@@ -204,13 +205,19 @@ class Wiano {
     });
     
     button.addEventListener('mouseenter', () => {
-      button.style.transform = 'translateY(-2px)';
-      button.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+      button.style.background = 'linear-gradient(to bottom, #f2efea 0%, #ddd9d4 100%)';
     });
     
     button.addEventListener('mouseleave', () => {
-      button.style.transform = 'translateY(0)';
-      button.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+      button.style.background = 'linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%)';
+    });
+    
+    button.addEventListener('mousedown', () => {
+      button.style.border = '2px inset #d4d0c8';
+    });
+    
+    button.addEventListener('mouseup', () => {
+      button.style.border = '2px outset #d4d0c8';
     });
     
     document.body.appendChild(button);

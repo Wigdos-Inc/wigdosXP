@@ -21,7 +21,7 @@
 
         try {
             const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js");
-            const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp, limit: firestoreLimit } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
+            const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, addDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp, limit: firestoreLimit, onSnapshot, startAfter, limitToLast, Timestamp: FirestoreTimestamp } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
             const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js");
             const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js");
 
@@ -73,6 +73,10 @@
                 arrayRemove,
                 serverTimestamp,
                 limit: firestoreLimit,
+                onSnapshot,
+                startAfter,
+                limitToLast,
+                Timestamp: FirestoreTimestamp,
                 storageRef,
                 uploadBytes,
                 getDownloadURL
@@ -132,8 +136,13 @@
             },
             increment: (n) => n,
             arrayUnion: (...args) => args,
+            arrayRemove: (...args) => args,
             serverTimestamp: () => new Date().toISOString(),
             limit: (n) => null,
+            onSnapshot: (query, callback) => { return () => {}; },
+            startAfter: (...args) => null,
+            limitToLast: (n) => null,
+            Timestamp: { now: () => ({ toDate: () => new Date(), toMillis: () => Date.now(), seconds: Math.floor(Date.now()/1000) }) },
             storageRef: () => null,
             uploadBytes: async () => {
                 console.log("Mock uploadBytes called - file upload requires internet connection");
