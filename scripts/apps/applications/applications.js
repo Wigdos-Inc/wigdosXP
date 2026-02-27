@@ -178,7 +178,7 @@ const applications = {
         ["bombs", "Wigsplosionator"],
         "",
         true, 
-        ["internal", "apps/bombs/"]
+        ["external", "https://wigdos-inc.github.io/Internal-Games/other/wigsplosionator/index.html"]
     ),
     su: new Application(
         ["su", "Singular Upgrading"],
@@ -191,13 +191,13 @@ const applications = {
         ["breakout", "Breakout"],
         "other",
         false,
-        ["internal", "apps/games/"]
+        ["external", "https://wigdos-inc.github.io/Internal-Games/OFES/breakout/breakout.html"]
     ),
     sublimator: new Application(
         ["sublimator", "Sublimator"],
         "other",
         false,
-        ["internal", "apps/games/"]
+        ["external", "https://wigdos-inc.github.io/Internal-Games/OFES/sublimator/sublimator.html"]
     ),
     jeff: new Application(
         ["jeff", "Super Jeff"],
