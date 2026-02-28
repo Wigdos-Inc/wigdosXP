@@ -511,6 +511,26 @@
                                 <label class="form-label-sm">Twitch</label>
                                 <input type="text" id="profile-conn-twitch" class="modal-input" placeholder="Twitch channel URL">
                             </div>
+                            <div class="form-group">
+                                <label class="form-label-sm">Spotify</label>
+                                <div class="spotify-connect-section" id="spotify-connect-section">
+                                    <div class="spotify-not-connected" id="spotify-not-connected">
+                                        <button class="modal-btn spotify-connect-btn" id="spotify-connect-btn">
+                                            <span class="spotify-btn-icon">🎵</span> Connect Spotify Account
+                                        </button>
+                                        <div class="form-hint">Link your account to show what you're listening to</div>
+                                    </div>
+                                    <div class="spotify-connected" id="spotify-connected" style="display: none;">
+                                        <div class="spotify-connected-info">
+                                            <span class="spotify-connected-icon">🎵</span>
+                                            <span class="spotify-connected-text">Spotify Connected</span>
+                                            <span class="spotify-connected-user" id="spotify-connected-user"></span>
+                                        </div>
+                                        <button class="modal-btn secondary spotify-disconnect-btn" id="spotify-disconnect-btn">Disconnect</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="profile-conn-spotify" value="">
+                            </div>
                         </div>
                     </div>
                     <div class="profile-editor-preview">
@@ -591,6 +611,25 @@
                 <div class="pv-tab-body">
                     <!-- About Me tab -->
                     <div class="pv-tab-content active" id="pv-tab-about">
+                        <!-- Listening to Spotify (live now-playing) -->
+                        <div class="pv-section pv-spotify-section" id="viewer-spotify-section" style="display:none;">
+                            <div class="pv-spotify-header">
+                                <span class="pv-spotify-icon">🎵</span>
+                                <span class="pv-label">Listening to Spotify</span>
+                            </div>
+                            <div class="pv-spotify-now-playing" id="viewer-spotify-now-playing">
+                                <img class="pv-spotify-album-art" id="viewer-spotify-art" src="" alt="">
+                                <div class="pv-spotify-track-info">
+                                    <div class="pv-spotify-track-title" id="viewer-spotify-title"></div>
+                                    <div class="pv-spotify-track-artist" id="viewer-spotify-artist"></div>
+                                    <div class="pv-spotify-track-album" id="viewer-spotify-album"></div>
+                                    <div class="pv-spotify-progress-bar">
+                                        <div class="pv-spotify-progress-fill" id="viewer-spotify-progress"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pv-spotify-embed" id="viewer-spotify-embed"></div>
+                        </div>
                         <!-- About Me -->
                         <div class="pv-section" id="viewer-bio-section" style="display:none;">
                             <div class="pv-label">About Me</div>
@@ -623,6 +662,7 @@
         </div>
     </div>
 
+    <script src="../../../scripts/apps/browser/spotify-api.js"></script>
     <script src="../../../scripts/apps/browser/wigcord.js"></script>
 </body>
 </html>

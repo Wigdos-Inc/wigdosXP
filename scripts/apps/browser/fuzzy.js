@@ -966,5 +966,5 @@ function navigateToWigCord(tabId) {
   }
   
   // Load WigCord content
-  tabContent.innerHTML = `<iframe src="apps/browser/pages/wigcord.html" style="width: 100%; height: 100%; border: none;"></iframe>`;
+  tabContent.innerHTML = `<iframe src="apps/browser/pages/wigcord.html" style="width: 100%; height: 100%; border: none;" allow="autoplay; encrypted-media; fullscreen"></iframe>`;
 }

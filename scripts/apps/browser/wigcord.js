@@ -136,6 +136,10 @@ class WigCord {
         this.friends = {};        // { username: { status: 'accepted'|'pending_in'|'pending_out'|'blocked', since } }
         this.friendProfiles = {}; // cached profile data
 
+        // PFP cache: avoids repeated Firebase reads for the same user's avatar
+        this._pfpCache = {};      // { username: pfpUrl|null }
+        this._pfpInFlight = {};   // { username: Promise } — deduplicates concurrent fetches
+
         // Profile data
         this.myProfile = {};
 
@@ -148,6 +152,9 @@ class WigCord {
 
         // Notification sound
         this._notifSound = null;
+
+        // Spotify polling timer
+        this._spotifyPollTimer = null;
 
         // Flags to skip notifications on initial snapshot load
         this._channelInitialized = false;
@@ -510,21 +517,61 @@ class WigCord {
 
     async _getUserPfp(username) {
         if (username === this.username) return this.userPfp;
-        // Try to get from cached wigcord profile first (avoids extra Firebase read)
-        if (this.friendProfiles[username] && this.friendProfiles[username].pfpUrl) {
-            return this.friendProfiles[username].pfpUrl;
+
+        // 1. Return from in-memory cache instantly (includes null = "no pfp")
+        if (username in this._pfpCache) return this._pfpCache[username];
+
+        // 2. Return from localStorage cache (avoids any Firebase read on reload)
+        const lsKey = `wigcord-pfp-cache-${username}`;
+        const cached = localStorage.getItem(lsKey);
+        if (cached) {
+            this._pfpCache[username] = cached;
+            return cached;
         }
-        // Try wigcord_profiles for this user
-        const profile = await this._fbGet(`${this._cols.profiles}/${username}`);
-        if (profile && profile.pfpUrl) {
-            if (!this.friendProfiles[username]) this.friendProfiles[username] = profile;
-            return profile.pfpUrl;
-        }
-        // Fallback to global pfp (WigTube etc.)
-        if (typeof loadUserProfilePicture === 'function') {
-            return await loadUserProfilePicture(username);
-        }
-        return localStorage.getItem(`pfp_${username}`) || null;
+
+        // 3. Deduplicate: if a fetch for this user is already in flight, wait for it
+        if (this._pfpInFlight[username]) return this._pfpInFlight[username];
+
+        // 4. Single Firebase fetch — read from profiles collection only
+        this._pfpInFlight[username] = (async () => {
+            try {
+                // Check in-memory friendProfiles first
+                if (this.friendProfiles[username] && this.friendProfiles[username].pfpUrl) {
+                    const url = this.friendProfiles[username].pfpUrl;
+                    this._pfpCache[username] = url;
+                    try { localStorage.setItem(lsKey, url); } catch(e) {}
+                    return url;
+                }
+
+                // Fetch from wigcord profiles collection (single read per user)
+                const profile = await this._fbGet(`${this._cols.profiles}/${username}`);
+                if (profile) {
+                    if (!this.friendProfiles[username]) this.friendProfiles[username] = profile;
+                    if (profile.pfpUrl) {
+                        this._pfpCache[username] = profile.pfpUrl;
+                        try { localStorage.setItem(lsKey, profile.pfpUrl); } catch(e) {}
+                        return profile.pfpUrl;
+                    }
+                }
+
+                // Fallback to global pfp (WigTube etc.)
+                let fallback = null;
+                if (typeof loadUserProfilePicture === 'function') {
+                    fallback = await loadUserProfilePicture(username);
+                }
+                if (!fallback) fallback = localStorage.getItem(`pfp_${username}`) || null;
+
+                this._pfpCache[username] = fallback;
+                if (fallback) {
+                    try { localStorage.setItem(lsKey, fallback); } catch(e) {}
+                }
+                return fallback;
+            } finally {
+                delete this._pfpInFlight[username];
+            }
+        })();
+
+        return this._pfpInFlight[username];
     }
 
     // =========================================================================
@@ -1076,15 +1123,59 @@ class WigCord {
         }
 
         let messageHTML = this._esc(msg.content || msg.text || '');
+        const rawContent = msg.content || msg.text || '';
+
+        // Detect GIF URLs
         const gifUrlPattern = /(https?:\/\/[^\s]+\.gif[^\s]*)/gi;
-        const gifUrls = (msg.content || msg.text || '').match(gifUrlPattern);
+        const gifUrls = rawContent.match(gifUrlPattern);
         if (gifUrls) {
-            messageHTML = this._esc((msg.content || msg.text || '').replace(gifUrlPattern, '').trim());
+            messageHTML = this._esc(rawContent.replace(gifUrlPattern, '').trim());
             gifUrls.forEach(url => {
                 messageHTML += `<img src="${url}" class="message-gif" alt="GIF">`;
             });
         }
+
+        // Detect YouTube URLs and build embeds (thumbnail preview to avoid error 153 in nested iframes)
+        const ytPattern = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})[^\s]*/gi;
+        let ytMatch;
+        const ytEmbeds = [];
+        while ((ytMatch = ytPattern.exec(rawContent)) !== null) {
+            const videoId = ytMatch[1];
+            const ytUrl = `https://www.youtube.com/watch?v=${this._esc(videoId)}`;
+            messageHTML = messageHTML.replace(this._esc(ytMatch[0]), `<a href="${this._esc(ytMatch[0])}" class="message-link" target="_blank">${this._esc(ytMatch[0])}</a>`);
+            ytEmbeds.push(`<div class="message-embed video-embed yt-thumb-embed" onclick="window.open('${ytUrl}', '_blank')">
+                <img src="https://img.youtube.com/vi/${this._esc(videoId)}/hqdefault.jpg" class="yt-thumb-img" alt="YouTube Video">
+                <div class="yt-thumb-overlay">
+                    <div class="yt-thumb-play">▶</div>
+                </div>
+                <div class="yt-thumb-bar">
+                    <img src="https://www.youtube.com/favicon.ico" class="yt-thumb-favicon">
+                    <span class="yt-thumb-label">YouTube</span>
+                    <span class="yt-thumb-link">Watch on YouTube</span>
+                </div>
+            </div>`);
+        }
+
+        // Detect WigTube URLs and build embeds
+        const wtPattern = /(?:https?:\/\/[^\s]*)?wigtube-player\.html\?v=([a-zA-Z0-9_-]+)[^\s]*/gi;
+        let wtMatch;
+        const wtEmbeds = [];
+        while ((wtMatch = wtPattern.exec(rawContent)) !== null) {
+            const videoId = wtMatch[1];
+            messageHTML = messageHTML.replace(this._esc(wtMatch[0]), `<a href="${this._esc(wtMatch[0])}" class="message-link">${this._esc(wtMatch[0])}</a>`);
+            wtEmbeds.push(`<div class="message-embed wigtube-embed">
+                <div class="wigtube-embed-header">
+                    <span class="wigtube-embed-icon">▶</span>
+                    <span class="wigtube-embed-label">WigTube Video</span>
+                </div>
+                <iframe src="wigtube-player.html?v=${this._esc(videoId)}&embed=1" frameborder="0" allow="autoplay; encrypted-media" class="embed-iframe"></iframe>
+            </div>`);
+        }
+
         messageHTML = this._parseEmojis(messageHTML);
+
+        // Append video embeds after the message text
+        const embedsHTML = [...ytEmbeds, ...wtEmbeds].join('');
 
         const timeStr = msg.timestamp ? this._formatTime(msg.timestamp) : '';
         const authorName = msg.author || 'System';
@@ -1104,10 +1195,11 @@ class WigCord {
                     <div class="message-header">
                         <span class="message-author" data-username="${this._esc(authorName)}">${this._esc(authorName)}</span>
                         <span class="message-time">${timeStr}</span>
+                        ${actionsHTML}
                     </div>
                     <div class="message-text">${messageHTML}</div>
+                    ${embedsHTML}
                 </div>
-                ${actionsHTML}
             </div>
         `;
 
@@ -2118,12 +2210,53 @@ class WigCord {
         }
         rolesSection.style.display = hasRoles ? 'block' : 'none';
 
+        // Spotify "Listening to" — try live API first, fall back to static embed URL
+        const spotifySection = document.getElementById('viewer-spotify-section');
+        const spotifyEmbed = document.getElementById('viewer-spotify-embed');
+        const spotifyNowPlaying = document.getElementById('viewer-spotify-now-playing');
+        const spotifyUrl = (profile.connections || {}).spotify || '';
+        const spotifyEmbedUrl = this._getSpotifyEmbedUrl(spotifyUrl);
+        const isOwnProfile = (username === this.username);
+        const spotifyLinked = (profile.connections || {}).spotifyConnected;
+
+        // Clear previous polling
+        if (this._spotifyPollTimer) {
+            clearInterval(this._spotifyPollTimer);
+            this._spotifyPollTimer = null;
+        }
+
+        if (isOwnProfile && typeof SpotifyAPI !== 'undefined' && SpotifyAPI.isConnected()) {
+            // Own profile with live Spotify connection
+            spotifySection.style.display = 'block';
+            if (spotifyNowPlaying) spotifyNowPlaying.style.display = 'none';
+            spotifyEmbed.innerHTML = '';
+            this._pollSpotifyNowPlaying(spotifySection, spotifyNowPlaying, spotifyEmbed);
+            // Poll every 10 seconds
+            this._spotifyPollTimer = setInterval(() => {
+                this._pollSpotifyNowPlaying(spotifySection, spotifyNowPlaying, spotifyEmbed);
+            }, 10000);
+        } else if (spotifyEmbedUrl) {
+            // Fallback: static Spotify embed URL from connections
+            if (spotifyNowPlaying) spotifyNowPlaying.style.display = 'none';
+            spotifyEmbed.innerHTML = `<iframe src="${spotifyEmbedUrl}" frameborder="0" allowtransparency="true" allow="encrypted-media" class="spotify-embed-iframe"></iframe>`;
+            spotifySection.style.display = 'block';
+        } else if (spotifyLinked) {
+            // User has Spotify linked but we can't access their API (not our tokens)
+            spotifySection.style.display = 'block';
+            if (spotifyNowPlaying) spotifyNowPlaying.style.display = 'none';
+            spotifyEmbed.innerHTML = `<div class="pv-spotify-offline">Spotify connected — not currently playing</div>`;
+        } else {
+            spotifyEmbed.innerHTML = '';
+            if (spotifyNowPlaying) spotifyNowPlaying.style.display = 'none';
+            spotifySection.style.display = 'none';
+        }
+
         // Connections
         const connSection = document.getElementById('viewer-connections-section');
         const connEl = document.getElementById('viewer-connections');
         const connTab = document.getElementById('viewer-connections-tab');
         const conn = profile.connections || {};
-        const hasConn = conn.youtube || conn.twitter || conn.twitch;
+        const hasConn = conn.youtube || conn.twitter || conn.twitch || conn.spotify;
         if (hasConn) {
             connSection.style.display = 'block';
             if (connTab) connTab.style.display = 'block';
@@ -2131,6 +2264,7 @@ class WigCord {
             if (conn.youtube) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">▶️</span><div class="pv-conn-info"><div class="pv-conn-name">YouTube</div><a href="${this._esc(conn.youtube)}" target="_blank" class="pv-conn-link">${this._esc(conn.youtube)}</a></div></div>`;
             if (conn.twitter) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">🐦</span><div class="pv-conn-info"><div class="pv-conn-name">Twitter</div><a href="${this._esc(conn.twitter)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitter)}</a></div></div>`;
             if (conn.twitch)  connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">📺</span><div class="pv-conn-info"><div class="pv-conn-name">Twitch</div><a href="${this._esc(conn.twitch)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitch)}</a></div></div>`;
+            if (conn.spotify) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">🎵</span><div class="pv-conn-info"><div class="pv-conn-name">Spotify</div><a href="${this._esc(conn.spotify)}" target="_blank" class="pv-conn-link">${this._esc(conn.spotify)}</a></div></div>`;
             connEl.innerHTML = connHTML;
         } else {
             connSection.style.display = 'none';
@@ -2203,6 +2337,10 @@ class WigCord {
         document.getElementById('profile-conn-youtube').value = (this.myProfile.connections || {}).youtube || '';
         document.getElementById('profile-conn-twitter').value = (this.myProfile.connections || {}).twitter || '';
         document.getElementById('profile-conn-twitch').value = (this.myProfile.connections || {}).twitch || '';
+        document.getElementById('profile-conn-spotify').value = (this.myProfile.connections || {}).spotify || '';
+
+        // Update Spotify connect button state
+        this._updateSpotifyConnectUI();
 
         // Load theme colors
         const theme = this.myProfile.theme || {};
@@ -2336,6 +2474,92 @@ class WigCord {
         return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
     }
 
+    /**
+     * Convert a Spotify URL (track, album, playlist, artist) to an embed URL.
+     * Supports: open.spotify.com/track/ID, /album/ID, /playlist/ID, /artist/ID
+     * Returns null if the URL is not a valid Spotify link.
+     */
+    _getSpotifyEmbedUrl(url) {
+        if (!url) return null;
+        const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
+        if (match) {
+            const type = match[1];
+            const id = match[2];
+            return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
+        }
+        return null;
+    }
+
+    /**
+     * Update the Spotify connect/disconnect UI in the profile editor
+     */
+    _updateSpotifyConnectUI() {
+        const notConnected = document.getElementById('spotify-not-connected');
+        const connected = document.getElementById('spotify-connected');
+        const userSpan = document.getElementById('spotify-connected-user');
+
+        if (typeof SpotifyAPI !== 'undefined' && SpotifyAPI.isConnected()) {
+            notConnected.style.display = 'none';
+            connected.style.display = 'flex';
+            const savedUser = (this.myProfile.connections || {}).spotifyUser;
+            if (userSpan) userSpan.textContent = savedUser ? `(${savedUser})` : '';
+        } else {
+            notConnected.style.display = 'block';
+            connected.style.display = 'none';
+        }
+    }
+
+    /**
+     * Fetch and render the currently playing Spotify track in the profile viewer
+     */
+    async _pollSpotifyNowPlaying(section, nowPlayingEl, embedEl) {
+        if (typeof SpotifyAPI === 'undefined' || !SpotifyAPI.isConnected()) return;
+
+        try {
+            const track = await SpotifyAPI.getCurrentlyPlaying();
+            if (track && track.isPlaying) {
+                this._renderSpotifyNowPlaying(track, section, nowPlayingEl, embedEl);
+            } else {
+                // Not playing anything right now
+                if (nowPlayingEl) nowPlayingEl.style.display = 'none';
+                embedEl.innerHTML = `<div class="pv-spotify-offline">Nothing playing right now</div>`;
+                section.style.display = 'block';
+            }
+        } catch (e) {
+            console.error('[WigCord] Spotify poll error:', e);
+        }
+    }
+
+    /**
+     * Render a currently playing track in the profile viewer
+     */
+    _renderSpotifyNowPlaying(track, section, nowPlayingEl, embedEl) {
+        if (!nowPlayingEl) return;
+
+        // Show now-playing card, hide static embed
+        nowPlayingEl.style.display = 'flex';
+        embedEl.innerHTML = '';
+        section.style.display = 'block';
+
+        const artEl = document.getElementById('viewer-spotify-art');
+        const titleEl = document.getElementById('viewer-spotify-title');
+        const artistEl = document.getElementById('viewer-spotify-artist');
+        const albumEl = document.getElementById('viewer-spotify-album');
+        const progressEl = document.getElementById('viewer-spotify-progress');
+
+        if (artEl) {
+            artEl.src = track.albumArtSmall || track.albumArt || '';
+            artEl.alt = track.album;
+        }
+        if (titleEl) titleEl.textContent = track.title;
+        if (artistEl) artistEl.textContent = `by ${track.artist}`;
+        if (albumEl) albumEl.textContent = `on ${track.album}`;
+        if (progressEl && track.duration > 0) {
+            const pct = Math.min(100, (track.progress / track.duration) * 100);
+            progressEl.style.width = `${pct}%`;
+        }
+    }
+
     _compressImage(dataUrl, maxWidth, maxHeight, quality = 0.7) {
         return new Promise((resolve) => {
             const img = new Image();
@@ -2368,7 +2592,8 @@ class WigCord {
             connections: {
                 youtube: document.getElementById('profile-conn-youtube').value.trim(),
                 twitter: document.getElementById('profile-conn-twitter').value.trim(),
-                twitch: document.getElementById('profile-conn-twitch').value.trim()
+                twitch: document.getElementById('profile-conn-twitch').value.trim(),
+                spotify: document.getElementById('profile-conn-spotify').value.trim()
             }
         };
 
@@ -2563,6 +2788,37 @@ class WigCord {
         document.getElementById('profile-change-avatar').addEventListener('click', () => {
             document.getElementById('profile-avatar-input').click();
         });
+
+        // Spotify connect/disconnect
+        document.getElementById('spotify-connect-btn').addEventListener('click', async () => {
+            if (typeof SpotifyAPI === 'undefined') {
+                alert('Spotify integration not loaded.');
+                return;
+            }
+            const success = await SpotifyAPI.login();
+            if (success) {
+                this._updateSpotifyConnectUI();
+                // Save connected state to profile
+                const spotifyProfile = await SpotifyAPI.getUserProfile();
+                if (spotifyProfile) {
+                    this.myProfile.connections = this.myProfile.connections || {};
+                    this.myProfile.connections.spotifyConnected = true;
+                    this.myProfile.connections.spotifyUser = spotifyProfile.name || spotifyProfile.id;
+                    await this._saveMyProfile(this.myProfile);
+                }
+            }
+        });
+        document.getElementById('spotify-disconnect-btn').addEventListener('click', async () => {
+            if (typeof SpotifyAPI !== 'undefined') {
+                SpotifyAPI.disconnect();
+            }
+            this.myProfile.connections = this.myProfile.connections || {};
+            delete this.myProfile.connections.spotifyConnected;
+            delete this.myProfile.connections.spotifyUser;
+            this.myProfile.connections.spotify = '';
+            await this._saveMyProfile(this.myProfile);
+            this._updateSpotifyConnectUI();
+        });
         document.getElementById('profile-avatar-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file && file.type.startsWith('image/')) {
@@ -2573,6 +2829,9 @@ class WigCord {
                     await this._fbSet(`${this._cols.profiles}/${this.username}`, { pfpUrl: dataUrl });
                     // Cache in wigcord-specific localStorage key
                     try { localStorage.setItem(`wigcord-pfp-${this.username}`, dataUrl); } catch(e) {}
+                    // Update pfp cache so rendered messages pick it up
+                    this._pfpCache[this.username] = dataUrl;
+                    try { localStorage.setItem(`wigcord-pfp-cache-${this.username}`, dataUrl); } catch(e) {}
                     this.userPfp = dataUrl;
                     this._updateProfilePreview();
                     this._updateUserPanel();
@@ -2584,6 +2843,7 @@ class WigCord {
         // Profile viewer close
         document.getElementById('close-profile-viewer').addEventListener('click', () => {
             document.getElementById('profile-viewer-modal').classList.remove('active');
+            if (this._spotifyPollTimer) { clearInterval(this._spotifyPollTimer); this._spotifyPollTimer = null; }
         });
 
         // Close profile viewer when clicking outside the card
@@ -2591,6 +2851,7 @@ class WigCord {
             const card = document.getElementById('viewer-profile-card');
             if (card && !card.contains(e.target)) {
                 document.getElementById('profile-viewer-modal').classList.remove('active');
+                if (this._spotifyPollTimer) { clearInterval(this._spotifyPollTimer); this._spotifyPollTimer = null; }
             }
         });
 

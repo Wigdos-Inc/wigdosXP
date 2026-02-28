@@ -1,5 +1,5 @@
 {
-    "liveServer.settings.port": 5521,
+    "liveServer.settings.port": 5522,
     "python-envs.defaultEnvManager": "ms-python.python:system",
     "python-envs.pythonProjects": [],
     "chat.mcp.serverSampling": {

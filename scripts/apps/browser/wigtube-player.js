@@ -155,8 +155,11 @@ let currentTrackIndex = 0;
 let isPlayingAlbum = false;
 let viewCountIncremented = false; // Track if view has been counted for current video
 
+// Detect embed mode early
+const _isEmbedMode = new URLSearchParams(window.location.search).get('embed') === '1';
+
 document.addEventListener('DOMContentLoaded', async function() {
-    debugLog('DOM Content Loaded');
+    debugLog('DOM Content Loaded' + (_isEmbedMode ? ' (EMBED MODE)' : ''));
     
     // Load video data from JSON first
     const jsonLoaded = await initializePlayerVideoData();
@@ -181,6 +184,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             };
         });
+    }
+    
+    // In embed mode, skip Firebase wait and non-essential features for fast playback
+    if (_isEmbedMode) {
+        debugLog('Embed mode: skipping Firebase wait, loading video directly');
+        setupEventListeners();
+        await initializePlayer();
+        // Skip buffering sim — show play button immediately
+        const bufferingIndicator = document.getElementById('bufferingIndicator');
+        const playButton = document.getElementById('playButton');
+        if (bufferingIndicator) bufferingIndicator.style.display = 'none';
+        if (playButton) playButton.style.display = 'flex';
+        enableControls();
+        debugLog('Embed mode: player ready');
+        return;
     }
     
     // Wait for Firebase to be ready before initializing player
@@ -377,9 +395,11 @@ async function loadVideo(videoId) {
         await loadVideoFallback(videoId, video);
     }
     
-    // Always load comments after video info is loaded
-    debugLog('loadVideo: Loading comments');
-    await loadComments();
+    // Always load comments after video info is loaded (skip in embed mode)
+    if (!_isEmbedMode) {
+        debugLog('loadVideo: Loading comments');
+        await loadComments();
+    }
     
     // Show album section if this is a music video
     if (video.isMusic) {
@@ -397,8 +417,10 @@ async function loadVideo(videoId) {
         }
     }
     
-    // Start buffering simulation
-    startBuffering();
+    // Start buffering simulation (skip in embed mode — handled by DOMContentLoaded)
+    if (!_isEmbedMode) {
+        startBuffering();
+    }
     
     // Update status
     updateStatus('Loading video: ' + video.title);

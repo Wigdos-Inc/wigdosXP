@@ -345,6 +345,7 @@ class AppWindow {
         this.iframe = appMain.appendChild(document.createElement("iframe"));
         this.iframe.classList.add("appContent");
         this.iframe.dataset.appIndex = this.index;
+        this.iframe.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
 
         // Optional sandboxing
         if (this.app && this.app.sandbox) {

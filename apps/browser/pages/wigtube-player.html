@@ -6,6 +6,53 @@
     <title>WigTube Video Player</title>
     <base href="../../../">
     <link rel="stylesheet" href="styles/apps/browser/wigtube-player.css">
+    <style id="embed-mode-styles">
+        /* Embed mode: only show video player */
+        body.embed-mode .player-header,
+        body.embed-mode .video-info,
+        body.embed-mode .comments-section,
+        body.embed-mode .sidebar,
+        body.embed-mode .status-bar,
+        body.embed-mode .breadcrumb,
+        body.embed-mode .header-right,
+        body.embed-mode .action-buttons,
+        body.embed-mode .description-box {
+            display: none !important;
+        }
+        body.embed-mode {
+            overflow: hidden;
+            background: #000;
+        }
+        body.embed-mode .player-container {
+            padding: 0;
+            display: block;
+        }
+        body.embed-mode .video-section {
+            max-width: 100%;
+            width: 100%;
+        }
+        body.embed-mode .video-player {
+            border: none;
+        }
+        body.embed-mode .video-screen {
+            height: 100vh;
+        }
+        body.embed-mode .player-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+    </style>
+    <script>
+        // Apply embed mode immediately to avoid flash of full UI
+        if (new URLSearchParams(window.location.search).get('embed') === '1') {
+            document.addEventListener('DOMContentLoaded', function() {
+                document.body.classList.add('embed-mode');
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="player-header">
