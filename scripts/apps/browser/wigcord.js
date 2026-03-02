@@ -21,6 +21,7 @@ class WigCord {
         // Firestore collection paths — all under wigcord/data (like wigtube/data)
         COLLECTIONS: {
             servers:   'wigcord/data/servers',
+            invites:   'wigcord/data/invites',
             messages:  'wigcord/data/messages',
             friends:   'wigcord/data/friends',
             dms:       'wigcord/data/dms',
@@ -258,6 +259,9 @@ class WigCord {
 
         // Start in DM view
         this.switchToDMView();
+
+        // Handle invite links (?invite=CODE or /invite/CODE)
+        await this._handleInviteFromUrl();
 
         // Check if returning from a full-page Spotify redirect auth
         this._checkSpotifyRedirectAuth();
@@ -611,8 +615,8 @@ class WigCord {
     async _getUserPfp(username) {
         if (username === this.username) return this.userPfp;
 
-        // 1. Return from in-memory cache instantly (includes null = "no pfp")
-        if (username in this._pfpCache) return this._pfpCache[username];
+        // 1. Return from in-memory cache instantly (do not hard-cache null forever)
+        if (username in this._pfpCache && this._pfpCache[username]) return this._pfpCache[username];
 
         // 2. Return from localStorage cache (avoids any Firebase read on reload)
         const lsKey = `wigcord-pfp-cache-${username}`;
@@ -654,8 +658,8 @@ class WigCord {
                 }
                 if (!fallback) fallback = localStorage.getItem(`pfp_${username}`) || null;
 
-                this._pfpCache[username] = fallback;
                 if (fallback) {
+                    this._pfpCache[username] = fallback;
                     try { localStorage.setItem(lsKey, fallback); } catch(e) {}
                 }
                 return fallback;
@@ -1235,7 +1239,7 @@ class WigCord {
         while ((ytMatch = ytPattern.exec(rawContent)) !== null) {
             const videoId = ytMatch[1];
             const ytUrl = `https://www.youtube.com/watch?v=${this._esc(videoId)}`;
-            messageHTML = messageHTML.replace(this._esc(ytMatch[0]), `<a href="${this._esc(ytMatch[0])}" class="message-link" target="_blank">${this._esc(ytMatch[0])}</a>`);
+            messageHTML = messageHTML.replace(this._esc(ytMatch[0]), `<a href="${this._esc(ytMatch[0])}" class="message-link" target="_blank" rel="noopener noreferrer">${this._esc(ytMatch[0])}</a>`);
             ytEmbeds.push(`<div class="message-embed video-embed yt-thumb-embed" onclick="window.open('${ytUrl}', '_blank')">
                 <img src="https://img.youtube.com/vi/${this._esc(videoId)}/hqdefault.jpg" class="yt-thumb-img" alt="YouTube Video">
                 <div class="yt-thumb-overlay">
@@ -1255,7 +1259,7 @@ class WigCord {
         const wtEmbeds = [];
         while ((wtMatch = wtPattern.exec(rawContent)) !== null) {
             const videoId = wtMatch[1];
-            messageHTML = messageHTML.replace(this._esc(wtMatch[0]), `<a href="${this._esc(wtMatch[0])}" class="message-link">${this._esc(wtMatch[0])}</a>`);
+            messageHTML = messageHTML.replace(this._esc(wtMatch[0]), `<a href="${this._esc(wtMatch[0])}" class="message-link" target="_blank" rel="noopener noreferrer">${this._esc(wtMatch[0])}</a>`);
             wtEmbeds.push(`<div class="message-embed wigtube-embed">
                 <div class="wigtube-embed-header">
                     <span class="wigtube-embed-icon">▶</span>
@@ -1265,10 +1269,29 @@ class WigCord {
             </div>`);
         }
 
+        // Detect WigCord invite links and create join embeds
+        const inviteCodes = this._extractInviteCodesFromText(rawContent);
+        const inviteEmbeds = inviteCodes.map(code => `
+            <div class="message-embed wc-invite-embed" data-invite-code="${this._esc(code)}">
+                <div class="wc-invite-header">Server Invite</div>
+                <div class="wc-invite-body">
+                    <div class="wc-invite-icon">?</div>
+                    <div class="wc-invite-meta">
+                        <div class="wc-invite-name">Loading server...</div>
+                        <div class="wc-invite-sub">Invite code: ${this._esc(code)}</div>
+                    </div>
+                    <button class="wc-invite-join-btn" disabled>Join</button>
+                </div>
+            </div>
+        `);
+
+        // Linkify any remaining URLs in message text (not just YouTube/WigTube)
+        messageHTML = this._linkifyEscapedHtml(messageHTML);
+
         messageHTML = this._parseEmojis(messageHTML);
 
         // Append video embeds after the message text
-        const embedsHTML = [...ytEmbeds, ...wtEmbeds].join('');
+        const embedsHTML = [...ytEmbeds, ...wtEmbeds, ...inviteEmbeds].join('');
 
         const timeStr = msg.timestamp ? this._formatTime(msg.timestamp) : '';
         const authorName = msg.author || 'System';
@@ -1333,6 +1356,14 @@ class WigCord {
         }
 
         container.appendChild(el);
+
+        // Hydrate invite embeds (resolve server info + bind Join button)
+        if (inviteCodes.length) {
+            el.querySelectorAll('.wc-invite-embed').forEach(embedEl => {
+                const code = (embedEl.dataset.inviteCode || '').toUpperCase();
+                if (code) this._hydrateInviteEmbed(embedEl, code);
+            });
+        }
 
         // Async: resolve pfp from profile cache and update avatar
         if (!msg.isSystem && msg.author) {
@@ -3421,10 +3452,28 @@ class WigCord {
     // Invite Modal
     // =========================================================================
 
-    _openInviteModal() {
+    async _openInviteModal() {
+        if (!this.currentServer) {
+            alert('Open a server first to create an invite link.');
+            return;
+        }
+
+        const code = this._generateInviteCode();
+        const invitePath = `${this._c.COLLECTIONS.invites}/${code}`;
+        const inviteData = {
+            code,
+            serverId: this.currentServer,
+            createdBy: this.username,
+            createdAt: Date.now(),
+        };
+
+        await this._fbSet(invitePath, inviteData, true);
+
+        const base = `${window.location.origin}${window.location.pathname}`;
+        const url = `${base}?invite=${encodeURIComponent(code)}`;
+
         document.getElementById('invite-modal').classList.add('active');
-        const code = Math.random().toString(36).substr(2, 9).toUpperCase();
-        document.getElementById('invite-link').value = `https://wigcord.xp/invite/${code}`;
+        document.getElementById('invite-link').value = url;
     }
 
     _closeInviteModal() {
@@ -3438,6 +3487,202 @@ class WigCord {
         const btn = document.getElementById('copy-invite');
         btn.textContent = 'Copied!';
         setTimeout(() => btn.textContent = 'Copy', 1500);
+    }
+
+    _extractInviteCodesFromText(text) {
+        if (!text) return [];
+        const set = new Set();
+
+        const queryPattern = /[?&]invite=([A-Za-z0-9_-]+)/gi;
+        let queryMatch;
+        while ((queryMatch = queryPattern.exec(text)) !== null) {
+            const code = (queryMatch[1] || '').toUpperCase();
+            if (code) set.add(code);
+        }
+
+        const pathPattern = /\/invite\/([A-Za-z0-9_-]+)/gi;
+        let pathMatch;
+        while ((pathMatch = pathPattern.exec(text)) !== null) {
+            const code = (pathMatch[1] || '').toUpperCase();
+            if (code) set.add(code);
+        }
+
+        return Array.from(set);
+    }
+
+    async _hydrateInviteEmbed(embedEl, code) {
+        if (!embedEl || !code) return;
+
+        const nameEl = embedEl.querySelector('.wc-invite-name');
+        const subEl = embedEl.querySelector('.wc-invite-sub');
+        const iconEl = embedEl.querySelector('.wc-invite-icon');
+        const joinBtn = embedEl.querySelector('.wc-invite-join-btn');
+
+        if (!this._online) {
+            if (nameEl) nameEl.textContent = 'Invite unavailable offline';
+            if (subEl) subEl.textContent = `Invite code: ${code}`;
+            return;
+        }
+
+        const invite = await this._fbGet(`${this._c.COLLECTIONS.invites}/${code}`);
+        if (!invite || !invite.serverId) {
+            if (nameEl) nameEl.textContent = 'Invalid or expired invite';
+            if (subEl) subEl.textContent = `Invite code: ${code}`;
+            if (joinBtn) joinBtn.disabled = true;
+            return;
+        }
+
+        const server = this.servers.find(s => s.id === invite.serverId) || await this._fbGet(`${this._cols.servers}/${invite.serverId}`);
+        if (!server) {
+            if (nameEl) nameEl.textContent = 'Server not found';
+            if (subEl) subEl.textContent = `Invite code: ${code}`;
+            if (joinBtn) joinBtn.disabled = true;
+            return;
+        }
+
+        const serverName = server.name || 'Unknown Server';
+        if (nameEl) nameEl.textContent = serverName;
+
+        const memberCount = Array.isArray(server.memberList) ? server.memberList.length : Object.keys(server.members || {}).length;
+        if (subEl) subEl.textContent = `${memberCount || 0} member${(memberCount || 0) === 1 ? '' : 's'} • Invite code: ${code}`;
+
+        if (iconEl) {
+            if (server.icon && typeof server.icon === 'string' && server.icon.startsWith('data:image/')) {
+                iconEl.innerHTML = `<img src="${this._esc(server.icon)}" class="wc-invite-icon-img" alt="">`;
+            } else {
+                const fallback = ((server.icon && server.icon.length <= 2) ? server.icon : serverName.substring(0, 2).toUpperCase()) || '??';
+                iconEl.textContent = fallback;
+            }
+        }
+
+        if (joinBtn) {
+            joinBtn.disabled = false;
+            joinBtn.onclick = () => this._showXpInviteJoinPopup(code, serverName);
+        }
+    }
+
+    _generateInviteCode() {
+        return Math.random().toString(36).slice(2, 11).toUpperCase();
+    }
+
+    _extractInviteCodeFromUrl() {
+        try {
+            const params = new URLSearchParams(window.location.search || '');
+            const fromQuery = (params.get('invite') || '').trim();
+            if (fromQuery) return fromQuery;
+
+            const pathMatch = (window.location.pathname || '').match(/\/invite\/([A-Za-z0-9_-]+)/i);
+            return pathMatch ? (pathMatch[1] || '').trim() : '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    _clearInviteCodeFromUrl() {
+        try {
+            const url = new URL(window.location.href);
+            if (!url.searchParams.has('invite')) return;
+            url.searchParams.delete('invite');
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        } catch (e) {}
+    }
+
+    async _handleInviteFromUrl() {
+        const rawCode = this._extractInviteCodeFromUrl();
+        if (!rawCode) return;
+
+        const code = rawCode.toUpperCase();
+        this._clearInviteCodeFromUrl();
+
+        if (!this._online) {
+            alert('Invite links require an online connection.');
+            return;
+        }
+
+        try {
+            const result = await this._joinServerByInviteCode(code);
+            if (!result.ok) {
+                alert(result.message || 'Failed to join server from invite link.');
+                return;
+            }
+            alert(result.message || 'Joined server successfully!');
+        } catch (e) {
+            console.error('[WigCord] Invite accept error:', e);
+            alert('Failed to join server from invite link.');
+        }
+    }
+
+    async _joinServerByInviteCode(rawCode) {
+        const code = (rawCode || '').trim().toUpperCase();
+        if (!code) return { ok: false, message: 'Invalid invite code.' };
+        if (!this._online) return { ok: false, message: 'Invite links require an online connection.' };
+
+        const invite = await this._fbGet(`${this._c.COLLECTIONS.invites}/${code}`);
+        if (!invite || !invite.serverId) return { ok: false, message: 'This invite link is invalid or expired.' };
+
+        const serverId = invite.serverId;
+        const serverDoc = await this._fbGet(`${this._cols.servers}/${serverId}`);
+        if (!serverDoc) return { ok: false, message: 'This server no longer exists.' };
+
+        const members = { ...(serverDoc.members || {}) };
+        const alreadyMember = !!members[this.username];
+
+        if (!alreadyMember) {
+            members[this.username] = { role: 'member', joinedAt: Date.now() };
+            const existingMemberList = Array.isArray(serverDoc.memberList) ? serverDoc.memberList : [];
+            const memberList = Array.from(new Set([...existingMemberList, this.username]));
+            await this._fbSet(`${this._cols.servers}/${serverId}`, { members, memberList }, true);
+        }
+
+        await this._loadServers();
+        this.switchToServer(serverId);
+        return {
+            ok: true,
+            serverId,
+            alreadyMember,
+            message: alreadyMember ? 'You are already in this server.' : 'Joined server successfully!'
+        };
+    }
+
+    _showXpInviteJoinPopup(code, serverName) {
+        const overlay = document.createElement('div');
+        overlay.className = 'wc-xp-invite-overlay';
+        overlay.innerHTML = `
+            <div class="wc-xp-invite-popup" role="dialog" aria-modal="true">
+                <div class="wc-xp-invite-titlebar">WigCord</div>
+                <div class="wc-xp-invite-body">
+                    <div class="wc-xp-invite-icon">⚠</div>
+                    <div class="wc-xp-invite-text">Join server "${this._esc(serverName)}"?</div>
+                </div>
+                <div class="wc-xp-invite-actions">
+                    <button class="wc-xp-btn" data-action="join">Join Server</button>
+                    <button class="wc-xp-btn" data-action="cancel">Cancel</button>
+                </div>
+            </div>
+        `;
+
+        const cleanup = () => {
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        };
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) cleanup();
+        });
+
+        const joinBtn = overlay.querySelector('[data-action="join"]');
+        const cancelBtn = overlay.querySelector('[data-action="cancel"]');
+
+        if (cancelBtn) cancelBtn.addEventListener('click', cleanup);
+        if (joinBtn) {
+            joinBtn.addEventListener('click', async () => {
+                joinBtn.disabled = true;
+                const result = await this._joinServerByInviteCode(code);
+                cleanup();
+                alert(result.message || (result.ok ? 'Joined server successfully!' : 'Failed to join server.'));
+            });
+        }
+
+        document.body.appendChild(overlay);
     }
 
     // =========================================================================
@@ -3655,6 +3900,23 @@ class WigCord {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    _linkifyEscapedText(escapedText) {
+        if (!escapedText) return '';
+        const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<]+)/gi;
+        return escapedText.replace(urlPattern, (match) => {
+            const href = match.startsWith('www.') ? `https://${match}` : match;
+            return `<a href="${href}" class="message-link" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        });
+    }
+
+    _linkifyEscapedHtml(html) {
+        if (!html) return '';
+        return html
+            .split(/(<[^>]+>)/g)
+            .map(part => (part.startsWith('<') ? part : this._linkifyEscapedText(part)))
+            .join('');
     }
 
     _parseEmojis(html) {
