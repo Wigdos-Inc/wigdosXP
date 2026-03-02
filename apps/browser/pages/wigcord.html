@@ -70,6 +70,7 @@
             </div>
 
             <div class="user-panel">
+                <div id="user-panel-now-playing" class="up-now-playing" style="display:none"></div>
                 <div class="user-info">
                     <div class="user-avatar" id="user-panel-avatar">U</div>
                     <div class="user-details">
@@ -343,7 +344,7 @@
                     <div class="settings-header">
                         <button class="settings-back-btn" id="settings-back-btn">← BACK</button>
                         <h2 id="settings-title">SERVER OVERVIEW</h2>
-                        <button class="settings-close-btn" id="settings-close-btn">× <span class="esc-text">ESC</span></button>
+                        <button class="settings-close-btn" id="settings-close-btn">X</button>
                     </div>
                     <div class="settings-content-area" id="settings-content-area"></div>
                 </div>
@@ -417,7 +418,7 @@
         <div class="modal-content profile-editor-content">
             <div class="modal-header">
                 <h2>My Profile</h2>
-                <button class="modal-close" id="close-profile-editor">× <span class="esc-text">ESC</span></button>
+                <button class="modal-close" id="close-profile-editor">X</button>
             </div>
             <div class="modal-body profile-editor-body">
                 <div class="profile-editor-layout">
@@ -515,14 +516,11 @@
                                 <label class="form-label-sm">Spotify</label>
                                 <div class="spotify-connect-section" id="spotify-connect-section">
                                     <div class="spotify-not-connected" id="spotify-not-connected">
-                                        <button class="modal-btn spotify-connect-btn" id="spotify-connect-btn">
-                                            <span class="spotify-btn-icon">🎵</span> Connect Spotify Account
-                                        </button>
+                                        <button class="modal-btn spotify-connect-btn" id="spotify-connect-btn">Connect Spotify Account</button>
                                         <div class="form-hint">Link your account to show what you're listening to</div>
                                     </div>
                                     <div class="spotify-connected" id="spotify-connected" style="display: none;">
                                         <div class="spotify-connected-info">
-                                            <span class="spotify-connected-icon">🎵</span>
                                             <span class="spotify-connected-text">Spotify Connected</span>
                                             <span class="spotify-connected-user" id="spotify-connected-user"></span>
                                         </div>

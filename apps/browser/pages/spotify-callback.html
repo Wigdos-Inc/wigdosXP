@@ -31,49 +31,328 @@
         h2 { color: #1db954; margin: 0 0 8px; font-size: 16px; }
         p { color: #aaa; font-size: 12px; margin: 0; }
         .error { color: #e74c3c; }
+
+        /* ========= Windows XP Dialog (full-page redirect) ========= */
+        .xp-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: #3a6ea5;
+            align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        .xp-overlay.active { display: flex; }
+
+        .xp-dialog {
+            width: 420px;
+            background: #ece9d8;
+            border: 2px solid #0054e3;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .xp-titlebar {
+            background: linear-gradient(180deg, #0997ff 0%, #0053ee 8%, #0050ee 40%, #06f 88%, #06f 93%, #005bef 95%, #003dd7 100%);
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+        }
+        .xp-titlebar img {
+            width: 16px; height: 16px;
+            image-rendering: pixelated;
+        }
+        .xp-body {
+            padding: 20px 24px;
+            color: #000;
+            font-size: 11px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        .xp-icon {
+            font-size: 38px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .xp-text {
+            flex: 1;
+        }
+        .xp-text h3 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            color: #003399;
+        }
+        .xp-text p {
+            margin: 4px 0;
+            color: #000;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .xp-footer {
+            background: #f0efe4;
+            border-top: 1px solid #ccc;
+            padding: 10px 16px;
+            text-align: right;
+        }
+        .xp-btn {
+            font-family: 'MS Sans Serif', Tahoma, sans-serif;
+            font-size: 11px;
+            padding: 3px 18px;
+            min-width: 75px;
+            background: linear-gradient(180deg, #fff 0%, #e3e0d0 100%);
+            border: 1px solid #003c74;
+            border-radius: 3px;
+            cursor: pointer;
+            color: #000;
+            box-shadow: inset 0 1px 0 #fff;
+        }
+        .xp-btn:hover { background: linear-gradient(180deg, #fff 0%, #d6d2c2 100%); }
+        .xp-btn:active { background: #d6d2c2; }
+        .xp-progress-wrap {
+            margin-top: 12px;
+            background: #fff;
+            border: 1px solid #828790;
+            height: 16px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .xp-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(180deg, #36d223 0%, #1fa310 50%, #36d223 100%);
+            background-size: 20px 100%;
+            animation: xp-progress 2s ease-out forwards;
+        }
+        @keyframes xp-progress {
+            0%   { width: 0%; }
+            60%  { width: 85%; }
+            100% { width: 100%; }
+        }
+        .xp-error .xp-progress-bar {
+            background: linear-gradient(180deg, #e74c3c 0%, #c0392b 50%, #e74c3c 100%);
+            animation: xp-progress-err 0.5s ease-out forwards;
+        }
+        @keyframes xp-progress-err {
+            0%   { width: 0%; }
+            100% { width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="popup-ui">
         <div class="spinner" id="spinner"></div>
         <h2 id="title">Connecting to Spotify...</h2>
         <p id="message">Please wait while we complete the connection.</p>
     </div>
 
+    <!-- Windows XP dialog for full-page redirect flow -->
+    <div class="xp-overlay" id="xp-overlay">
+        <div class="xp-dialog">
+            <div class="xp-titlebar">
+                <span>Spotify Connection Wizard</span>
+            </div>
+            <div class="xp-body">
+                <div class="xp-icon" id="xp-icon">🎵</div>
+                <div class="xp-text">
+                    <h3 id="xp-title">Connecting to Spotify...</h3>
+                    <p id="xp-message">Please wait while WigdosXP connects your Spotify account.</p>
+                    <div class="xp-progress-wrap" id="xp-progress-wrap">
+                        <div class="xp-progress-bar" id="xp-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="xp-footer">
+                <button class="xp-btn" id="xp-btn" style="display:none" onclick="goBack()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Extract auth code or error from URL params
+        // ===================== CONFIG (must match spotify-api.js) =====================
+        const CLIENT_ID = 'c40af656b3564779bdad4092c4ee331d';
+        const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+
+        const STORAGE_KEYS = {
+            accessToken:  'spotify_access_token',
+            refreshToken: 'spotify_refresh_token',
+            expiresAt:    'spotify_expires_at',
+            codeVerifier: 'spotify_code_verifier',
+            pendingRedirect: 'spotify_pending_redirect',
+        };
+
+        // Must match EXACTLY what's in spotify-api.js and the Spotify Developer Dashboard
+        function getRedirectUri() {
+            return 'https://wigdos-inc.web.app/apps/browser/pages/spotify-callback.html';
+        }
+
+        function getBaseUrl() {
+            return getRedirectUri().replace(/\/apps\/.*$/, '/');
+        }
+
+        // Detect if this is a full-page redirect (not a popup, not an iframe)
+        const isFullPageRedirect = !window.opener && (window.parent === window);
+
+        // ===================== TOKEN EXCHANGE =====================
+        async function exchangeCodeForTokens(code) {
+            const codeVerifier = localStorage.getItem(STORAGE_KEYS.codeVerifier);
+            if (!codeVerifier) {
+                throw new Error('No code verifier found in localStorage');
+            }
+
+            const response = await fetch(TOKEN_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: CLIENT_ID,
+                    grant_type: 'authorization_code',
+                    code: code,
+                    redirect_uri: getRedirectUri(),
+                    code_verifier: codeVerifier,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error_description || err.error || 'Token exchange failed');
+            }
+
+            const data = await response.json();
+
+            // Store tokens directly (same keys as SpotifyAPI)
+            localStorage.setItem(STORAGE_KEYS.accessToken, data.access_token);
+            if (data.refresh_token) {
+                localStorage.setItem(STORAGE_KEYS.refreshToken, data.refresh_token);
+            }
+            const expiresAt = Date.now() + (data.expires_in * 1000) - 60000;
+            localStorage.setItem(STORAGE_KEYS.expiresAt, expiresAt.toString());
+
+            return true;
+        }
+
+        // ===================== NOTIFY PARENT / OPENER =====================
+        function notifySuccess() {
+            const msg = { type: 'spotify-auth-callback', code: '_exchanged', success: true };
+            if (window.opener) {
+                window.opener.postMessage(msg, '*');
+            }
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(msg, '*');
+            }
+        }
+
+        function notifyError(error) {
+            const msg = { type: 'spotify-auth-callback', error: error };
+            if (window.opener) {
+                window.opener.postMessage(msg, '*');
+            }
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(msg, '*');
+            }
+        }
+
+        // ===================== XP DIALOG HELPERS =====================
+        function showXpDialog() {
+            document.getElementById('popup-ui').style.display = 'none';
+            document.getElementById('xp-overlay').classList.add('active');
+        }
+
+        function xpSuccess() {
+            document.getElementById('xp-icon').textContent = '✅';
+            document.getElementById('xp-title').textContent = 'Spotify Connected Successfully!';
+            document.getElementById('xp-message').textContent =
+                'Your Spotify account has been linked to WigdosXP. You will be redirected back automatically.';
+            document.getElementById('xp-btn').style.display = '';
+            document.getElementById('xp-btn').textContent = 'Return to WigdosXP';
+        }
+
+        function xpError(msg) {
+            document.getElementById('xp-icon').textContent = '❌';
+            document.getElementById('xp-title').textContent = 'Connection Failed';
+            document.getElementById('xp-message').textContent = msg || 'Something went wrong while connecting to Spotify.';
+            document.getElementById('xp-progress-wrap').classList.add('xp-error');
+            document.getElementById('xp-btn').style.display = '';
+            document.getElementById('xp-btn').textContent = 'Return to WigdosXP';
+        }
+
+        function goBack() {
+            window.location.href = getBaseUrl();
+        }
+
+        // ===================== MAIN =====================
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         const error = params.get('error');
 
+        // Switch UI based on context
+        if (isFullPageRedirect) {
+            showXpDialog();
+        }
+
         if (error) {
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('title').textContent = 'Connection Failed';
-            document.getElementById('title').classList.add('error');
-            document.getElementById('message').textContent = error === 'access_denied'
-                ? 'You denied the authorization request.'
-                : 'An error occurred: ' + error;
-
-            // Notify parent window
-            if (window.opener) {
-                window.opener.postMessage({ type: 'spotify-auth-callback', error: error }, '*');
+            if (isFullPageRedirect) {
+                xpError(error === 'access_denied'
+                    ? 'You denied the Spotify authorization request.'
+                    : 'An error occurred: ' + error);
+                // Auto-redirect after 4s
+                setTimeout(goBack, 4000);
+            } else {
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('title').textContent = 'Connection Failed';
+                document.getElementById('title').classList.add('error');
+                document.getElementById('message').textContent = error === 'access_denied'
+                    ? 'You denied the authorization request.'
+                    : 'An error occurred: ' + error;
+                notifyError(error);
+                setTimeout(() => window.close(), 2000);
             }
-            setTimeout(() => window.close(), 2000);
+
         } else if (code) {
-            document.getElementById('title').textContent = 'Connected!';
-            document.getElementById('message').textContent = 'Closing this window...';
+            exchangeCodeForTokens(code)
+                .then(() => {
+                    if (isFullPageRedirect) {
+                        xpSuccess();
+                        // Auto-redirect after 2s
+                        setTimeout(goBack, 2000);
+                    } else {
+                        document.getElementById('title').textContent = 'Connected!';
+                        document.getElementById('title').style.color = '#1db954';
+                        document.getElementById('message').textContent = 'Closing this window...';
+                        notifySuccess();
+                        setTimeout(() => {
+                            window.close();
+                            setTimeout(goBack, 500);
+                        }, 800);
+                    }
+                })
+                .catch(err => {
+                    if (isFullPageRedirect) {
+                        xpError(err.message || 'Token exchange failed.');
+                        setTimeout(goBack, 4000);
+                    } else {
+                        document.getElementById('spinner').style.display = 'none';
+                        document.getElementById('title').textContent = 'Connection Failed';
+                        document.getElementById('title').classList.add('error');
+                        document.getElementById('message').textContent = err.message || 'Token exchange failed';
+                        notifyError(err.message);
+                        setTimeout(() => window.close(), 3000);
+                    }
+                });
 
-            // Send code back to parent window (WigCord)
-            if (window.opener) {
-                window.opener.postMessage({ type: 'spotify-auth-callback', code: code }, '*');
-            }
-            setTimeout(() => window.close(), 1000);
         } else {
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('title').textContent = 'Invalid Request';
-            document.getElementById('title').classList.add('error');
-            document.getElementById('message').textContent = 'No authorization code received.';
-            setTimeout(() => window.close(), 3000);
+            if (isFullPageRedirect) {
+                xpError('No authorization code received.');
+                setTimeout(goBack, 3000);
+            } else {
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('title').textContent = 'Invalid Request';
+                document.getElementById('title').classList.add('error');
+                document.getElementById('message').textContent = 'No authorization code received.';
+                setTimeout(() => window.close(), 3000);
+            }
         }
     </script>
 </body>

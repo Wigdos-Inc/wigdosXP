@@ -21,33 +21,47 @@ class Application {
     async getIcon() {
 
         if (this.series) {
+            const seriesSet = GAME_ICON_MANIFEST[this.series] || EMPTY_ICON_SET;
+            const specificIcon = `/assets/images/icons/games/${this.series}/${this.name.s}.png`;
+            const seriesIcon = `/assets/images/icons/games/${this.series}/${this.series}.png`;
 
-            const url = [
-                `/assets/images/icons/games/${this.series}/${this.name.s}.png`,
-                `/assets/images/icons/games/${this.series}/${this.series}.png`
-            ];
-            const exist = [
-                await imageExist(url[0]),
-                await imageExist(url[1])
-            ];
-
-            for (const size in this.icon) this.icon[size] = exist[0] ? url[0] : exist[1] ? url[1] : `/assets/images/icons/${size}/bombs.png`;
+            for (const size in this.icon) {
+                this.icon[size] = seriesSet.has(this.name.s)
+                    ? specificIcon
+                    : seriesSet.has(this.series)
+                        ? seriesIcon
+                        : `/assets/images/icons/${this.icon[size]}/bombs.png`;
+            }
 
         }
-        else for (const size in this.icon) this.icon[size] = `/assets/images/icons/${this.icon[size]}/${this.name.s}.png`;
+        else {
+            for (const size in this.icon) {
+                const bucket = this.icon[size];
+                const sizeSet = ICON_SIZE_MANIFEST[bucket] || EMPTY_ICON_SET;
+                this.icon[size] = sizeSet.has(this.name.s)
+                    ? `/assets/images/icons/${bucket}/${this.name.s}.png`
+                    : `/assets/images/icons/${bucket}/bombs.png`;
+            }
+        }
     }
 }
 
+const EMPTY_ICON_SET = new Set();
 
-function imageExist(url) {
+const GAME_ICON_MANIFEST = {
+    carl: new Set(['carl']),
+    fnaf: new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
+    jeff: new Set(['jeff', 'ggJeff']),
+    ofes: new Set(['breakout', 'sublimator']),
+    other: new Set(['cmd', 'gspot', 'hlf', 'pHub', 'sm64', 'su', 'wigshell']),
+    ut: new Set(['dt', 'ut']),
+};
 
-    return new Promise((res) => {
-        const img = new Image();
-        img.onload = () => res(true);
-        img.onerror = () => res(false);
-        img.src = url;
-    });
-}
+const ICON_SIZE_MANIFEST = {
+    '16x': new Set(['bin', 'bombs', 'fBrowser', 'files', 'gspot', 'notes', 'rBrowser', 'save-editor', 'screen', 'wigshell']),
+    '32x': new Set(['WigleTube', 'bombs', 'fBrowser', 'files', 'gspot', 'notes', 'power', 'rBrowser', 'restart', 'save-editor', 'wiano', 'wigshell', 'winesweeper']),
+    '48x': new Set(['WigleTube', 'bin', 'bombs', 'fBrowser', 'files', 'gspot', 'notes', 'rBrowser', 'save-editor', 'wigshell']),
+};
 
 
 

@@ -153,8 +153,13 @@ class WigCord {
         // Notification sound
         this._notifSound = null;
 
-        // Spotify polling timer
+        // Spotify polling timer (profile viewer)
         this._spotifyPollTimer = null;
+        this._spotifyProgressTimer = null;
+
+        // Global Spotify polling (user panel now-playing)
+        this._globalSpotifyPollTimer = null;
+        this._currentTrack = null;
 
         // Flags to skip notifications on initial snapshot load
         this._channelInitialized = false;
@@ -253,6 +258,28 @@ class WigCord {
 
         // Start in DM view
         this.switchToDMView();
+
+        // Check if returning from a full-page Spotify redirect auth
+        this._checkSpotifyRedirectAuth();
+
+        // Start global Spotify polling for user panel now-playing
+        this._startGlobalSpotifyPolling();
+    }
+
+    async _checkSpotifyRedirectAuth() {
+        if (typeof SpotifyAPI !== 'undefined' && SpotifyAPI.checkPendingAuth()) {
+            this._updateSpotifyConnectUI();
+            // Save connected state to profile
+            const spotifyProfile = await SpotifyAPI.getUserProfile();
+            if (spotifyProfile) {
+                this.myProfile.connections = this.myProfile.connections || {};
+                this.myProfile.connections.spotifyConnected = true;
+                this.myProfile.connections.spotifyUser = spotifyProfile.name || spotifyProfile.id;
+                await this._saveMyProfile(this.myProfile);
+            }
+            // Kick off global now-playing polling after successful auth
+            this._startGlobalSpotifyPolling();
+        }
     }
 
     async _loadMyPfp() {
@@ -280,6 +307,72 @@ class WigCord {
                 avatarEl.textContent = this.username.charAt(0).toUpperCase();
             }
         }
+    }
+
+    // =========================================================================
+    // Global Spotify Now Playing (user panel)
+    // =========================================================================
+
+    _startGlobalSpotifyPolling() {
+        if (this._globalSpotifyPollTimer) {
+            clearInterval(this._globalSpotifyPollTimer);
+            this._globalSpotifyPollTimer = null;
+        }
+        if (typeof SpotifyAPI === 'undefined' || !SpotifyAPI.isConnected()) return;
+
+        // Poll immediately, then every 10 seconds
+        this._globalSpotifyPoll();
+        this._globalSpotifyPollTimer = setInterval(() => this._globalSpotifyPoll(), 10000);
+    }
+
+    async _globalSpotifyPoll() {
+        if (typeof SpotifyAPI === 'undefined' || !SpotifyAPI.isConnected()) {
+            this._currentTrack = null;
+            this._updateUserPanelNowPlaying(null);
+            return;
+        }
+        try {
+            const track = await SpotifyAPI.getCurrentlyPlaying();
+            this._currentTrack = (track && track.isPlaying) ? track : null;
+            this._updateUserPanelNowPlaying(this._currentTrack);
+        } catch (e) {
+            console.error('[WigCord] Global Spotify poll error:', e);
+        }
+    }
+
+    _updateUserPanelNowPlaying(track) {
+        const container = document.getElementById('user-panel-now-playing');
+        const statusEl = document.querySelector('.user-panel .user-status');
+        if (!container) return;
+
+        if (!track) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            if (statusEl) {
+                statusEl.textContent = 'online';
+                statusEl.style.color = '#008000';
+            }
+            return;
+        }
+
+        // Update status text
+        if (statusEl) {
+            statusEl.innerHTML = `<span style="color:#1db954">&#9835;</span> Listening to Spotify`;
+            statusEl.style.color = '#1db954';
+        }
+
+        // Build now-playing mini widget
+        container.style.display = 'flex';
+        container.innerHTML = `
+            <img class="up-np-art" src="${this._esc(track.albumArtSmall || track.albumArt || '')}" alt="">
+            <div class="up-np-info">
+                <div class="up-np-title">${this._esc(track.title)}</div>
+                <div class="up-np-artist">${this._esc(track.artist)}</div>
+            </div>
+            <div class="up-np-bars">
+                <span></span><span></span><span></span>
+            </div>
+        `;
     }
 
     // =========================================================================
@@ -2224,6 +2317,7 @@ class WigCord {
             clearInterval(this._spotifyPollTimer);
             this._spotifyPollTimer = null;
         }
+        this._stopSpotifyProgressTimer();
 
         if (isOwnProfile && typeof SpotifyAPI !== 'undefined' && SpotifyAPI.isConnected()) {
             // Own profile with live Spotify connection
@@ -2261,10 +2355,10 @@ class WigCord {
             connSection.style.display = 'block';
             if (connTab) connTab.style.display = 'block';
             let connHTML = '';
-            if (conn.youtube) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">▶️</span><div class="pv-conn-info"><div class="pv-conn-name">YouTube</div><a href="${this._esc(conn.youtube)}" target="_blank" class="pv-conn-link">${this._esc(conn.youtube)}</a></div></div>`;
-            if (conn.twitter) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">🐦</span><div class="pv-conn-info"><div class="pv-conn-name">Twitter</div><a href="${this._esc(conn.twitter)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitter)}</a></div></div>`;
-            if (conn.twitch)  connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">📺</span><div class="pv-conn-info"><div class="pv-conn-name">Twitch</div><a href="${this._esc(conn.twitch)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitch)}</a></div></div>`;
-            if (conn.spotify) connHTML += `<div class="pv-conn-card"><span class="pv-conn-icon">🎵</span><div class="pv-conn-info"><div class="pv-conn-name">Spotify</div><a href="${this._esc(conn.spotify)}" target="_blank" class="pv-conn-link">${this._esc(conn.spotify)}</a></div></div>`;
+            if (conn.youtube) connHTML += `<div class="pv-conn-card"><div class="pv-conn-info"><div class="pv-conn-name">YouTube</div><a href="${this._esc(conn.youtube)}" target="_blank" class="pv-conn-link">${this._esc(conn.youtube)}</a></div></div>`;
+            if (conn.twitter) connHTML += `<div class="pv-conn-card"><div class="pv-conn-info"><div class="pv-conn-name">Twitter</div><a href="${this._esc(conn.twitter)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitter)}</a></div></div>`;
+            if (conn.twitch)  connHTML += `<div class="pv-conn-card"><div class="pv-conn-info"><div class="pv-conn-name">Twitch</div><a href="${this._esc(conn.twitch)}" target="_blank" class="pv-conn-link">${this._esc(conn.twitch)}</a></div></div>`;
+            if (conn.spotify) connHTML += `<div class="pv-conn-card"><div class="pv-conn-info"><div class="pv-conn-name">Spotify</div><a href="${this._esc(conn.spotify)}" target="_blank" class="pv-conn-link">${this._esc(conn.spotify)}</a></div></div>`;
             connEl.innerHTML = connHTML;
         } else {
             connSection.style.display = 'none';
@@ -2521,6 +2615,7 @@ class WigCord {
                 this._renderSpotifyNowPlaying(track, section, nowPlayingEl, embedEl);
             } else {
                 // Not playing anything right now
+                this._stopSpotifyProgressTimer();
                 if (nowPlayingEl) nowPlayingEl.style.display = 'none';
                 embedEl.innerHTML = `<div class="pv-spotify-offline">Nothing playing right now</div>`;
                 section.style.display = 'block';
@@ -2558,6 +2653,37 @@ class WigCord {
             const pct = Math.min(100, (track.progress / track.duration) * 100);
             progressEl.style.width = `${pct}%`;
         }
+
+        this._startSpotifyProgressTimer(track);
+    }
+
+    _stopSpotifyProgressTimer() {
+        if (this._spotifyProgressTimer) {
+            clearInterval(this._spotifyProgressTimer);
+            this._spotifyProgressTimer = null;
+        }
+    }
+
+    _startSpotifyProgressTimer(track) {
+        this._stopSpotifyProgressTimer();
+
+        const progressEl = document.getElementById('viewer-spotify-progress');
+        if (!progressEl || !track || !track.duration || track.duration <= 0) return;
+
+        const startedAt = Date.now();
+        const baseProgress = Number(track.progress) || 0;
+        const duration = Number(track.duration) || 0;
+
+        const tick = () => {
+            const elapsed = Date.now() - startedAt;
+            const currentProgress = Math.min(duration, baseProgress + elapsed);
+            const pct = Math.min(100, (currentProgress / duration) * 100);
+            progressEl.style.width = `${pct}%`;
+            if (currentProgress >= duration) this._stopSpotifyProgressTimer();
+        };
+
+        tick();
+        this._spotifyProgressTimer = setInterval(tick, 1000);
     }
 
     _compressImage(dataUrl, maxWidth, maxHeight, quality = 0.7) {
@@ -2806,6 +2932,8 @@ class WigCord {
                     this.myProfile.connections.spotifyUser = spotifyProfile.name || spotifyProfile.id;
                     await this._saveMyProfile(this.myProfile);
                 }
+                // Start global now-playing polling
+                this._startGlobalSpotifyPolling();
             }
         });
         document.getElementById('spotify-disconnect-btn').addEventListener('click', async () => {
@@ -2818,6 +2946,13 @@ class WigCord {
             this.myProfile.connections.spotify = '';
             await this._saveMyProfile(this.myProfile);
             this._updateSpotifyConnectUI();
+            // Stop global now-playing polling and clear widget
+            if (this._globalSpotifyPollTimer) {
+                clearInterval(this._globalSpotifyPollTimer);
+                this._globalSpotifyPollTimer = null;
+            }
+            this._currentTrack = null;
+            this._updateUserPanelNowPlaying(null);
         });
         document.getElementById('profile-avatar-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -2844,6 +2979,7 @@ class WigCord {
         document.getElementById('close-profile-viewer').addEventListener('click', () => {
             document.getElementById('profile-viewer-modal').classList.remove('active');
             if (this._spotifyPollTimer) { clearInterval(this._spotifyPollTimer); this._spotifyPollTimer = null; }
+            this._stopSpotifyProgressTimer();
         });
 
         // Close profile viewer when clicking outside the card
@@ -2852,6 +2988,7 @@ class WigCord {
             if (card && !card.contains(e.target)) {
                 document.getElementById('profile-viewer-modal').classList.remove('active');
                 if (this._spotifyPollTimer) { clearInterval(this._spotifyPollTimer); this._spotifyPollTimer = null; }
+                this._stopSpotifyProgressTimer();
             }
         });
 

@@ -20,31 +20,18 @@ const SpotifyAPI = (() => {
 
     // ===================== CONFIGURATION =====================
     // Replace with your Spotify app's Client ID
-    const CLIENT_ID = 'e8807a92765148fda8f4149b0323b373';
+    const CLIENT_ID = 'c40af656b3564779bdad4092c4ee331d';
 
     // Must match what you registered in the Spotify Developer Dashboard
-    // Adjust based on where WigdosXP is hosted
     // Redirect URI — must match EXACTLY what's in Spotify Developer Dashboard
-    // Add all of these to your Spotify app's Redirect URIs:
-    //   https://wigdos-inc.web.app/apps/browser/pages/spotify-callback.html
-    const REDIRECT_URI = (() => {
-        // Try to find the top-level origin (escape nested iframes)
-        let topOrigin = window.location.origin;
-        try {
-            let w = window;
-            while (w.parent && w.parent !== w) {
-                w = w.parent;
-                if (w.location && w.location.origin) {
-                    topOrigin = w.location.origin;
-                }
-            }
-        } catch(e) {} // cross-origin guard
-        return `${topOrigin}/apps/browser/pages/spotify-callback.html`;
-    })();
+    // If you host on a different domain, update this AND the Spotify Dashboard.
+    const REDIRECT_URI = 'https://wigdos-inc.web.app/apps/browser/pages/spotify-callback.html';
 
     const SCOPES = [
         'user-read-currently-playing',
         'user-read-playback-state',
+        'user-read-email',
+        'user-read-private',
     ].join(' ');
 
     const AUTH_URL = 'https://accounts.spotify.com/authorize';
@@ -57,7 +44,22 @@ const SpotifyAPI = (() => {
         refreshToken: 'spotify_refresh_token',
         expiresAt:    'spotify_expires_at',
         codeVerifier: 'spotify_code_verifier',
+        pendingRedirect: 'spotify_pending_redirect',
+        clientId:     'spotify_client_id',
     };
+
+    // ===================== CLIENT ID MIGRATION =====================
+    // Auto-clear tokens if the Client ID has changed (e.g. app was reconfigured)
+    (() => {
+        try {
+            const storedClientId = localStorage.getItem(KEYS.clientId);
+            if (storedClientId && storedClientId !== CLIENT_ID) {
+                console.warn('[Spotify] Client ID changed — clearing stale tokens');
+                Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+            }
+            localStorage.setItem(KEYS.clientId, CLIENT_ID);
+        } catch (e) { /* storage unavailable */ }
+    })();
 
     // ===================== PKCE HELPERS =====================
 
@@ -151,15 +153,30 @@ const SpotifyAPI = (() => {
             `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
         );
 
+        // Popup blocked — fall back to full-page redirect
+        if (!popup || popup.closed) {
+            console.warn('[Spotify] Popup blocked, falling back to full-page redirect');
+            _setToken(KEYS.pendingRedirect, 'true');
+            window.location.href = authUrl;
+            return new Promise(() => {}); // never resolves; page is navigating away
+        }
+
         // Wait for callback to post the auth code back
+        // The callback page now exchanges the token itself and notifies us
         return new Promise((resolve) => {
             const handler = async (event) => {
-                // Accept messages from our callback page
+                // Accept messages from our callback page (popup or iframe)
                 if (event.data && event.data.type === 'spotify-auth-callback') {
                     window.removeEventListener('message', handler);
                     clearInterval(checkClosed);
+                    clearInterval(checkStorage);
 
-                    if (event.data.code) {
+                    if (event.data.success) {
+                        // Callback already exchanged the token and stored it
+                        console.log('[Spotify] Successfully authenticated via callback!');
+                        resolve(true);
+                    } else if (event.data.code && event.data.code !== '_exchanged') {
+                        // Legacy: callback sent raw code (shouldn't happen anymore)
                         const success = await _exchangeCode(event.data.code);
                         resolve(success);
                     } else {
@@ -175,10 +192,44 @@ const SpotifyAPI = (() => {
             const checkClosed = setInterval(() => {
                 if (popup && popup.closed) {
                     clearInterval(checkClosed);
-                    window.removeEventListener('message', handler);
-                    resolve(false);
+                    clearInterval(checkStorage);
+                    // Give a moment for localStorage writes to propagate
+                    setTimeout(() => {
+                        window.removeEventListener('message', handler);
+                        // Check if tokens appeared (callback exchanged before closing)
+                        if (isConnected()) {
+                            console.log('[Spotify] Authenticated (detected via storage after popup close)');
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    }, 300);
                 }
             }, 500);
+
+            // Fallback: poll localStorage in case postMessage doesn't reach us
+            // (e.g. cross-origin iframe edge cases)
+            const checkStorage = setInterval(() => {
+                if (isConnected() && _getToken(KEYS.accessToken)) {
+                    clearInterval(checkStorage);
+                    clearInterval(checkClosed);
+                    window.removeEventListener('message', handler);
+                    console.log('[Spotify] Authenticated (detected via storage poll)');
+                    resolve(true);
+                }
+            }, 1000);
+
+            // Safety timeout — don't leave the promise hanging forever
+            setTimeout(() => {
+                clearInterval(checkClosed);
+                clearInterval(checkStorage);
+                window.removeEventListener('message', handler);
+                if (isConnected()) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            }, 120000); // 2 minute timeout
         });
     }
 
@@ -234,7 +285,14 @@ const SpotifyAPI = (() => {
             });
 
             if (!response.ok) {
-                console.error('[Spotify] Token refresh failed');
+                let errorText = '';
+                try {
+                    const errJson = await response.json();
+                    errorText = errJson?.error_description || errJson?.error || '';
+                } catch (e) {
+                    try { errorText = await response.text(); } catch (e2) {}
+                }
+                console.error('[Spotify] Token refresh failed:', response.status, errorText || 'unknown_error');
                 _clearTokens();
                 return false;
             }
@@ -258,6 +316,35 @@ const SpotifyAPI = (() => {
 
     // ===================== API METHODS =====================
 
+    async function _readSpotifyApiError(response) {
+        try {
+            const err = await response.json();
+            return err?.error?.message || err?.error_description || err?.error || '';
+        } catch (e) {
+            try {
+                const text = await response.text();
+                return text || '';
+            } catch (e2) {
+                return '';
+            }
+        }
+    }
+
+    function _handleForbidden(endpoint, message) {
+        const lower = (message || '').toLowerCase();
+        if (lower.includes('insufficient client scope')) {
+            console.warn(`[Spotify] 403 on ${endpoint}: insufficient scope. Disconnect and reconnect to grant updated scopes.`);
+            return;
+        }
+        if (lower.includes('premium required')) {
+            console.warn(`[Spotify] 403 on ${endpoint}: Spotify Premium is required for this endpoint.`);
+            return;
+        }
+        console.warn(`[Spotify] 403 on ${endpoint}: ${message || 'access forbidden'}. If app is in development mode, add your account in Spotify Dashboard > Users and Access.`);
+    }
+
+    let _isRetrying = false;
+
     async function getCurrentlyPlaying() {
         const token = await _getValidToken();
         if (!token) return null;
@@ -271,13 +358,35 @@ const SpotifyAPI = (() => {
             if (response.status === 204) return null;
             if (!response.ok) {
                 if (response.status === 401) {
-                    // Token invalid, try refresh once
+                    // Prevent infinite recursion — only retry once
+                    if (_isRetrying) {
+                        _isRetrying = false;
+                        _clearTokens();
+                        console.warn('[Spotify] Tokens cleared — user must re-login');
+                        return null;
+                    }
+                    _isRetrying = true;
                     const refreshed = await _refreshAccessToken();
-                    if (refreshed) return getCurrentlyPlaying();
+                    if (refreshed) {
+                        const result = await getCurrentlyPlaying();
+                        _isRetrying = false;
+                        return result;
+                    }
+                    // Refresh failed — tokens are stale (e.g. client ID changed), clear them
+                    _isRetrying = false;
+                    _clearTokens();
+                    console.warn('[Spotify] Tokens cleared — user must re-login');
+                    return null;
+                }
+                if (response.status === 403) {
+                    _isRetrying = false;
+                    const message = await _readSpotifyApiError(response);
+                    _handleForbidden('/me/player/currently-playing', message);
                     return null;
                 }
                 return null;
             }
+            _isRetrying = false;
 
             const data = await response.json();
             if (!data.is_playing || !data.item) return null;
@@ -310,7 +419,18 @@ const SpotifyAPI = (() => {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
 
-            if (!response.ok) return null;
+            if (!response.ok) {
+                if (response.status === 401) {
+                    const refreshed = await _refreshAccessToken();
+                    if (!refreshed) return null;
+                    return getUserProfile();
+                }
+                if (response.status === 403) {
+                    const message = await _readSpotifyApiError(response);
+                    _handleForbidden('/me', message);
+                }
+                return null;
+            }
             const data = await response.json();
             return {
                 name: data.display_name,
@@ -333,6 +453,22 @@ const SpotifyAPI = (() => {
         console.log('[Spotify] Disconnected');
     }
 
+    /**
+     * Call on page load to check if we just returned from a full-page redirect auth flow.
+     * Returns true if tokens were successfully obtained via redirect.
+     */
+    function checkPendingAuth() {
+        const pending = _getToken(KEYS.pendingRedirect);
+        if (pending) {
+            try { localStorage.removeItem(KEYS.pendingRedirect); } catch(e) {}
+            if (isConnected()) {
+                console.log('[Spotify] Redirect auth completed successfully!');
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ===================== PUBLIC API =====================
 
     return {
@@ -341,6 +477,7 @@ const SpotifyAPI = (() => {
         isConnected,
         getCurrentlyPlaying,
         getUserProfile,
+        checkPendingAuth,
         // Expose for testing
         get CLIENT_ID() { return CLIENT_ID; },
         get REDIRECT_URI() { return REDIRECT_URI; },
