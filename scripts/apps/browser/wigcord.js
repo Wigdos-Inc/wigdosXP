@@ -260,6 +260,15 @@ class WigCord {
         // Start in DM view
         this.switchToDMView();
 
+        // If opened via invite URL, wait briefly for Firebase before attempting join
+        const inviteCode = this._extractInviteCodeFromUrl();
+        if (inviteCode && !this._online) {
+            await this._waitForDbReady(8000);
+            if (this._online) {
+                await this._loadServers();
+            }
+        }
+
         // Handle invite links (?invite=CODE or /invite/CODE)
         await this._handleInviteFromUrl();
 
@@ -268,6 +277,18 @@ class WigCord {
 
         // Start global Spotify polling for user panel now-playing
         this._startGlobalSpotifyPolling();
+    }
+
+    async _waitForDbReady(timeoutMs = 8000) {
+        if (this._online) return;
+        await new Promise(resolve => {
+            const handler = () => resolve();
+            window.addEventListener('dbReady', handler, { once: true });
+            setTimeout(() => {
+                window.removeEventListener('dbReady', handler);
+                resolve();
+            }, timeoutMs);
+        });
     }
 
     async _checkSpotifyRedirectAuth() {
@@ -1222,13 +1243,13 @@ class WigCord {
         let messageHTML = this._esc(msg.content || msg.text || '');
         const rawContent = msg.content || msg.text || '';
 
-        // Detect GIF URLs
-        const gifUrlPattern = /(https?:\/\/[^\s]+\.gif[^\s]*)/gi;
+        // Detect GIF/media URLs (including Giphy media links)
+        const gifUrlPattern = /(https?:\/\/(?:[^\s]+\.gif(?:\?[^\s]*)?|media\d*\.giphy\.com\/[^\s]+|i\.giphy\.com\/[^\s]+))/gi;
         const gifUrls = rawContent.match(gifUrlPattern);
         if (gifUrls) {
             messageHTML = this._esc(rawContent.replace(gifUrlPattern, '').trim());
             gifUrls.forEach(url => {
-                messageHTML += `<img src="${url}" class="message-gif" alt="GIF">`;
+                messageHTML += `<img src="${this._esc(url)}" class="message-gif" alt="GIF">`;
             });
         }
 
@@ -1297,9 +1318,11 @@ class WigCord {
         const authorName = msg.author || 'System';
 
         // Hover actions (reply button)
+        const canDelete = this._canDeleteMessage(msg);
         const actionsHTML = msg.isSystem ? '' : `
             <div class="message-actions">
                 <button class="msg-action-btn msg-reply-btn" title="Reply">↩</button>
+                ${canDelete ? '<button class="msg-action-btn msg-delete-btn" title="Delete">✕</button>' : ''}
             </div>
         `;
 
@@ -1335,6 +1358,13 @@ class WigCord {
             if (replyBtn) {
                 replyBtn.addEventListener('click', () => {
                     this._setReplyTo(msg);
+                });
+            }
+            const deleteBtn = el.querySelector('.msg-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this._deleteMessage(msg);
                 });
             }
         }
@@ -1398,6 +1428,42 @@ class WigCord {
         nameEl.textContent = msg.author;
         bar.style.display = 'flex';
         document.getElementById('message-input').focus();
+    }
+
+    _canDeleteMessage(msg) {
+        if (!msg || msg.isSystem) return false;
+
+        // DMs: only your own messages
+        if (this.currentView === 'dm-chat') {
+            return msg.author === this.username;
+        }
+
+        // Server channels: own messages OR manageMessages permission in current server
+        if (this.currentView === 'server' && this.currentServer) {
+            if (msg.author === this.username) return true;
+            return this._hasPermission(this.currentServer, 'manageMessages');
+        }
+
+        return false;
+    }
+
+    async _deleteMessage(msg) {
+        if (!msg || !msg.id || !this._canDeleteMessage(msg)) return;
+
+        try {
+            if (this.currentView === 'dm-chat' && this.currentDmPartner) {
+                const dmId = this._getDmId(this.username, this.currentDmPartner);
+                await this._fbDelete(`${this._cols.dms}/${dmId}/messages/${msg.id}`);
+                return;
+            }
+
+            if (this.currentView === 'server' && this.currentServer && this.currentChannel) {
+                const channelKey = this._getChannelKey(this.currentServer, this.currentChannel);
+                await this._fbDelete(`${this._cols.messages}/${channelKey}/msgs/${msg.id}`);
+            }
+        } catch (e) {
+            console.error('[WigCord] Error deleting message:', e);
+        }
     }
 
     _clearReply() {
@@ -3798,8 +3864,34 @@ class WigCord {
         view === 'trending' ? this._loadTrendingGifs() : this._loadFavoriteGifs();
     }
 
-    _getFavoriteGifs() { return JSON.parse(localStorage.getItem('wigcord_favorite_gifs') || '[]'); }
-    _saveFavoriteGifs(favs) { localStorage.setItem('wigcord_favorite_gifs', JSON.stringify(favs)); }
+    _getFavoriteGifsStorageKey() {
+        return `wigcord_favorite_gifs_${this.username || 'guest'}`;
+    }
+
+    _getFavoriteGifs() {
+        try {
+            const key = this._getFavoriteGifsStorageKey();
+            const raw = localStorage.getItem(key);
+            if (raw) return JSON.parse(raw);
+
+            // One-time migration from legacy global key
+            const legacy = localStorage.getItem('wigcord_favorite_gifs');
+            if (legacy) {
+                const parsed = JSON.parse(legacy);
+                localStorage.setItem(key, JSON.stringify(parsed));
+                localStorage.removeItem('wigcord_favorite_gifs');
+                return parsed;
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    _saveFavoriteGifs(favs) {
+        try {
+            const key = this._getFavoriteGifsStorageKey();
+            localStorage.setItem(key, JSON.stringify(Array.isArray(favs) ? favs : []));
+        } catch (e) {}
+    }
 
     _loadFavoriteGifs() {
         const grid = document.getElementById('gif-grid');
@@ -3906,6 +3998,10 @@ class WigCord {
         if (!escapedText) return '';
         const urlPattern = /\b((?:https?:\/\/|www\.)[^\s<]+)/gi;
         return escapedText.replace(urlPattern, (match) => {
+            // Avoid turning raw Giphy media URLs into noisy clickable links/tooltips
+            if (/giphy\.com\//i.test(match) || /media\d*\.giphy\.com\//i.test(match) || /i\.giphy\.com\//i.test(match)) {
+                return match;
+            }
             const href = match.startsWith('www.') ? `https://${match}` : match;
             return `<a href="${href}" class="message-link" target="_blank" rel="noopener noreferrer">${match}</a>`;
         });

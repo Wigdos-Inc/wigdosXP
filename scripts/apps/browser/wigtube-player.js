@@ -158,6 +158,18 @@ let viewCountIncremented = false; // Track if view has been counted for current 
 // Detect embed mode early
 const _isEmbedMode = new URLSearchParams(window.location.search).get('embed') === '1';
 
+async function waitForFirebaseReady(timeoutMs = 10000) {
+    if (window.firebaseOnline === true) return;
+    await new Promise(resolve => {
+        const handler = () => resolve();
+        window.addEventListener('dbReady', handler, { once: true });
+        setTimeout(() => {
+            window.removeEventListener('dbReady', handler);
+            resolve();
+        }, timeoutMs);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     debugLog('DOM Content Loaded' + (_isEmbedMode ? ' (EMBED MODE)' : ''));
     
@@ -188,7 +200,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // In embed mode, skip Firebase wait and non-essential features for fast playback
     if (_isEmbedMode) {
-        debugLog('Embed mode: skipping Firebase wait, loading video directly');
+        debugLog('Embed mode: waiting briefly for Firebase, then loading video');
+        await waitForFirebaseReady(4000);
         setupEventListeners();
         await initializePlayer();
         // Skip buffering sim — show play button immediately
@@ -203,26 +216,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Wait for Firebase to be ready before initializing player
     debugLog('Waiting for Firebase initialization...');
-    await new Promise(resolve => {
-        if (window.firebaseOnline === true) {
-            debugLog('Firebase already online');
-            resolve();
-        } else {
-            debugLog('Waiting for dbReady event...');
-            const handler = () => {
-                debugLog('Firebase ready event received, status:', window.firebaseOnline);
-                resolve();
-            };
-            window.addEventListener('dbReady', handler, { once: true });
-            
-            // Timeout after 10 seconds if Firebase doesn't load
-            setTimeout(() => {
-                console.warn('Firebase initialization timeout after 10s, continuing anyway...');
-                window.removeEventListener('dbReady', handler);
-                resolve();
-            }, 10000);
-        }
-    });
+    await waitForFirebaseReady(10000);
     
     // Load username from localStorage
     const username = localStorage.getItem('username');
