@@ -345,7 +345,7 @@ const applications = {
         ["oddJeff", "Super Jeff 3 Super Odyssey"],
         "jeff",
         true,
-        ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey/"]
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey_V2/"]
     ),
 
     // Carl the Urgent Slug Urchin
