@@ -101,10 +101,48 @@
                         <div class="time-display">
                             <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
                         </div>
+                        <button class="control-btn settings-control-btn" id="settingsBtn" title="Player settings">Settings</button>
+                        <button class="control-btn fullscreen-control-btn" id="fullscreenBtn" title="Fullscreen (F)">Fullscreen(F)</button>
                     </div>
                     <div class="progress-row">
                         <div class="progress-bar">
                             <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="settings-menu" id="settingsMenu" aria-hidden="true">
+                        <div class="settings-menu-header">Player settings</div>
+                        <div class="settings-row">
+                            <label for="sleepTimerSelect">Sleep timer</label>
+                            <select id="sleepTimerSelect" class="settings-select">
+                                <option value="off">Off</option>
+                                <option value="5">5 minutes</option>
+                                <option value="10">10 minutes</option>
+                                <option value="30">30 minutes</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label for="playbackSpeedSelect">Playback speed</label>
+                            <select id="playbackSpeedSelect" class="settings-select">
+                                <option value="0.5">0.5x</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1">Normal</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label for="qualitySelect">Quality</label>
+                            <select id="qualitySelect" class="settings-select">
+                                <option value="auto480">Auto (480p)</option>
+                                <option value="720">720p</option>
+                                <option value="480">480p</option>
+                                <option value="360">360p</option>
+                            </select>
+                        </div>
+                        <div class="settings-current-line">
+                            Resolution: <span id="qualityValue">Auto (480p)</span> | Speed: <span id="playbackSpeedValue">Normal</span> | Timer: <span id="sleepTimerValue">Off</span>
                         </div>
                     </div>
                 </div>
@@ -202,6 +240,9 @@
     
     <!-- WigTube Achievements Integration -->
     <script src="scripts/apps/browser/wigtube-achievements.js"></script>
+
+    <!-- Admin Panel Integration -->
+    <script src="scripts/apps/browser/fuzzy.js"></script>
     
     <!-- Main Player Script -->
     <script src="scripts/apps/browser/wigtube-player.js"></script>

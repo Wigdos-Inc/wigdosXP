@@ -1286,7 +1286,7 @@ class WigCord {
                     <span class="wigtube-embed-icon">▶</span>
                     <span class="wigtube-embed-label">WigTube Video</span>
                 </div>
-                <iframe src="wigtube-player.html?v=${this._esc(videoId)}&embed=1" frameborder="0" allow="autoplay; encrypted-media" class="embed-iframe"></iframe>
+                <iframe src="wigtube-player.html?v=${this._esc(videoId)}&embed=1" frameborder="0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen class="embed-iframe"></iframe>
             </div>`);
         }
 

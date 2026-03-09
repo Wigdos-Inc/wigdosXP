@@ -38,6 +38,1146 @@ const secrets = {
   // add for more secrets
 };
 
+const WIGGLE_ADMIN_TEST_ACCOUNTS = ['tests', 'testaccount'];
+const WIGGLE_ADMIN_DEFAULT_CODE = 'WIGDOS-ADMIN-2003';
+const WIGGLE_ADMIN_PANEL_POS_KEY = 'wiggle_admin_panel_position';
+const WIGGLE_ADMIN_PANEL_SIZE_KEY = 'wiggle_admin_panel_size';
+const WIGGLE_ADMIN_PANEL_HIDDEN_KEY = 'wiggle_admin_panel_hidden';
+const WIGGLE_ADMIN_PFP_CACHE_PREFIX = 'pfp_';
+let wiggleUserCache = null;
+
+function normalizeWiggleUsername(username) {
+  return String(username || '').trim().toLowerCase();
+}
+
+function getWiggleRootWindow() {
+  let current = window;
+  while (true) {
+    try {
+      if (!current.parent || current.parent === current) {
+        break;
+      }
+      current = current.parent;
+    } catch (e) {
+      break;
+    }
+  }
+  return current;
+}
+
+function getWiggleFirebaseAPI() {
+  let current = window;
+  while (true) {
+    try {
+      if (current.firebaseAPI) {
+        return {
+          api: current.firebaseAPI,
+          online: current.firebaseOnline === true
+        };
+      }
+      if (!current.parent || current.parent === current) break;
+      current = current.parent;
+    } catch (e) {
+      break;
+    }
+  }
+  return { api: null, online: false };
+}
+
+function getCurrentWigdosUser() {
+  let current = window;
+  while (true) {
+    try {
+      if (typeof current.getUser === 'function') {
+        const user = current.getUser();
+        return (user || 'guest').trim();
+      }
+      if (!current.parent || current.parent === current) break;
+      current = current.parent;
+    } catch (e) {
+      break;
+    }
+  }
+  return (localStorage.getItem('username') || 'guest').trim();
+}
+
+async function getWiggleUserDoc(username) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) return null;
+  const { doc, getDoc } = api;
+  const raw = String(username || '').trim();
+  const normalized = normalizeWiggleUsername(raw);
+  if (!normalized) return null;
+
+  const normalizedSnap = await getDoc(doc(api.db, 'users', normalized));
+  if (normalizedSnap.exists()) return normalizedSnap.data();
+
+  if (raw && raw !== normalized) {
+    const rawSnap = await getDoc(doc(api.db, 'users', raw));
+    if (rawSnap.exists()) return rawSnap.data();
+  }
+
+  return null;
+}
+
+async function updateWiggleUserDoc(username, fields) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+  const { doc, getDoc, setDoc } = api;
+  const raw = String(username || '').trim();
+  const normalized = normalizeWiggleUsername(raw);
+  if (!normalized) {
+    throw new Error('Please enter a username.');
+  }
+
+  let targetDocId = normalized;
+  if (raw && raw !== normalized) {
+    const rawSnap = await getDoc(doc(api.db, 'users', raw));
+    if (rawSnap.exists()) {
+      targetDocId = raw;
+    }
+  }
+
+  await setDoc(doc(api.db, 'users', targetDocId), fields, { merge: true });
+}
+
+function filterRepliesByAuthor(replies, author, counter) {
+  if (!Array.isArray(replies)) return [];
+  const result = [];
+  for (const reply of replies) {
+    if ((reply.author || '').toLowerCase() === author) {
+      counter.count += 1;
+      continue;
+    }
+    const cleaned = { ...reply };
+    if (Array.isArray(cleaned.replies)) {
+      cleaned.replies = filterRepliesByAuthor(cleaned.replies, author, counter);
+    }
+    result.push(cleaned);
+  }
+  return result;
+}
+
+async function removeWigTubeCommentsByUser(username) {
+  const target = (username || '').trim().toLowerCase();
+  if (!target) throw new Error('Please enter a username.');
+
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { doc, getDoc, setDoc, updateDoc, collection } = api;
+  const commentsRef = doc(api.db, 'wigtube', 'wigtube_comments');
+  const commentsSnap = await getDoc(commentsRef);
+  const commentsData = commentsSnap.exists() ? commentsSnap.data() : {};
+  const commentsMap = commentsData.comments || {};
+
+  let removed = 0;
+  const affectedVideos = [];
+
+  Object.keys(commentsMap).forEach((videoId) => {
+    const currentComments = Array.isArray(commentsMap[videoId]) ? commentsMap[videoId] : [];
+    const counter = { count: 0 };
+
+    const filtered = currentComments
+      .filter((comment) => {
+        const isTarget = (comment.author || '').toLowerCase() === target;
+        if (isTarget) counter.count += 1;
+        return !isTarget;
+      })
+      .map((comment) => {
+        const cleanedComment = { ...comment };
+        cleanedComment.replies = filterRepliesByAuthor(comment.replies, target, counter);
+        return cleanedComment;
+      });
+
+    if (counter.count > 0) {
+      removed += counter.count;
+      commentsMap[videoId] = filtered;
+      affectedVideos.push({ videoId, count: filtered.length });
+    }
+  });
+
+  if (removed === 0) {
+    return 0;
+  }
+
+  await setDoc(commentsRef, { comments: commentsMap }, { merge: true });
+
+  // Keep per-video comment counts in sync with top-level comments.
+  const videoCollectionRef = collection(api.db, 'wigtube', 'data', 'videos');
+  await Promise.all(
+    affectedVideos.map(async (item) => {
+      const videoRef = doc(videoCollectionRef, item.videoId);
+      try {
+        await updateDoc(videoRef, { commentCount: item.count });
+      } catch (e) {
+        console.warn('[WiggleAdmin] Failed to update comment count for', item.videoId, e);
+      }
+    })
+  );
+
+  return removed;
+}
+
+async function removeWigCordMessagesByUser(username) {
+  const target = (username || '').trim().toLowerCase();
+  if (!target) throw new Error('Please enter a username.');
+
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { collection, getDocs, deleteDoc } = api;
+  const channelsRef = collection(api.db, 'wigcord', 'data', 'messages');
+  const channelsSnap = await getDocs(channelsRef);
+
+  let removed = 0;
+  for (const channelDoc of channelsSnap.docs) {
+    const msgsRef = collection(channelDoc.ref, 'msgs');
+    const msgsSnap = await getDocs(msgsRef);
+    for (const msgDoc of msgsSnap.docs) {
+      const data = msgDoc.data() || {};
+      if ((data.author || '').toLowerCase() === target) {
+        await deleteDoc(msgDoc.ref);
+        removed += 1;
+      }
+    }
+  }
+
+  return removed;
+}
+
+async function deleteWigTubeVideosByUser(username) {
+  const target = (username || '').trim().toLowerCase();
+  if (!target) throw new Error('Please enter a username.');
+
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { collection, getDocs, deleteDoc, doc, getDoc, setDoc } = api;
+  const videosRef = collection(api.db, 'wigtube', 'data', 'videos');
+  const videosSnap = await getDocs(videosRef);
+
+  const deletedVideoIds = [];
+  for (const videoDoc of videosSnap.docs) {
+    const data = videoDoc.data() || {};
+    const uploaderId = (data.uploaderId || '').toLowerCase();
+    const uploaderName = (data.uploaderName || '').toLowerCase();
+    if (uploaderId === target || uploaderName === target) {
+      await deleteDoc(videoDoc.ref);
+      deletedVideoIds.push(videoDoc.id);
+    }
+  }
+
+  if (deletedVideoIds.length > 0) {
+    const commentsRef = doc(api.db, 'wigtube', 'wigtube_comments');
+    const commentsSnap = await getDoc(commentsRef);
+    if (commentsSnap.exists()) {
+      const data = commentsSnap.data() || {};
+      const commentsMap = data.comments || {};
+      deletedVideoIds.forEach((videoId) => {
+        delete commentsMap[videoId];
+      });
+      await setDoc(commentsRef, { comments: commentsMap }, { merge: true });
+    }
+  }
+
+  return deletedVideoIds.length;
+}
+
+async function getAllWigdosUsernames() {
+  if (Array.isArray(wiggleUserCache)) {
+    return wiggleUserCache;
+  }
+
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { collection, getDocs } = api;
+  const snap = await getDocs(collection(api.db, 'users'));
+  wiggleUserCache = snap.docs.map((d) => d.id).sort((a, b) => a.localeCompare(b));
+  return wiggleUserCache;
+}
+
+async function searchUsersByPrefix(prefix) {
+  const allUsers = await getAllWigdosUsernames();
+  const normalized = (prefix || '').trim().toLowerCase();
+  if (!normalized) return allUsers.slice(0, 12);
+  return allUsers.filter((user) => user.toLowerCase().startsWith(normalized)).slice(0, 12);
+}
+
+async function removeSpecificWigTubeComment(videoId, commentId) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { doc, getDoc, setDoc, updateDoc, collection } = api;
+  const commentsRef = doc(api.db, 'wigtube', 'wigtube_comments');
+  const commentsSnap = await getDoc(commentsRef);
+  if (!commentsSnap.exists()) return false;
+
+  const commentsData = commentsSnap.data() || {};
+  const comments = commentsData.comments || {};
+  const videoComments = Array.isArray(comments[videoId]) ? comments[videoId] : [];
+  const nextComments = videoComments.filter((comment) => comment.id !== commentId);
+  const changed = nextComments.length !== videoComments.length;
+  if (!changed) return false;
+
+  comments[videoId] = nextComments;
+  await setDoc(commentsRef, { comments }, { merge: true });
+
+  const videosCollectionRef = collection(api.db, 'wigtube', 'data', 'videos');
+  const videoRef = doc(videosCollectionRef, videoId);
+  try {
+    await updateDoc(videoRef, { commentCount: nextComments.length });
+  } catch (e) {
+    console.warn('[WiggleAdmin] Failed to sync comment count for specific deletion:', e);
+  }
+
+  return true;
+}
+
+async function removeSpecificWigTubeVideo(videoId) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { collection, doc, deleteDoc, getDoc, setDoc } = api;
+  const videosRef = collection(api.db, 'wigtube', 'data', 'videos');
+  await deleteDoc(doc(videosRef, videoId));
+
+  const commentsRef = doc(api.db, 'wigtube', 'wigtube_comments');
+  const commentsSnap = await getDoc(commentsRef);
+  if (commentsSnap.exists()) {
+    const data = commentsSnap.data() || {};
+    const commentsMap = data.comments || {};
+    if (commentsMap[videoId]) {
+      delete commentsMap[videoId];
+      await setDoc(commentsRef, { comments: commentsMap }, { merge: true });
+    }
+  }
+}
+
+async function removeSpecificWigCordMessage(channelId, messageId) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const { doc, deleteDoc } = api;
+  await deleteDoc(doc(api.db, 'wigcord', 'data', 'messages', channelId, 'msgs', messageId));
+}
+
+async function findSpecificWigTubeItemsByPrefix(prefix) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const normalized = (prefix || '').trim().toLowerCase();
+  if (!normalized) return { comments: [], videos: [] };
+
+  const { doc, getDoc, collection, getDocs } = api;
+  const commentsRef = doc(api.db, 'wigtube', 'wigtube_comments');
+  const commentsSnap = await getDoc(commentsRef);
+  const commentsData = commentsSnap.exists() ? commentsSnap.data() : {};
+  const commentsMap = commentsData.comments || {};
+
+  const comments = [];
+  Object.keys(commentsMap).forEach((videoId) => {
+    const videoComments = Array.isArray(commentsMap[videoId]) ? commentsMap[videoId] : [];
+    videoComments.forEach((comment) => {
+      if ((comment.author || '').toLowerCase().startsWith(normalized)) {
+        comments.push({
+          videoId,
+          commentId: comment.id,
+          author: comment.author || 'unknown',
+          text: (comment.text || '').slice(0, 120),
+          timestamp: comment.timestamp || ''
+        });
+      }
+    });
+  });
+
+  const videos = [];
+  const videosSnap = await getDocs(collection(api.db, 'wigtube', 'data', 'videos'));
+  videosSnap.docs.forEach((videoDoc) => {
+    const data = videoDoc.data() || {};
+    const uploader = (data.uploaderName || data.uploaderId || '').toLowerCase();
+    if (uploader.startsWith(normalized)) {
+      videos.push({
+        videoId: videoDoc.id,
+        title: data.title || videoDoc.id,
+        uploader: data.uploaderName || data.uploaderId || 'unknown'
+      });
+    }
+  });
+
+  return { comments: comments.slice(0, 30), videos: videos.slice(0, 30) };
+}
+
+async function findSpecificWigCordMessagesByPrefix(prefix) {
+  const { api, online } = getWiggleFirebaseAPI();
+  if (!online || !api || !api.db) {
+    throw new Error('This action requires an online Firebase connection.');
+  }
+
+  const normalized = (prefix || '').trim().toLowerCase();
+  if (!normalized) return [];
+
+  const { collection, getDocs } = api;
+  const channelsSnap = await getDocs(collection(api.db, 'wigcord', 'data', 'messages'));
+  const messages = [];
+
+  for (const channelDoc of channelsSnap.docs) {
+    const msgsSnap = await getDocs(collection(channelDoc.ref, 'msgs'));
+    for (const msgDoc of msgsSnap.docs) {
+      const data = msgDoc.data() || {};
+      if ((data.author || '').toLowerCase().startsWith(normalized)) {
+        messages.push({
+          channelId: channelDoc.id,
+          messageId: msgDoc.id,
+          author: data.author || 'unknown',
+          content: (data.content || data.text || '').slice(0, 120),
+          timestamp: data.timestamp || data.createdAt || ''
+        });
+      }
+    }
+  }
+
+  return messages.slice(0, 40);
+}
+
+function createAdminPanelMarkup(username, panelTitle) {
+  return `
+    <button id="wiggleAdminShowBtn" style="position: fixed; top: 72px; right: 12px; z-index: 11999; display: none; padding: 6px 10px; border: 1px solid #2f4f85; background: #dfeaff; color: #1f3d66; font-family: Tahoma, sans-serif; font-size: 12px; cursor: pointer; box-shadow: 2px 2px 0 #7f9db9;">Show Admin Panel</button>
+    <div id="wiggleAdminShell" style="position: fixed; top: 72px; right: 12px; width: min(760px, calc(100vw - 24px)); min-width: 360px; min-height: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; border: 2px solid #0d2c63; background: #f3f8ff; box-shadow: 3px 3px 0 #7f9db9; font-family: Tahoma, sans-serif; z-index: 12000;">
+      <div id="wiggleAdminDragHandle" style="padding: 10px 12px; background: linear-gradient(to right, #1a4f9c, #3c88df); color: #fff; font-weight: bold; font-size: 13px; cursor: move; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span>${panelTitle} <span style="font-size: 11px; opacity: 0.9;">(drag + resize)</span></span>
+        <button id="wiggleAdminHideBtn" style="padding: 3px 8px; border: 1px solid #f0f6ff; background: rgba(255,255,255,0.2); color: #fff; font-family: Tahoma, sans-serif; font-size: 11px; cursor: pointer;">Hide</button>
+      </div>
+      <div id="wiggleAdminGate" style="padding: 12px; border-top: 1px solid #d0def3;">
+        <div style="font-size: 12px; margin-bottom: 8px; color: #1f3d66;">Signed in as <strong>${username}</strong>. Enter your admin confirmation code.</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input id="wiggleAdminCodeInput" type="password" placeholder="Admin confirmation code" style="flex: 1; min-width: 210px; padding: 6px; border: 1px solid #7f9db9;" />
+          <button id="wiggleAdminUnlockBtn" style="padding: 6px 12px; border: 1px solid #2f4f85; background: #dfeaff; cursor: pointer;">Unlock</button>
+        </div>
+        <div id="wiggleAdminGateStatus" style="margin-top: 8px; font-size: 12px; color: #8a1c1c;"></div>
+      </div>
+      <div id="wiggleAdminPanel" style="display: none; padding: 12px; border-top: 1px solid #d0def3;">
+        <div style="display: grid; gap: 10px;">
+          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+            <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">User Roles and Access</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input id="adminTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
+              <button id="setAdminBtn" style="padding: 6px 10px;">Make Admin</button>
+              <button id="removeAdminBtn" style="padding: 6px 10px;">Remove Admin</button>
+              <button id="banSearchBtn" style="padding: 6px 10px;">Ban WiggleSearch</button>
+              <button id="unbanSearchBtn" style="padding: 6px 10px;">Unban WiggleSearch</button>
+            </div>
+            <div id="adminSelectedUserCard" style="display:none; margin-top:8px;"></div>
+          </div>
+          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+            <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">WigTube Moderation</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input id="wigtubeTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
+              <button id="banCommentsBtn" style="padding: 6px 10px;">Ban Commenting</button>
+              <button id="unbanCommentsBtn" style="padding: 6px 10px;">Unban Commenting</button>
+              <button id="removeCommentsBtn" style="padding: 6px 10px;">Remove Comments</button>
+              <button id="deleteVideosBtn" style="padding: 6px 10px;">Delete User Videos</button>
+              <button id="findWigTubeSpecificBtn" style="padding: 6px 10px;">Find Specific Items</button>
+            </div>
+            <div id="wigtubeSelectedUserCard" style="display:none; margin-top:8px;"></div>
+            <div id="wigTubeSpecificResults" style="margin-top: 8px; max-height: 180px; overflow: auto; font-size: 11px; border-top: 1px solid #dbe7f7; padding-top: 8px;"></div>
+          </div>
+          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+            <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">WigCord Moderation</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <input id="wigcordTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
+              <button id="removeWigcordMessagesBtn" style="padding: 6px 10px;">Remove User Messages</button>
+              <button id="findWigCordSpecificBtn" style="padding: 6px 10px;">Find Specific Messages</button>
+            </div>
+            <div id="wigcordSelectedUserCard" style="display:none; margin-top:8px;"></div>
+            <div id="wigCordSpecificResults" style="margin-top: 8px; max-height: 180px; overflow: auto; font-size: 11px; border-top: 1px solid #dbe7f7; padding-top: 8px;"></div>
+          </div>
+          <datalist id="wiggleAdminUserSuggestions"></datalist>
+          <div id="wiggleAdminStatus" style="font-size: 12px; color: #173f21; padding: 8px; border: 1px solid #b8d8be; background: #f2fff4;">Ready.</div>
+        </div>
+      </div>
+      <div data-resize-dir="n" style="position: absolute; top: -4px; left: 8px; right: 8px; height: 8px; cursor: n-resize; z-index: 12010;"></div>
+      <div data-resize-dir="s" style="position: absolute; bottom: -4px; left: 8px; right: 8px; height: 8px; cursor: s-resize; z-index: 12010;"></div>
+      <div data-resize-dir="e" style="position: absolute; top: 8px; right: -4px; bottom: 8px; width: 8px; cursor: e-resize; z-index: 12010;"></div>
+      <div data-resize-dir="w" style="position: absolute; top: 8px; left: -4px; bottom: 8px; width: 8px; cursor: w-resize; z-index: 12010;"></div>
+      <div data-resize-dir="ne" style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; cursor: ne-resize; z-index: 12011;"></div>
+      <div data-resize-dir="nw" style="position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; cursor: nw-resize; z-index: 12011;"></div>
+      <div data-resize-dir="se" style="position: absolute; bottom: -4px; right: -4px; width: 10px; height: 10px; cursor: se-resize; z-index: 12011;"></div>
+      <div data-resize-dir="sw" style="position: absolute; bottom: -4px; left: -4px; width: 10px; height: 10px; cursor: sw-resize; z-index: 12011;"></div>
+    </div>
+  `;
+}
+
+function clampAdminPanelToViewport(panel) {
+  const margin = 8;
+  panel.style.maxWidth = `${Math.max(320, window.innerWidth - (margin * 2))}px`;
+  panel.style.maxHeight = `${Math.max(220, window.innerHeight - (margin * 2))}px`;
+  const rect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+  const currentLeft = parseInt(panel.style.left || `${rect.left}`, 10);
+  const currentTop = parseInt(panel.style.top || `${rect.top}`, 10);
+  const safeLeft = Math.min(Math.max(Number.isFinite(currentLeft) ? currentLeft : margin, margin), maxLeft);
+  const safeTop = Math.min(Math.max(Number.isFinite(currentTop) ? currentTop : margin, margin), maxTop);
+
+  panel.style.left = `${safeLeft}px`;
+  panel.style.top = `${safeTop}px`;
+  panel.style.right = 'auto';
+}
+
+function restoreAdminPanelSize(panel) {
+  try {
+    const raw = localStorage.getItem(WIGGLE_ADMIN_PANEL_SIZE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.width !== 'number' || typeof parsed.height !== 'number') return;
+    panel.style.width = `${Math.max(360, parsed.width)}px`;
+    panel.style.height = `${Math.max(260, parsed.height)}px`;
+  } catch (e) {
+    console.warn('[WiggleAdmin] Failed to restore panel size:', e);
+  }
+}
+
+function saveAdminPanelSize(panel) {
+  try {
+    const rect = panel.getBoundingClientRect();
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+    localStorage.setItem(WIGGLE_ADMIN_PANEL_SIZE_KEY, JSON.stringify({ width, height }));
+  } catch (e) {
+    console.warn('[WiggleAdmin] Failed to save panel size:', e);
+  }
+}
+
+function restoreAdminPanelPosition(panel) {
+  try {
+    const raw = localStorage.getItem(WIGGLE_ADMIN_PANEL_POS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') return;
+    panel.style.left = `${parsed.left}px`;
+    panel.style.top = `${parsed.top}px`;
+    panel.style.right = 'auto';
+  } catch (e) {
+    console.warn('[WiggleAdmin] Failed to restore panel position:', e);
+  }
+}
+
+function saveAdminPanelPosition(panel) {
+  try {
+    const left = parseInt(panel.style.left || '0', 10);
+    const top = parseInt(panel.style.top || '0', 10);
+    localStorage.setItem(WIGGLE_ADMIN_PANEL_POS_KEY, JSON.stringify({ left, top }));
+  } catch (e) {
+    console.warn('[WiggleAdmin] Failed to save panel position:', e);
+  }
+}
+
+function makeAdminPanelDraggable(panel) {
+  const handle = panel.querySelector('#wiggleAdminDragHandle');
+  if (!handle) return;
+
+  let dragState = null;
+
+  const onMouseMove = (event) => {
+    if (!dragState) return;
+    panel.style.left = `${event.clientX - dragState.offsetX}px`;
+    panel.style.top = `${event.clientY - dragState.offsetY}px`;
+    panel.style.right = 'auto';
+    clampAdminPanelToViewport(panel);
+  };
+
+  const stopDrag = () => {
+    if (!dragState) return;
+    dragState = null;
+    document.body.style.userSelect = '';
+    saveAdminPanelPosition(panel);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', stopDrag);
+  };
+
+  handle.addEventListener('mousedown', (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest('button')) return;
+    if (event.target.closest('[data-resize-dir]')) return;
+    event.preventDefault();
+
+    const rect = panel.getBoundingClientRect();
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.right = 'auto';
+
+    dragState = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    };
+
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', stopDrag);
+  });
+
+  window.addEventListener('resize', () => {
+    clampAdminPanelToViewport(panel);
+    saveAdminPanelSize(panel);
+    saveAdminPanelPosition(panel);
+  });
+}
+
+function makeAdminPanelResizable(panel) {
+  const handles = panel.querySelectorAll('[data-resize-dir]');
+  if (!handles.length) return;
+
+  const margin = 8;
+  const minWidth = 360;
+  const minHeight = 260;
+  let resizeState = null;
+
+  const onResizeMove = (event) => {
+    if (!resizeState) return;
+
+    const dx = event.clientX - resizeState.startX;
+    const dy = event.clientY - resizeState.startY;
+    const dir = resizeState.dir;
+
+    let nextLeft = resizeState.startLeft;
+    let nextTop = resizeState.startTop;
+    let nextWidth = resizeState.startWidth;
+    let nextHeight = resizeState.startHeight;
+
+    if (dir.includes('e')) nextWidth = resizeState.startWidth + dx;
+    if (dir.includes('s')) nextHeight = resizeState.startHeight + dy;
+    if (dir.includes('w')) {
+      nextWidth = resizeState.startWidth - dx;
+      nextLeft = resizeState.startLeft + dx;
+    }
+    if (dir.includes('n')) {
+      nextHeight = resizeState.startHeight - dy;
+      nextTop = resizeState.startTop + dy;
+    }
+
+    if (nextWidth < minWidth) {
+      if (dir.includes('w')) {
+        nextLeft -= (minWidth - nextWidth);
+      }
+      nextWidth = minWidth;
+    }
+
+    if (nextHeight < minHeight) {
+      if (dir.includes('n')) {
+        nextTop -= (minHeight - nextHeight);
+      }
+      nextHeight = minHeight;
+    }
+
+    const maxWidth = Math.max(minWidth, window.innerWidth - (margin * 2));
+    const maxHeight = Math.max(minHeight, window.innerHeight - (margin * 2));
+    nextWidth = Math.min(nextWidth, maxWidth);
+    nextHeight = Math.min(nextHeight, maxHeight);
+
+    nextLeft = Math.min(Math.max(nextLeft, margin), window.innerWidth - nextWidth - margin);
+    nextTop = Math.min(Math.max(nextTop, margin), window.innerHeight - nextHeight - margin);
+
+    panel.style.left = `${Math.round(nextLeft)}px`;
+    panel.style.top = `${Math.round(nextTop)}px`;
+    panel.style.width = `${Math.round(nextWidth)}px`;
+    panel.style.height = `${Math.round(nextHeight)}px`;
+    panel.style.right = 'auto';
+  };
+
+  const stopResize = () => {
+    if (!resizeState) return;
+    resizeState = null;
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    saveAdminPanelSize(panel);
+    saveAdminPanelPosition(panel);
+    window.removeEventListener('mousemove', onResizeMove);
+    window.removeEventListener('mouseup', stopResize);
+  };
+
+  handles.forEach((handle) => {
+    handle.addEventListener('mousedown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const rect = panel.getBoundingClientRect();
+      panel.style.left = `${Math.round(rect.left)}px`;
+      panel.style.top = `${Math.round(rect.top)}px`;
+      panel.style.width = `${Math.round(rect.width)}px`;
+      panel.style.height = `${Math.round(rect.height)}px`;
+      panel.style.right = 'auto';
+
+      resizeState = {
+        dir: handle.getAttribute('data-resize-dir') || 'se',
+        startX: event.clientX,
+        startY: event.clientY,
+        startLeft: rect.left,
+        startTop: rect.top,
+        startWidth: rect.width,
+        startHeight: rect.height
+      };
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = window.getComputedStyle(handle).cursor;
+      window.addEventListener('mousemove', onResizeMove);
+      window.addEventListener('mouseup', stopResize);
+    });
+  });
+}
+
+async function initializeWiggleAdminPanel() {
+  const username = getCurrentWigdosUser();
+  const normalizedUsername = normalizeWiggleUsername(username);
+  const userDoc = await getWiggleUserDoc(normalizedUsername || username);
+  const isTestAccount = WIGGLE_ADMIN_TEST_ACCOUNTS.includes(normalizedUsername);
+  const isAdmin = !!(userDoc && userDoc.admin);
+
+  const wiggleSearch = document.getElementById('wiggle-search');
+  const isWiggleSearchPage = !!wiggleSearch;
+  const isWigTubePlayerPage = window.location.pathname.includes('wigtube-player.html');
+  if (!isWiggleSearchPage && !isWigTubePlayerPage) return;
+
+  if (window.top !== window.self) {
+    try {
+      if (window.top.document.getElementById('wiggleAdminShell')) {
+        return;
+      }
+    } catch (e) {
+      // Ignore cross-origin or restricted frame access.
+    }
+  }
+
+  if (isWiggleSearchPage && userDoc && userDoc.bannedFromWiggleSearch && !isAdmin && !isTestAccount) {
+    window.wiggleSearchAccessDenied = true;
+    wiggleSearch.innerHTML = `
+      <div style="max-width: 600px; margin: 40px auto; padding: 16px; border: 2px solid #963737; background: #fff2f2; font-family: Tahoma, sans-serif;">
+        <h2 style="margin: 0 0 8px; color: #7e1f1f;">Access Blocked</h2>
+        <p style="margin: 0; font-size: 12px;">Your account is banned from WiggleSearch access. Contact an administrator if this is a mistake.</p>
+      </div>
+    `;
+    return;
+  }
+
+  if (isWiggleSearchPage) {
+    window.wiggleSearchAccessDenied = false;
+  }
+
+  if (!isAdmin && !isTestAccount) {
+    return;
+  }
+
+  if (document.getElementById('wiggleAdminShell')) {
+    return;
+  }
+
+  const shellHost = document.createElement('div');
+  const panelTitle = isWigTubePlayerPage ? 'WigTube Player Admin Panel' : 'WiggleSearch Admin Panel';
+  shellHost.innerHTML = createAdminPanelMarkup(username, panelTitle);
+  while (shellHost.firstChild) {
+    document.body.appendChild(shellHost.firstChild);
+  }
+
+  const shell = document.getElementById('wiggleAdminShell');
+  const showBtn = document.getElementById('wiggleAdminShowBtn');
+  const hideBtn = document.getElementById('wiggleAdminHideBtn');
+  restoreAdminPanelPosition(shell);
+  restoreAdminPanelSize(shell);
+  clampAdminPanelToViewport(shell);
+  makeAdminPanelDraggable(shell);
+  makeAdminPanelResizable(shell);
+
+  function setPanelHidden(hidden) {
+    shell.style.display = hidden ? 'none' : 'block';
+    if (showBtn) showBtn.style.display = hidden ? 'block' : 'none';
+    try {
+      localStorage.setItem(WIGGLE_ADMIN_PANEL_HIDDEN_KEY, hidden ? '1' : '0');
+    } catch (e) {
+      // Ignore storage failures
+    }
+  }
+
+  if (hideBtn) {
+    hideBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      saveAdminPanelPosition(shell);
+      saveAdminPanelSize(shell);
+      setPanelHidden(true);
+    });
+  }
+
+  if (showBtn) {
+    showBtn.addEventListener('click', () => {
+      setPanelHidden(false);
+      clampAdminPanelToViewport(shell);
+    });
+  }
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const resizeObserver = new ResizeObserver(() => {
+      clampAdminPanelToViewport(shell);
+      saveAdminPanelSize(shell);
+      saveAdminPanelPosition(shell);
+    });
+    resizeObserver.observe(shell);
+  }
+
+  const shouldStartHidden = localStorage.getItem(WIGGLE_ADMIN_PANEL_HIDDEN_KEY) === '1';
+  setPanelHidden(shouldStartHidden);
+
+  const expectedCode = ((userDoc && userDoc.adminConfirmCode) || (isTestAccount ? WIGGLE_ADMIN_DEFAULT_CODE : '') || '').trim();
+  const gateStatus = document.getElementById('wiggleAdminGateStatus');
+  const gateInput = document.getElementById('wiggleAdminCodeInput');
+  const gateButton = document.getElementById('wiggleAdminUnlockBtn');
+  const panel = document.getElementById('wiggleAdminPanel');
+  const adminStatus = document.getElementById('wiggleAdminStatus');
+  const userSuggestionList = document.getElementById('wiggleAdminUserSuggestions');
+  const wigTubeSpecificResults = document.getElementById('wigTubeSpecificResults');
+  const wigCordSpecificResults = document.getElementById('wigCordSpecificResults');
+  const selectedCardByInput = {
+    adminTargetUser: document.getElementById('adminSelectedUserCard'),
+    wigtubeTargetUser: document.getElementById('wigtubeSelectedUserCard'),
+    wigcordTargetUser: document.getElementById('wigcordSelectedUserCard')
+  };
+
+  if (!expectedCode) {
+    gateStatus.textContent = 'No confirmation code is set for this account. Set users/<username>.adminConfirmCode in Firebase first.';
+    gateButton.disabled = true;
+    return;
+  }
+
+  const setStatus = (message, isError = false) => {
+    adminStatus.style.color = isError ? '#8a1c1c' : '#173f21';
+    adminStatus.style.background = isError ? '#fff1f1' : '#f2fff4';
+    adminStatus.style.borderColor = isError ? '#e2bcbc' : '#b8d8be';
+    adminStatus.textContent = message;
+  };
+
+  const getTarget = (id) => {
+    const value = normalizeWiggleUsername(document.getElementById(id)?.value || '');
+    if (!value) throw new Error('Enter a target username first.');
+    return value;
+  };
+
+  const getCachedProfilePicture = (usernameValue) => {
+    if (!usernameValue) return null;
+    const exact = localStorage.getItem(`${WIGGLE_ADMIN_PFP_CACHE_PREFIX}${usernameValue}`);
+    if (exact) return exact;
+    const lower = localStorage.getItem(`${WIGGLE_ADMIN_PFP_CACHE_PREFIX}${normalizeWiggleUsername(usernameValue)}`);
+    return lower || null;
+  };
+
+  const getProfilePictureForUser = async (usernameValue) => {
+    const normalized = normalizeWiggleUsername(usernameValue);
+    if (!normalized) return null;
+
+    const cached = getCachedProfilePicture(normalized);
+    if (cached) return cached;
+
+    try {
+      const user = await getWiggleUserDoc(normalized);
+      if (user && user.profilePicture) {
+        localStorage.setItem(`${WIGGLE_ADMIN_PFP_CACHE_PREFIX}${normalized}`, user.profilePicture);
+        return user.profilePicture;
+      }
+    } catch (e) {
+      // Profile pictures are non-blocking for moderation actions.
+    }
+
+    return null;
+  };
+
+  const renderSelectedUserCard = (cardElement, usernameValue, profilePicture) => {
+    if (!cardElement || !usernameValue) return;
+
+    const safeUsername = escapeHTML(usernameValue);
+    const firstLetter = safeUsername.charAt(0).toUpperCase() || '?';
+    const avatarMarkup = profilePicture
+      ? `<img src="${escapeHTML(profilePicture)}" alt="${safeUsername} profile picture" style="width:28px;height:28px;border:1px solid #6f88ac;object-fit:cover;background:#fff;" />`
+      : `<div style="width:28px;height:28px;border:1px solid #6f88ac;background:#cfe0f8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#214572;">${firstLetter}</div>`;
+
+    cardElement.style.display = 'block';
+    cardElement.innerHTML = `
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #9cb4d8;background:#edf4ff;color:#183a63;font-size:11px;">
+        ${avatarMarkup}
+        <div>
+          <div style="font-weight:bold;line-height:1.2;">Selected user</div>
+          <div style="line-height:1.2;">${safeUsername}</div>
+        </div>
+      </div>
+    `;
+  };
+
+  const clearSelectedUserCard = (cardElement) => {
+    if (!cardElement) return;
+    cardElement.style.display = 'none';
+    cardElement.innerHTML = '';
+  };
+
+  const refreshSelectedUserCard = async (inputId) => {
+    const input = document.getElementById(inputId);
+    const cardElement = selectedCardByInput[inputId];
+    if (!input || !cardElement) return;
+
+    const normalized = normalizeWiggleUsername(input.value);
+    if (!normalized) {
+      clearSelectedUserCard(cardElement);
+      return;
+    }
+
+    const profilePicture = await getProfilePictureForUser(normalized);
+    renderSelectedUserCard(cardElement, normalized, profilePicture);
+  };
+
+  const setSuggestions = (users) => {
+    userSuggestionList.innerHTML = users
+      .map((user) => `<option value="${user.replace(/"/g, '&quot;')}"></option>`)
+      .join('');
+  };
+
+  const wireUserLookup = (inputId) => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.setAttribute('list', 'wiggleAdminUserSuggestions');
+    input.addEventListener('input', async () => {
+      try {
+        const users = await searchUsersByPrefix(input.value);
+        setSuggestions(users);
+      } catch (e) {
+        // silent: suggestions are convenience-only
+      }
+    });
+    input.addEventListener('change', () => {
+      refreshSelectedUserCard(inputId);
+    });
+    input.addEventListener('blur', () => {
+      refreshSelectedUserCard(inputId);
+    });
+  };
+
+  const escapeHTML = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const renderWigTubeSpecific = (data) => {
+    const { comments, videos } = data;
+    if (!comments.length && !videos.length) {
+      wigTubeSpecificResults.innerHTML = '<div style="color:#6b6b6b;">No matching WigTube items found.</div>';
+      return;
+    }
+
+    const commentRows = comments.map((item) => `
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; border:1px solid #d7e5f8; padding:6px; background:#fff;">
+        <div style="flex:1; min-width:0;">
+          <div><strong>Comment</strong> by ${escapeHTML(item.author)} on ${escapeHTML(item.videoId)}</div>
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#3d3d3d;">${escapeHTML(item.text || '(no text)')}</div>
+        </div>
+        <button data-action="delete-wt-comment" data-video-id="${escapeHTML(item.videoId)}" data-comment-id="${escapeHTML(item.commentId)}" style="padding:4px 8px;">Delete</button>
+      </div>
+    `).join('');
+
+    const videoRows = videos.map((item) => `
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; border:1px solid #d7e5f8; padding:6px; background:#fff;">
+        <div style="flex:1; min-width:0;">
+          <div><strong>Video</strong> ${escapeHTML(item.title)}</div>
+          <div style="color:#3d3d3d;">Uploader: ${escapeHTML(item.uploader)} | ID: ${escapeHTML(item.videoId)}</div>
+        </div>
+        <button data-action="delete-wt-video" data-video-id="${escapeHTML(item.videoId)}" style="padding:4px 8px;">Delete</button>
+      </div>
+    `).join('');
+
+    wigTubeSpecificResults.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px;">Specific WigTube Matches</div>
+      ${commentRows}
+      ${videoRows}
+    `;
+  };
+
+  const renderWigCordSpecific = (messages) => {
+    if (!messages.length) {
+      wigCordSpecificResults.innerHTML = '<div style="color:#6b6b6b;">No matching WigCord messages found.</div>';
+      return;
+    }
+
+    wigCordSpecificResults.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px;">Specific WigCord Message Matches</div>
+      ${messages.map((item) => `
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; border:1px solid #d7e5f8; padding:6px; background:#fff;">
+          <div style="flex:1; min-width:0;">
+            <div><strong>${escapeHTML(item.author)}</strong> in channel ${escapeHTML(item.channelId)}</div>
+            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#3d3d3d;">${escapeHTML(item.content || '(empty message)')}</div>
+          </div>
+          <button data-action="delete-wc-message" data-channel-id="${escapeHTML(item.channelId)}" data-message-id="${escapeHTML(item.messageId)}" style="padding:4px 8px;">Delete</button>
+        </div>
+      `).join('')}
+    `;
+  };
+
+  const doAction = async (action) => {
+    try {
+      setStatus('Processing...');
+      await action();
+    } catch (e) {
+      setStatus(e.message || 'Action failed.', true);
+    }
+  };
+
+  gateButton.addEventListener('click', () => {
+    const inputCode = (gateInput.value || '').trim();
+    if (!inputCode) {
+      gateStatus.textContent = 'Please enter a confirmation code.';
+      return;
+    }
+    if (inputCode !== expectedCode) {
+      gateStatus.textContent = 'Invalid confirmation code.';
+      return;
+    }
+
+    gateStatus.textContent = 'Code confirmed.';
+    panel.style.display = 'block';
+    document.getElementById('wiggleAdminGate').style.display = 'none';
+  });
+
+  document.getElementById('setAdminBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('adminTargetUser');
+    await updateWiggleUserDoc(target, { admin: true });
+    setStatus(`Assigned admin role to ${target}.`);
+  }));
+
+  document.getElementById('removeAdminBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('adminTargetUser');
+    await updateWiggleUserDoc(target, { admin: false });
+    setStatus(`Removed admin role from ${target}.`);
+  }));
+
+  document.getElementById('banSearchBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('adminTargetUser');
+    await updateWiggleUserDoc(target, { bannedFromWiggleSearch: true });
+    setStatus(`Banned ${target} from WiggleSearch.`);
+  }));
+
+  document.getElementById('unbanSearchBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('adminTargetUser');
+    await updateWiggleUserDoc(target, { bannedFromWiggleSearch: false });
+    setStatus(`Unbanned ${target} from WiggleSearch.`);
+  }));
+
+  document.getElementById('banCommentsBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigtubeTargetUser');
+    await updateWiggleUserDoc(target, { wigtubeCommentBanned: true });
+    setStatus(`Banned ${target} from WigTube commenting.`);
+  }));
+
+  document.getElementById('unbanCommentsBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigtubeTargetUser');
+    await updateWiggleUserDoc(target, { wigtubeCommentBanned: false });
+    setStatus(`Unbanned ${target} from WigTube commenting.`);
+  }));
+
+  document.getElementById('removeCommentsBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigtubeTargetUser');
+    const removed = await removeWigTubeCommentsByUser(target);
+    setStatus(`Removed ${removed} WigTube comments/replies from ${target}.`);
+  }));
+
+  document.getElementById('deleteVideosBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigtubeTargetUser');
+    const removed = await deleteWigTubeVideosByUser(target);
+    setStatus(`Deleted ${removed} WigTube videos from ${target}.`);
+  }));
+
+  document.getElementById('removeWigcordMessagesBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigcordTargetUser');
+    const removed = await removeWigCordMessagesByUser(target);
+    setStatus(`Removed ${removed} WigCord messages from ${target}.`);
+  }));
+
+  document.getElementById('findWigTubeSpecificBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigtubeTargetUser');
+    const data = await findSpecificWigTubeItemsByPrefix(target);
+    renderWigTubeSpecific(data);
+    setStatus(`Loaded specific WigTube matches for prefix "${target}".`);
+  }));
+
+  document.getElementById('findWigCordSpecificBtn').addEventListener('click', () => doAction(async () => {
+    const target = getTarget('wigcordTargetUser');
+    const data = await findSpecificWigCordMessagesByPrefix(target);
+    renderWigCordSpecific(data);
+    setStatus(`Loaded specific WigCord matches for prefix "${target}".`);
+  }));
+
+  wigTubeSpecificResults.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+
+    doAction(async () => {
+      if (action === 'delete-wt-comment') {
+        const videoId = btn.getAttribute('data-video-id');
+        const commentId = btn.getAttribute('data-comment-id');
+        const deleted = await removeSpecificWigTubeComment(videoId, commentId);
+        if (!deleted) throw new Error('Comment was already missing.');
+        btn.closest('div[style*="display:flex"]')?.remove();
+        setStatus(`Deleted specific comment ${commentId}.`);
+      }
+
+      if (action === 'delete-wt-video') {
+        const videoId = btn.getAttribute('data-video-id');
+        await removeSpecificWigTubeVideo(videoId);
+        btn.closest('div[style*="display:flex"]')?.remove();
+        setStatus(`Deleted specific video ${videoId}.`);
+      }
+    });
+  });
+
+  wigCordSpecificResults.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    if (action !== 'delete-wc-message') return;
+
+    doAction(async () => {
+      const channelId = btn.getAttribute('data-channel-id');
+      const messageId = btn.getAttribute('data-message-id');
+      await removeSpecificWigCordMessage(channelId, messageId);
+      btn.closest('div[style*="display:flex"]')?.remove();
+      setStatus(`Deleted specific message ${messageId}.`);
+    });
+  });
+
+  wireUserLookup('adminTargetUser');
+  wireUserLookup('wigtubeTargetUser');
+  wireUserLookup('wigcordTargetUser');
+
+  refreshSelectedUserCard('adminTargetUser');
+  refreshSelectedUserCard('wigtubeTargetUser');
+  refreshSelectedUserCard('wigcordTargetUser');
+}
+
 function checkCode() {
   const input = document.getElementById("codeInput").value.trim().toLowerCase();
   const secret = secrets[input];
@@ -794,6 +1934,16 @@ function loadWiggleSearchInTab(tabId) {
   }
   
   // Load Wiggle Search content
+  if (window.wiggleSearchAccessDenied) {
+    tabContent.innerHTML = `
+      <div style="max-width: 600px; margin: 40px auto; padding: 16px; border: 2px solid #963737; background: #fff2f2; font-family: Tahoma, sans-serif;">
+        <h2 style="margin: 0 0 8px; color: #7e1f1f;">Access Blocked</h2>
+        <p style="margin: 0; font-size: 12px;">Your account is banned from WiggleSearch access.</p>
+      </div>
+    `;
+    return;
+  }
+
   tabContent.innerHTML = `
     <div class="google-layout">
       <img src="../.././assets/images/icons/48x/rBrowser.png" draggable="false" class="logo">
@@ -968,3 +2118,9 @@ function navigateToWigCord(tabId) {
   // Load WigCord content
   tabContent.innerHTML = `<iframe src="apps/browser/pages/wigcord.html" style="width: 100%; height: 100%; border: none;" allow="autoplay; encrypted-media; fullscreen"></iframe>`;
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  initializeWiggleAdminPanel().catch((error) => {
+    console.error('[WiggleAdmin] Failed to initialize panel:', error);
+  });
+});

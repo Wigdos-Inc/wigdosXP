@@ -49,6 +49,39 @@ function updateWigTubeProperty(property, value) {
     saveWigTubeData(data);
 }
 
+let commentBanCache = {
+    username: null,
+    banned: false,
+    checkedAt: 0
+};
+
+async function isWigTubeCommentBanned(username) {
+    const normalized = (username || '').toLowerCase();
+    if (!normalized || normalized === 'guest') return false;
+
+    // Cache for a short window to avoid repeated user-doc reads while typing/posting.
+    if (commentBanCache.username === normalized && Date.now() - commentBanCache.checkedAt < 15000) {
+        return commentBanCache.banned;
+    }
+
+    if (!window.firebaseAPI || !window.firebaseAPI.db || window.firebaseOnline !== true) {
+        commentBanCache = { username: normalized, banned: false, checkedAt: Date.now() };
+        return false;
+    }
+
+    try {
+        const { doc, getDoc } = window.firebaseAPI;
+        const userSnap = await getDoc(doc(window.firebaseAPI.db, 'users', normalized));
+        const banned = userSnap.exists() && userSnap.data().wigtubeCommentBanned === true;
+        commentBanCache = { username: normalized, banned, checkedAt: Date.now() };
+        return banned;
+    } catch (error) {
+        console.warn('[WigTube] Failed to check comment ban state:', error);
+        commentBanCache = { username: normalized, banned: false, checkedAt: Date.now() };
+        return false;
+    }
+}
+
 // Video data will be loaded from JSON file
 let videoDataArray = [];
 let videoData = {};
@@ -154,6 +187,19 @@ let currentAlbum = null;
 let currentTrackIndex = 0;
 let isPlayingAlbum = false;
 let viewCountIncremented = false; // Track if view has been counted for current video
+let playbackSpeed = 1;
+let qualitySetting = 'auto480';
+let sleepTimerMinutes = 'off';
+let sleepTimerTimeoutId = null;
+let sleepTimerIntervalId = null;
+let sleepTimerEndsAt = 0;
+
+const QUALITY_LABELS = {
+    auto480: 'Auto (480p)',
+    720: '720p',
+    480: '480p',
+    360: '360p'
+};
 
 // Detect embed mode early
 const _isEmbedMode = new URLSearchParams(window.location.search).get('embed') === '1';
@@ -506,6 +552,15 @@ function setupEventListeners() {
     document.getElementById('stopBtn').addEventListener('click', function() {
         stopVideo();
     });
+
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', function() {
+            togglePlayerFullscreen();
+        });
+    }
+
+    initializeSettingsMenu();
     
     // Progress bar click
     document.querySelector('.progress-bar').addEventListener('click', function(e) {
@@ -553,7 +608,7 @@ function setupEventListeners() {
     });
     
     // Comment form
-    document.querySelector('.comment-submit').addEventListener('click', function() {
+    document.querySelector('.comment-submit').addEventListener('click', async function() {
         const commentInput = document.querySelector('.comment-input');
         const comment = commentInput.value.trim();
         
@@ -561,6 +616,11 @@ function setupEventListeners() {
         const username = localStorage.getItem('username');
         if (!username || username.toLowerCase() === 'guest') {
             alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+            return;
+        }
+
+        if (await isWigTubeCommentBanned(username)) {
+            alert('⚠️ Comment Error\\n\\nYour account is banned from posting WigTube comments.');
             return;
         }
         
@@ -596,6 +656,211 @@ function setupEventListeners() {
             }
         }
     });
+}
+
+function getPlaybackSpeedLabel(speed) {
+    return speed === 1 ? 'Normal' : `${speed}x`;
+}
+
+function getSleepTimerLabel() {
+    if (sleepTimerMinutes === 'off') return 'Off';
+    if (sleepTimerEndsAt > Date.now()) {
+        const msLeft = sleepTimerEndsAt - Date.now();
+        const totalSec = Math.max(0, Math.floor(msLeft / 1000));
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min}:${String(sec).padStart(2, '0')}`;
+    }
+    return `${sleepTimerMinutes} min`;
+}
+
+function updateSettingsSummaryLabels() {
+    const sleepValue = document.getElementById('sleepTimerValue');
+    const speedValue = document.getElementById('playbackSpeedValue');
+    const qualityValue = document.getElementById('qualityValue');
+
+    if (sleepValue) sleepValue.textContent = getSleepTimerLabel();
+    if (speedValue) speedValue.textContent = getPlaybackSpeedLabel(playbackSpeed);
+    if (qualityValue) qualityValue.textContent = QUALITY_LABELS[qualitySetting] || QUALITY_LABELS.auto480;
+}
+
+function markActiveSettingsOptions() {
+    const sleepTimerSelect = document.getElementById('sleepTimerSelect');
+    const speedSelect = document.getElementById('playbackSpeedSelect');
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    if (sleepTimerSelect) sleepTimerSelect.value = sleepTimerMinutes;
+    if (speedSelect) speedSelect.value = String(playbackSpeed);
+    if (qualitySelect) qualitySelect.value = qualitySetting;
+}
+
+function clearSleepTimer() {
+    if (sleepTimerTimeoutId) {
+        clearTimeout(sleepTimerTimeoutId);
+        sleepTimerTimeoutId = null;
+    }
+    if (sleepTimerIntervalId) {
+        clearInterval(sleepTimerIntervalId);
+        sleepTimerIntervalId = null;
+    }
+    sleepTimerEndsAt = 0;
+}
+
+function setSleepTimer(minutesValue) {
+    clearSleepTimer();
+    sleepTimerMinutes = minutesValue;
+
+    if (minutesValue === 'off') {
+        updateSettingsSummaryLabels();
+        markActiveSettingsOptions();
+        updateStatus('Sleep timer off');
+        return;
+    }
+
+    const minutes = Number(minutesValue);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+        sleepTimerMinutes = 'off';
+        updateSettingsSummaryLabels();
+        markActiveSettingsOptions();
+        return;
+    }
+
+    sleepTimerEndsAt = Date.now() + (minutes * 60 * 1000);
+    sleepTimerTimeoutId = setTimeout(() => {
+        sleepTimerMinutes = 'off';
+        clearSleepTimer();
+        if (isPlaying) {
+            pauseVideo();
+        }
+        updateSettingsSummaryLabels();
+        markActiveSettingsOptions();
+        updateStatus('Sleep timer ended: playback paused');
+    }, minutes * 60 * 1000);
+
+    sleepTimerIntervalId = setInterval(() => {
+        if (sleepTimerMinutes === 'off') {
+            clearSleepTimer();
+            return;
+        }
+        updateSettingsSummaryLabels();
+    }, 1000);
+
+    updateSettingsSummaryLabels();
+    markActiveSettingsOptions();
+    updateStatus(`Sleep timer set: ${minutes} minute${minutes === 1 ? '' : 's'}`);
+}
+
+function setPlaybackSpeed(speedValue) {
+    const speed = Number(speedValue);
+    if (!Number.isFinite(speed) || speed <= 0) return;
+
+    playbackSpeed = speed;
+    if (videoElement) {
+        videoElement.playbackRate = speed;
+    }
+
+    updateSettingsSummaryLabels();
+    markActiveSettingsOptions();
+    updateStatus(`Playback speed: ${getPlaybackSpeedLabel(speed)}`);
+}
+
+function setQualitySetting(qualityValue) {
+    qualitySetting = QUALITY_LABELS[qualityValue] ? qualityValue : 'auto480';
+    updateSettingsSummaryLabels();
+    markActiveSettingsOptions();
+
+    const connectionText = document.querySelector('.connection-status span');
+    if (connectionText) {
+        connectionText.textContent = `Connection: Broadband (${QUALITY_LABELS[qualitySetting]})`;
+    }
+
+    updateStatus(`Quality: ${QUALITY_LABELS[qualitySetting]}`);
+}
+
+function initializeSettingsMenu() {
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsMenu = document.getElementById('settingsMenu');
+    if (!settingsBtn || !settingsMenu) return;
+
+    const sleepTimerSelect = document.getElementById('sleepTimerSelect');
+    const speedSelect = document.getElementById('playbackSpeedSelect');
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    function closeSettingsMenu() {
+        settingsMenu.classList.remove('open');
+        settingsMenu.setAttribute('aria-hidden', 'true');
+    }
+
+    settingsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const willOpen = !settingsMenu.classList.contains('open');
+        if (willOpen) {
+            settingsMenu.classList.add('open');
+            settingsMenu.setAttribute('aria-hidden', 'false');
+            updateSettingsSummaryLabels();
+            markActiveSettingsOptions();
+        } else {
+            closeSettingsMenu();
+        }
+    });
+
+    if (sleepTimerSelect) {
+        sleepTimerSelect.addEventListener('change', function() {
+            setSleepTimer(sleepTimerSelect.value || 'off');
+        });
+    }
+
+    if (speedSelect) {
+        speedSelect.addEventListener('change', function() {
+            setPlaybackSpeed(speedSelect.value || '1');
+        });
+    }
+
+    if (qualitySelect) {
+        qualitySelect.addEventListener('change', function() {
+            setQualitySetting(qualitySelect.value || 'auto480');
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!settingsMenu.classList.contains('open')) return;
+        if (settingsMenu.contains(e.target) || settingsBtn.contains(e.target)) return;
+        closeSettingsMenu();
+    });
+
+    settingsMenu._closeMenu = closeSettingsMenu;
+    updateSettingsSummaryLabels();
+    markActiveSettingsOptions();
+}
+
+function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+}
+
+function togglePlayerFullscreen() {
+    const container = document.querySelector('.video-player') || document.documentElement;
+    if (!container) return;
+
+    const isFullscreen = !!getFullscreenElement();
+    if (isFullscreen) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        if (exit) {
+            const result = exit.call(document);
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
+        }
+        return;
+    }
+
+    const request = container.requestFullscreen || container.webkitRequestFullscreen || container.msRequestFullscreen;
+    if (request) {
+        const result = request.call(container);
+        if (result && typeof result.catch === 'function') {
+            result.catch(() => {});
+        }
+    }
 }
 
 function playVideo() {
@@ -679,6 +944,7 @@ function playVideo() {
     if (currentVideo.videoFile) {
         // If video element already exists, just resume playback
         if (videoElement) {
+            videoElement.playbackRate = playbackSpeed;
             debugLog('playVideo: Resuming existing video element');
             videoElement.play().catch(e => {
                 console.log('Video play failed:', e);
@@ -835,6 +1101,7 @@ function createVideoElement() {
     // Set initial volume from slider
     const volumeSlider = document.querySelector('.volume-slider');
     videoElement.volume = volumeSlider.value / 100;
+    videoElement.playbackRate = playbackSpeed;
     
     // Add event listeners
     videoElement.addEventListener('loadedmetadata', function() {
@@ -887,7 +1154,7 @@ function startVideoSimulation() {
                 return;
             }
             
-            currentTime += 0.5; // Update every 500ms
+            currentTime += 0.5 * playbackSpeed; // Update every 500ms with speed setting
             
             if (currentTime >= duration) {
                 currentTime = duration;
@@ -1279,6 +1546,11 @@ async function addComment(commentText, imageData = null) {
     // Prevent guest accounts from commenting
     if (!username || username.toLowerCase() === 'guest') {
         alert('⚠️ Comment Error\\n\\nGuest accounts cannot post comments.\\n\\nPlease log in with a registered account to comment.');
+        return;
+    }
+
+    if (await isWigTubeCommentBanned(username)) {
+        alert('⚠️ Comment Error\\n\\nYour account is banned from posting WigTube comments.');
         return;
     }
     
@@ -3271,6 +3543,11 @@ async function submitReply(commentId) {
         alert('Please log in to reply');
         return;
     }
+
+    if (await isWigTubeCommentBanned(username)) {
+        alert('Your account is banned from posting WigTube comments.');
+        return;
+    }
     
     const videoId = currentVideoId || getVideoIdFromURL();
     
@@ -3320,6 +3597,11 @@ async function submitNestedReply(commentId, parentReplyId) {
     const username = localStorage.getItem('username');
     if (!username || username === 'guest') {
         alert('Please log in to reply');
+        return;
+    }
+
+    if (await isWigTubeCommentBanned(username)) {
+        alert('Your account is banned from posting WigTube comments.');
         return;
     }
     
@@ -3660,7 +3942,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add keyboard shortcut for closing modals (ESC key)
     document.addEventListener('keydown', function(e) {
+        const target = e.target;
+        const isTypingField = target && (
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable
+        );
+
         if (e.key === 'Escape') {
+            const settingsMenu = document.getElementById('settingsMenu');
+            if (settingsMenu && settingsMenu.classList.contains('open') && typeof settingsMenu._closeMenu === 'function') {
+                settingsMenu._closeMenu();
+                return;
+            }
+
             // Close playlist modal if open
             const playlistModal = document.getElementById('playlistModal');
             if (playlistModal) {
@@ -3674,6 +3969,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 closePlaylistManagerModal();
                 return;
             }
+        }
+
+        // YouTube-like shortcut: press "F" to toggle fullscreen
+        if (!isTypingField && (e.key === 'f' || e.key === 'F')) {
+            e.preventDefault();
+            togglePlayerFullscreen();
         }
     });
 });

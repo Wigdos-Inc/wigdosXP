@@ -445,7 +445,13 @@ const SpotifyAPI = (() => {
     }
 
     function isConnected() {
-        return !!_getToken(KEYS.accessToken) && !!_getToken(KEYS.refreshToken);
+        const accessToken = _getToken(KEYS.accessToken);
+        const refreshToken = _getToken(KEYS.refreshToken);
+        if (!accessToken) return false;
+
+        // Consider user connected if access token is still valid OR a refresh token exists.
+        // This avoids forcing a relink when Spotify omits refresh_token on later exchanges.
+        return !_isTokenExpired() || !!refreshToken;
     }
 
     function disconnect() {
