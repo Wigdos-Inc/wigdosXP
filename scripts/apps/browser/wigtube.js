@@ -2658,6 +2658,7 @@ async function showChannel(channelName) {
         
         // Get user customizations from Firebase or localStorage fallback
         let channelBanner = '';
+        let channelBannerZoom = 100;
         let channelDescription = '';
         
         // Try to load from Firebase first
@@ -2671,10 +2672,12 @@ async function showChannel(channelName) {
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
                     channelBanner = userData.channelBanner || '';
+                    channelBannerZoom = Number(userData.channelBannerZoom) || 100;
                     channelDescription = userData.channelDescription || '';
                     
                     // Update localStorage cache
                     if (channelBanner) localStorage.setItem(`channel_banner_${channelName}`, channelBanner);
+                    localStorage.setItem(`channel_banner_zoom_${channelName}`, String(channelBannerZoom));
                     if (channelDescription) localStorage.setItem(`channel_description_${channelName}`, channelDescription);
                 }
             }
@@ -2686,9 +2689,17 @@ async function showChannel(channelName) {
         if (!channelBanner) {
             channelBanner = localStorage.getItem(`channel_banner_${channelName}`) || '';
         }
+        if (!Number.isFinite(channelBannerZoom) || channelBannerZoom <= 0) {
+            channelBannerZoom = Number(localStorage.getItem(`channel_banner_zoom_${channelName}`)) || 100;
+        }
+        channelBannerZoom = Math.min(300, Math.max(20, channelBannerZoom));
         if (!channelDescription) {
             channelDescription = localStorage.getItem(`channel_description_${channelName}`) || '';
         }
+
+        const hasImageBanner = channelBanner && !channelBanner.startsWith('linear-gradient');
+        const bannerBackground = hasImageBanner ? `url('${channelBanner}')` : (channelBanner || 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)');
+        const bannerBackgroundSize = hasImageBanner ? `${channelBannerZoom}%` : 'cover';
         
         // Load profile picture from Firebase or localStorage cache
         let profilePic = null;
@@ -2748,9 +2759,10 @@ async function showChannel(channelName) {
                 <div id="channelBanner" style="
                     width: 100%;
                     height: 200px;
-                    background: ${channelBanner ? `url('${channelBanner}')` : 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)'};
-                    background-size: cover;
+                    background: ${bannerBackground};
+                    background-size: ${bannerBackgroundSize};
                     background-position: center;
+                    background-repeat: no-repeat;
                     position: relative;
                     border-bottom: 2px solid #000080;
                 ">
@@ -3305,6 +3317,8 @@ async function deleteVideo(videoId, videoTitle) {
 function showBannerCustomization() {
     const currentUsername = localStorage.getItem('username');
     const currentBanner = localStorage.getItem(`channel_banner_${currentUsername}`) || '';
+    const savedZoom = Number(localStorage.getItem(`channel_banner_zoom_${currentUsername}`)) || 100;
+    const currentZoom = Math.min(300, Math.max(20, savedZoom));
     
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -3327,6 +3341,8 @@ function showBannerCustomization() {
         padding: 24px;
         max-width: 600px;
         width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
         font-family: 'MS Sans Serif', sans-serif;
     `;
     
@@ -3425,10 +3441,24 @@ function showBannerCustomization() {
                 width: 100%;
                 height: 120px;
                 background: ${currentBanner ? (currentBanner.startsWith('linear-gradient') ? currentBanner : `url('${currentBanner}')`) : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
-                background-size: cover;
+                background-size: ${currentBanner && !currentBanner.startsWith('linear-gradient') ? `${currentZoom}%` : 'cover'};
                 background-position: center;
+                background-repeat: no-repeat;
                 border: 2px inset #d4d0c8;
             "></div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="bannerZoomInput" style="display: block; margin-bottom: 8px; font-size: 11px; color: #000; font-weight: bold; font-family: 'MS Sans Serif', sans-serif;">
+                Banner Zoom: <span id="bannerZoomValue">${currentZoom}%</span>
+            </label>
+            <input type="range" id="bannerZoomInput" min="20" max="300" step="5" value="${currentZoom}" style="
+                width: 100%;
+                cursor: pointer;
+            ">
+            <div style="margin-top: 6px; font-size: 10px; color: #333; font-family: 'MS Sans Serif', sans-serif;">
+                Drag left to zoom out, right to zoom in.
+            </div>
         </div>
         
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -3460,9 +3490,31 @@ function showBannerCustomization() {
     const bannerFileInput = dialog.querySelector('#bannerFileInput');
     const bannerUrlInput = dialog.querySelector('#bannerUrlInput');
     const bannerPreview = dialog.querySelector('#bannerPreview');
+    const bannerZoomInput = dialog.querySelector('#bannerZoomInput');
+    const bannerZoomValue = dialog.querySelector('#bannerZoomValue');
     const gradientPresets = dialog.querySelectorAll('.gradient-preset');
+    const saveBannerBtn = dialog.querySelector('#saveBannerBtn');
+    const cancelBannerBtn = dialog.querySelector('#cancelBannerBtn');
     
     let uploadedImageData = null;
+    let selectedZoom = currentZoom;
+    let effectiveBannerValue = currentBanner || '';
+
+    function applyBannerPreviewZoom() {
+        const isGradient = bannerPreview.style.background && bannerPreview.style.background.includes('linear-gradient');
+        bannerZoomValue.textContent = `${selectedZoom}%`;
+        bannerPreview.style.backgroundSize = isGradient ? 'cover' : `${selectedZoom}%`;
+        bannerPreview.style.backgroundRepeat = 'no-repeat';
+        bannerPreview.style.backgroundPosition = 'center';
+    }
+
+    if (bannerZoomInput) {
+        bannerZoomInput.addEventListener('input', () => {
+            selectedZoom = Number(bannerZoomInput.value) || 100;
+            selectedZoom = Math.min(300, Math.max(20, selectedZoom));
+            applyBannerPreviewZoom();
+        });
+    }
     
     // Handle file upload
     bannerFileInput.addEventListener('change', (e) => {
@@ -3478,11 +3530,11 @@ function showBannerCustomization() {
             const reader = new FileReader();
             reader.onload = (event) => {
                 uploadedImageData = event.target.result;
+                effectiveBannerValue = uploadedImageData;
                 bannerPreview.style.background = `url('${uploadedImageData}')`;
-                bannerPreview.style.backgroundSize = 'cover';
-                bannerPreview.style.backgroundPosition = 'center';
                 // Clear URL input when file is uploaded
                 bannerUrlInput.value = '';
+                applyBannerPreviewZoom();
             };
             reader.readAsDataURL(file);
         }
@@ -3494,15 +3546,17 @@ function showBannerCustomization() {
         if (url) {
             uploadedImageData = null; // Clear uploaded file if URL is entered
             bannerFileInput.value = ''; // Clear file input
+            effectiveBannerValue = url;
             if (url.startsWith('linear-gradient')) {
                 bannerPreview.style.background = url;
             } else {
                 bannerPreview.style.background = `url('${url}')`;
-                bannerPreview.style.backgroundSize = 'cover';
-                bannerPreview.style.backgroundPosition = 'center';
             }
+            applyBannerPreviewZoom();
         } else {
+            effectiveBannerValue = currentBanner || '';
             bannerPreview.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            applyBannerPreviewZoom();
         }
     });
     
@@ -3512,19 +3566,20 @@ function showBannerCustomization() {
             const gradient = preset.getAttribute('data-gradient');
             bannerPreview.style.background = gradient;
             bannerUrlInput.value = gradient;
+            effectiveBannerValue = gradient;
             uploadedImageData = null; // Clear uploaded file
             bannerFileInput.value = ''; // Clear file input
+            applyBannerPreviewZoom();
         });
     });
     
     // Handle save
-    dialog.querySelector('#saveBannerBtn').addEventListener('click', async () => {
-        let bannerValue;
-        
-        // Priority: uploaded file > URL input
+    if (saveBannerBtn) saveBannerBtn.addEventListener('click', async () => {
+        let bannerValue = effectiveBannerValue || '';
         if (uploadedImageData) {
             bannerValue = uploadedImageData;
-        } else {
+        }
+        if (bannerUrlInput.value.trim()) {
             bannerValue = bannerUrlInput.value.trim();
         }
         
@@ -3535,6 +3590,7 @@ function showBannerCustomization() {
         
         // Save to localStorage first (for immediate effect)
         localStorage.setItem(`channel_banner_${currentUsername}`, bannerValue);
+        localStorage.setItem(`channel_banner_zoom_${currentUsername}`, String(selectedZoom));
         
         // Save to Firebase if available
         try {
@@ -3545,6 +3601,7 @@ function showBannerCustomization() {
                 
                 await setDoc(userDocRef, {
                     channelBanner: bannerValue,
+                    channelBannerZoom: selectedZoom,
                     lastUpdated: serverTimestamp()
                 }, { merge: true });
                 
@@ -3559,9 +3616,11 @@ function showBannerCustomization() {
         overlay.remove();
         showMyChannel(); // Reload to show new banner
     });
+
+    applyBannerPreviewZoom();
     
     // Handle cancel
-    dialog.querySelector('#cancelBannerBtn').addEventListener('click', () => {
+    if (cancelBannerBtn) cancelBannerBtn.addEventListener('click', () => {
         overlay.remove();
     });
     
