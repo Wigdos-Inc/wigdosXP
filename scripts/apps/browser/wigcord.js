@@ -411,30 +411,36 @@ class WigCord {
      * produces truly plain objects that are always accepted.
      */
     _toPlain(data) {
-        // Walk the FULL ancestor chain to find the topmost accessible frame
-        // (where Firebase actually lives). wigcord.html is two iframes deep:
-        // index.html → rBrowser.html → wigcord.html — using only window.parent
-        // reaches rBrowser whose objects are still "custom" to Firebase's realm.
-        let topFrame = window;
-        try {
-            let p = window;
-            while (p.parent && p.parent !== p) {
-                p = p.parent;
-                if (p.JSON) topFrame = p;
-            }
-        } catch(e) {} // cross-origin guard
-        const parse = topFrame.JSON ? topFrame.JSON.parse : JSON.parse;
-        return parse(JSON.stringify(data));
+        const hostWindow = this._fbHostWindow || window;
+        const stringify = hostWindow.JSON ? hostWindow.JSON.stringify : JSON.stringify;
+        const parse = hostWindow.JSON ? hostWindow.JSON.parse : JSON.parse;
+        return parse(stringify(data));
     }
-    get _fb() {
-        // Check iframe's own window first, then parent (wigcord runs in iframe)
-        if (window.firebaseAPI && window.firebaseAPI.db) return window.firebaseAPI;
+
+    get _fbHostWindow() {
+        if (window.firebaseAPI && window.firebaseAPI.db) return window;
         try {
-            if (window.parent && window.parent !== window && window.parent.firebaseAPI && window.parent.firebaseAPI.db) {
-                window.firebaseAPI = window.parent.firebaseAPI;
-                return window.firebaseAPI;
+            let current = window.parent;
+            while (current && current !== window && current !== current.parent) {
+                if (current.firebaseAPI && current.firebaseAPI.db) {
+                    return current;
+                }
+                current = current.parent;
+            }
+            if (current && current.firebaseAPI && current.firebaseAPI.db) {
+                return current;
             }
         } catch(e) {}
+        return window;
+    }
+
+    get _fb() {
+        const hostWindow = this._fbHostWindow;
+        if (hostWindow && hostWindow.firebaseAPI && hostWindow.firebaseAPI.db) {
+            // Keep local reference for existing call sites.
+            window.firebaseAPI = hostWindow.firebaseAPI;
+            return hostWindow.firebaseAPI;
+        }
         return window.firebaseAPI || {};
     }
 
