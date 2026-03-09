@@ -418,27 +418,25 @@ class WigCord {
     }
 
     get _fbHostWindow() {
-        if (window.firebaseAPI && window.firebaseAPI.db) return window;
+        let host = null;
         try {
-            let current = window.parent;
-            while (current && current !== window && current !== current.parent) {
+            let current = window;
+            while (current) {
                 if (current.firebaseAPI && current.firebaseAPI.db) {
-                    return current;
+                    host = current;
+                }
+                if (!current.parent || current.parent === current) {
+                    break;
                 }
                 current = current.parent;
             }
-            if (current && current.firebaseAPI && current.firebaseAPI.db) {
-                return current;
-            }
         } catch(e) {}
-        return window;
+        return host || window;
     }
 
     get _fb() {
         const hostWindow = this._fbHostWindow;
         if (hostWindow && hostWindow.firebaseAPI && hostWindow.firebaseAPI.db) {
-            // Keep local reference for existing call sites.
-            window.firebaseAPI = hostWindow.firebaseAPI;
             return hostWindow.firebaseAPI;
         }
         return window.firebaseAPI || {};
