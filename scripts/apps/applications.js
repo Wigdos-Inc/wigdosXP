@@ -230,8 +230,15 @@ const applications = {
         ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
         "other",
         true,
-        ["external", "https://wigdos-inc.github.io/Internal-Games/slop/carl2D/"],
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
     ),
+
+    carlNet: new Application(
+        ["carlNet", "CarlNet", "CarlNet Engine"],
+        "other",
+        true,
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/engine/v1/testGame/output.html"]
+    )
    
     uh: new Application(
         ["uh", "ultrahill", "ultrakill autistic little brother"],
@@ -254,7 +261,7 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=cbfd"],
     ),
 
-        dk: new Application(
+    dk: new Application(
         ["dk", "donkey kong", "Donkey Kong 64"],
         "other",
         true,
