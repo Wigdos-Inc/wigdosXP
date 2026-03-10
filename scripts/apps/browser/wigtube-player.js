@@ -1400,15 +1400,17 @@ function shareVideo(videoId) {
     }
     
     // Visual feedback
-    const shareBtn = document.querySelectorAll('.action-btn')[1];
-    const originalText = shareBtn.textContent;
-    shareBtn.textContent = '🔗 Copied!';
-    shareBtn.style.background = '#87CEEB';
-    
-    setTimeout(() => {
-        shareBtn.textContent = originalText;
-        shareBtn.style.background = '';
-    }, 2000);
+    const shareBtn = document.getElementById('shareVideoBtn');
+    if (shareBtn) {
+        const originalText = shareBtn.textContent;
+        shareBtn.textContent = '🔗 Copied!';
+        shareBtn.style.background = '#87CEEB';
+
+        setTimeout(() => {
+            shareBtn.textContent = originalText;
+            shareBtn.style.background = '';
+        }, 2000);
+    }
 }
 
 function showShareDialog(url) {
@@ -1428,7 +1430,199 @@ function showShareDialog(url) {
     document.body.removeChild(textArea);
 }
 
-function flagVideo(videoId) {
+async function notifyModerationReportCreated(report) {
+    try {
+        const raw = localStorage.getItem('wigtube_moderation_reports');
+        const reports = raw ? JSON.parse(raw) : {};
+        if (report && report.reportId) {
+            reports[report.reportId] = report;
+            localStorage.setItem('wigtube_moderation_reports', JSON.stringify(reports));
+        }
+    } catch (error) {
+        console.warn('[WigTube] Unable to persist local moderation report:', error);
+    }
+
+    const payload = {
+        type: 'wigtube-moderation-report',
+        reportId: report?.reportId || null,
+        videoId: report?.videoId || null,
+        timestamp: Date.now()
+    };
+
+    try {
+        localStorage.setItem('wigtube_moderation_reports_ping', JSON.stringify(payload));
+    } catch (error) {
+        console.warn('[WigTube] Unable to write moderation ping marker:', error);
+    }
+
+    try {
+        window.dispatchEvent(new CustomEvent('wigtube:report-created', { detail: payload }));
+        if (window.top && window.top !== window) {
+            window.top.dispatchEvent(new CustomEvent('wigtube:report-created', { detail: payload }));
+        }
+    } catch (error) {
+        console.warn('[WigTube] Unable to dispatch moderation ping event:', error);
+    }
+}
+
+function sanitizeFlagArg(value) {
+    return String(value || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r/g, ' ')
+        .replace(/\n/g, '\\n');
+}
+
+async function flagComment(commentId, commentText, commentAuthor, videoId) {
+    const safeCommentId = String(commentId || '').trim();
+    const safeVideoId = String(videoId || currentVideoId || getVideoIdFromURL()).trim();
+    if (!safeCommentId || !safeVideoId) {
+        updateStatus('Unable to flag comment right now');
+        return;
+    }
+
+    const reporter = (localStorage.getItem('username') || 'guest').trim() || 'guest';
+    const flaggedComments = getWigTubeProperty('flaggedComments') || [];
+
+    const alreadyFlaggedByUser = flaggedComments.some((item) =>
+        item && item.commentId === safeCommentId && item.videoId === safeVideoId && item.reporter === reporter
+    );
+    if (alreadyFlaggedByUser) {
+        updateStatus('You already flagged this comment for review');
+        return;
+    }
+
+    const commentSnippet = String(commentText || '').trim().slice(0, 500);
+    const baseEntry = {
+        commentId: safeCommentId,
+        videoId: safeVideoId,
+        reporter,
+        commentAuthor: String(commentAuthor || 'unknown').trim() || 'unknown',
+        commentText: commentSnippet,
+        timestamp: Date.now(),
+        title: currentVideo?.title || 'Untitled Video'
+    };
+
+    flaggedComments.push(baseEntry);
+    updateWigTubeProperty('flaggedComments', flaggedComments);
+
+    try {
+        const playerUrl = new URL(window.location.href);
+        playerUrl.searchParams.set('v', safeVideoId);
+        playerUrl.searchParams.set('comment', safeCommentId);
+        playerUrl.searchParams.delete('album');
+
+        let report = {
+            ...baseEntry,
+            targetType: 'comment',
+            reason: 'inappropriate-comment',
+            playerUrl: playerUrl.toString(),
+            reportId: `comment_report_${Date.now()}`
+        };
+
+        if (typeof WigTubeDB !== 'undefined') {
+            if (typeof WigTubeDB.reportComment === 'function') {
+                report = await WigTubeDB.reportComment({
+                    ...baseEntry,
+                    reason: 'inappropriate-comment',
+                    playerUrl: playerUrl.toString()
+                });
+            } else if (typeof WigTubeDB.reportVideo === 'function') {
+                report = await WigTubeDB.reportVideo({
+                    ...baseEntry,
+                    targetType: 'comment',
+                    reason: 'inappropriate-comment',
+                    playerUrl: playerUrl.toString()
+                });
+            }
+        }
+
+        await notifyModerationReportCreated(report);
+        updateStatus('Comment flagged for moderation review');
+    } catch (error) {
+        console.error('[WigTube] Failed to submit comment moderation report:', error);
+        updateStatus('Comment flagged locally; moderation sync pending');
+    }
+}
+
+async function flagReply(replyId, replyText, replyAuthor, commentId, videoId) {
+    const safeReplyId = String(replyId || '').trim();
+    const safeCommentId = String(commentId || '').trim();
+    const safeVideoId = String(videoId || currentVideoId || getVideoIdFromURL()).trim();
+    if (!safeReplyId || !safeCommentId || !safeVideoId) {
+        updateStatus('Unable to flag reply right now');
+        return;
+    }
+
+    const reporter = (localStorage.getItem('username') || 'guest').trim() || 'guest';
+    const flaggedReplies = getWigTubeProperty('flaggedReplies') || [];
+
+    const alreadyFlaggedByUser = flaggedReplies.some((item) =>
+        item && item.replyId === safeReplyId && item.commentId === safeCommentId && item.videoId === safeVideoId && item.reporter === reporter
+    );
+    if (alreadyFlaggedByUser) {
+        updateStatus('You already flagged this reply for review');
+        return;
+    }
+
+    const replySnippet = String(replyText || '').trim().slice(0, 500);
+    const baseEntry = {
+        replyId: safeReplyId,
+        commentId: safeCommentId,
+        videoId: safeVideoId,
+        reporter,
+        replyAuthor: String(replyAuthor || 'unknown').trim() || 'unknown',
+        replyText: replySnippet,
+        timestamp: Date.now(),
+        title: currentVideo?.title || 'Untitled Video'
+    };
+
+    flaggedReplies.push(baseEntry);
+    updateWigTubeProperty('flaggedReplies', flaggedReplies);
+
+    try {
+        const playerUrl = new URL(window.location.href);
+        playerUrl.searchParams.set('v', safeVideoId);
+        playerUrl.searchParams.set('comment', safeCommentId);
+        playerUrl.searchParams.set('reply', safeReplyId);
+        playerUrl.searchParams.delete('album');
+
+        let report = {
+            ...baseEntry,
+            targetType: 'reply',
+            reason: 'inappropriate-reply',
+            playerUrl: playerUrl.toString(),
+            reportId: `reply_report_${Date.now()}`
+        };
+
+        if (typeof WigTubeDB !== 'undefined') {
+            if (typeof WigTubeDB.reportReply === 'function') {
+                report = await WigTubeDB.reportReply({
+                    ...baseEntry,
+                    reason: 'inappropriate-reply',
+                    playerUrl: playerUrl.toString()
+                });
+            } else if (typeof WigTubeDB.reportComment === 'function') {
+                report = await WigTubeDB.reportComment({
+                    ...baseEntry,
+                    targetType: 'reply',
+                    reason: 'inappropriate-reply',
+                    playerUrl: playerUrl.toString(),
+                    commentAuthor: baseEntry.replyAuthor,
+                    commentText: baseEntry.replyText
+                });
+            }
+        }
+
+        await notifyModerationReportCreated(report);
+        updateStatus('Reply flagged for moderation review');
+    } catch (error) {
+        console.error('[WigTube] Failed to submit reply moderation report:', error);
+        updateStatus('Reply flagged locally; moderation sync pending');
+    }
+}
+
+async function flagVideo(videoId) {
     // Store flag in centralized storage (simulated reporting system)
     let flaggedVideos = getWigTubeProperty('flagged') || [];
     
@@ -1445,16 +1639,38 @@ function flagVideo(videoId) {
     
     updateWigTubeProperty('flagged', flaggedVideos);
     
+    const reporter = (localStorage.getItem('username') || 'guest').trim() || 'guest';
+    try {
+        const playerUrl = new URL(window.location.href);
+        playerUrl.searchParams.set('v', videoId);
+        playerUrl.searchParams.delete('album');
+
+        if (typeof WigTubeDB !== 'undefined' && typeof WigTubeDB.reportVideo === 'function') {
+            const report = await WigTubeDB.reportVideo({
+                videoId,
+                title: currentVideo?.title || 'Untitled Video',
+                reporter,
+                reason: 'inappropriate',
+                playerUrl: playerUrl.toString()
+            });
+            await notifyModerationReportCreated(report);
+        }
+    } catch (error) {
+        console.error('[WigTube] Failed to submit moderation report:', error);
+    }
+
     // Visual feedback
-    const flagBtn = document.querySelectorAll('.action-btn')[2];
-    const originalText = flagBtn.textContent;
-    flagBtn.textContent = '🚨 Reported';
-    flagBtn.style.background = '#FFB6C1';
-    
-    setTimeout(() => {
-        flagBtn.textContent = originalText;
-        flagBtn.style.background = '';
-    }, 2000);
+    const flagBtn = document.getElementById('flagVideoBtn');
+    if (flagBtn) {
+        const originalText = flagBtn.textContent;
+        flagBtn.textContent = '🚨 Reported';
+        flagBtn.style.background = '#FFB6C1';
+
+        setTimeout(() => {
+            flagBtn.textContent = originalText;
+            flagBtn.style.background = '';
+        }, 2000);
+    }
     
     updateStatus('Video flagged for moderation review');
 }
@@ -1736,8 +1952,12 @@ async function loadComments() {
         // Only show delete button if current user is the author
         const isAuthor = currentUsername && (comment.author === currentUsername);
         const deleteButtonHTML = isAuthor 
-            ? `<button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment">🗑️</button>`
+            ? `<button class="comment-delete-btn" onclick="deleteComment('${comment.id}')" title="Delete comment" style="margin-left: 6px; width: 32px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; line-height: 1;">🗑️</button>`
             : '';
+
+        const safeCommentTextArg = sanitizeFlagArg(comment.text || '');
+        const safeCommentAuthorArg = sanitizeFlagArg(comment.author || 'Guest');
+        const flagCommentButtonHTML = `<button class="comment-flag-btn" onclick="flagComment('${comment.id}', '${safeCommentTextArg}', '${safeCommentAuthorArg}', '${videoId}')" title="Flag comment" style="margin-left: 6px; width: 32px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; line-height: 1;">🚩</button>`;
         
         // Reply button (show for logged-in users)
         const canReply = currentUsername && currentUsername !== 'guest';
@@ -1762,6 +1982,7 @@ async function loadComments() {
                     <div class="comment-author">${comment.author || 'Guest'}</div>
                     <div class="comment-time">${timeString}</div>
                 </div>
+                ${flagCommentButtonHTML}
                 ${deleteButtonHTML}
             </div>
             <div class="comment-text" style="margin-left: 40px;">${comment.text}</div>
@@ -3747,6 +3968,10 @@ async function displayReplies(commentId, replies) {
                 margin-left: 4px;
             " title="Reply">💬</button>`
             : '';
+
+        const safeReplyTextArg = sanitizeFlagArg(reply.text || '');
+        const safeReplyAuthorArg = sanitizeFlagArg(reply.author || 'Guest');
+        const flagReplyButtonHTML = `<button onclick="flagReply('${reply.id}', '${safeReplyTextArg}', '${safeReplyAuthorArg}', '${commentId}', '${currentVideoId || getVideoIdFromURL()}')" style="width: 32px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; line-height: 1; margin-left: 4px;" title="Flag reply">🚩</button>`;
         
         replyElement.innerHTML = `
             <div style="display: flex; align-items: center; margin-bottom: 8px;">
@@ -3756,6 +3981,7 @@ async function displayReplies(commentId, replies) {
                     <div style="font-size: 10px; color: #666;">${timeString}</div>
                 </div>
                 ${replyButtonHTML}
+                ${flagReplyButtonHTML}
                 ${deleteButtonHTML}
             </div>
             <div style="margin-left: 32px; font-size: 11px; color: #000;">${reply.text}</div>
@@ -3865,6 +4091,10 @@ async function displayNestedReplies(commentId, parentReplyId, replies, container
         const replyButtonHTML = canReply
             ? `<button onclick="toggleNestedReplyBox('${commentId}', '${reply.id}')" style="padding: 2px 6px; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; margin-left: 4px;" title="Reply">💬</button>`
             : '';
+
+        const safeNestedReplyTextArg = sanitizeFlagArg(reply.text || '');
+        const safeNestedReplyAuthorArg = sanitizeFlagArg(reply.author || 'Guest');
+        const flagNestedReplyButtonHTML = `<button onclick="flagReply('${reply.id}', '${safeNestedReplyTextArg}', '${safeNestedReplyAuthorArg}', '${commentId}', '${currentVideoId || getVideoIdFromURL()}')" style="width: 32px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%); color: #000; border: 2px outset #d4d0c8; cursor: pointer; font-size: 10px; font-family: 'MS Sans Serif', sans-serif; line-height: 1; margin-left: 4px;" title="Flag reply">🚩</button>`;
         
         // Show reply count if there are nested replies
         const replyCount = reply.replies && reply.replies.length > 0 ? reply.replies.length : 0;
@@ -3891,6 +4121,7 @@ async function displayNestedReplies(commentId, parentReplyId, replies, container
                     <div style="font-size: 10px; color: #666;">${timeString}</div>
                 </div>
                 ${replyButtonHTML}
+                ${flagNestedReplyButtonHTML}
                 ${deleteButtonHTML}
             </div>
             <div style="margin-left: 32px; font-size: 11px; color: #000; line-height: 1.4;">${reply.text}</div>

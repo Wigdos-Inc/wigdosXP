@@ -2699,7 +2699,9 @@ async function showChannel(channelName) {
 
         const hasImageBanner = channelBanner && !channelBanner.startsWith('linear-gradient');
         const bannerBackground = hasImageBanner ? `url('${channelBanner}')` : (channelBanner || 'linear-gradient(to bottom, #316ac5 0%, #1e4088 100%)');
-        const bannerBackgroundSize = hasImageBanner ? `${channelBannerZoom}%` : 'cover';
+        const bannerBackgroundSize = hasImageBanner
+            ? (channelBannerZoom <= 20 ? 'contain' : `${channelBannerZoom}%`)
+            : 'cover';
         
         // Load profile picture from Firebase or localStorage cache
         let profilePic = null;
@@ -3319,6 +3321,9 @@ function showBannerCustomization() {
     const currentBanner = localStorage.getItem(`channel_banner_${currentUsername}`) || '';
     const savedZoom = Number(localStorage.getItem(`channel_banner_zoom_${currentUsername}`)) || 100;
     const currentZoom = Math.min(300, Math.max(20, savedZoom));
+    const REQUIRED_BANNER_WIDTH = 2560;
+    const REQUIRED_BANNER_HEIGHT = 1440;
+    const TARGET_BANNER_RATIO = REQUIRED_BANNER_WIDTH / REQUIRED_BANNER_HEIGHT;
     
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -3362,7 +3367,7 @@ function showBannerCustomization() {
                 background: white;
             ">
             <div style="margin-top: 8px; font-size: 11px; color: #000; font-family: 'MS Sans Serif', sans-serif;">
-                Recommended size: 2560 x 1440px. Accepted formats: JPG, PNG, GIF, WebP
+                Recommended size: 2560 x 1440px. If auto-fit fails, 2560 x 1440 is required. Accepted formats: JPG, PNG, GIF, WebP
             </div>
         </div>
         
@@ -3457,7 +3462,7 @@ function showBannerCustomization() {
                 cursor: pointer;
             ">
             <div style="margin-top: 6px; font-size: 10px; color: #333; font-family: 'MS Sans Serif', sans-serif;">
-                Drag left to zoom out, right to zoom in.
+                Drag left to zoom out, right to zoom in. At minimum zoom, the full image is fit into the banner.
             </div>
         </div>
         
@@ -3500,10 +3505,21 @@ function showBannerCustomization() {
     let selectedZoom = currentZoom;
     let effectiveBannerValue = currentBanner || '';
 
+    function getImageDimensions(imageSrc) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+            image.onerror = () => reject(new Error('Unable to load banner image dimensions'));
+            image.src = imageSrc;
+        });
+    }
+
     function applyBannerPreviewZoom() {
         const isGradient = bannerPreview.style.background && bannerPreview.style.background.includes('linear-gradient');
         bannerZoomValue.textContent = `${selectedZoom}%`;
-        bannerPreview.style.backgroundSize = isGradient ? 'cover' : `${selectedZoom}%`;
+        bannerPreview.style.backgroundSize = isGradient
+            ? 'cover'
+            : (selectedZoom <= 20 ? 'contain' : `${selectedZoom}%`);
         bannerPreview.style.backgroundRepeat = 'no-repeat';
         bannerPreview.style.backgroundPosition = 'center';
     }
@@ -3586,6 +3602,28 @@ function showBannerCustomization() {
         if (!bannerValue) {
             alert('Please upload an image, enter a URL, or select a gradient.');
             return;
+        }
+
+        const isGradientBanner = bannerValue.startsWith('linear-gradient');
+        if (!isGradientBanner) {
+            try {
+                const imageDimensions = await getImageDimensions(bannerValue);
+                const imageRatio = imageDimensions.width / imageDimensions.height;
+                const ratioDiff = Math.abs(imageRatio - TARGET_BANNER_RATIO);
+                const canAutoFit = ratioDiff <= 0.02;
+                const matchesRequiredSize = imageDimensions.width === REQUIRED_BANNER_WIDTH && imageDimensions.height === REQUIRED_BANNER_HEIGHT;
+
+                if (!canAutoFit && !matchesRequiredSize) {
+                    alert(
+                        `This image does not fit the banner well (${imageDimensions.width}x${imageDimensions.height}).\n` +
+                        `Please use exactly ${REQUIRED_BANNER_WIDTH}x${REQUIRED_BANNER_HEIGHT}px.`
+                    );
+                    return;
+                }
+            } catch (error) {
+                alert(`Couldn't validate banner image dimensions. Please use exactly ${REQUIRED_BANNER_WIDTH}x${REQUIRED_BANNER_HEIGHT}px.`);
+                return;
+            }
         }
         
         // Save to localStorage first (for immediate effect)

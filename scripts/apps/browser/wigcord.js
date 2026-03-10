@@ -1756,32 +1756,71 @@ class WigCord {
         });
     }
 
-    async _sendFriendRequest(targetUsername) {
-        if (!this._online || !targetUsername || targetUsername === this.username) return;
-        if (targetUsername === 'guest') { alert('Cannot add guest as a friend.'); return; }
+    _findFriendKey(friendMap, username) {
+        const target = String(username || '').trim().toLowerCase();
+        if (!target || !friendMap || typeof friendMap !== 'object') return null;
+        return Object.keys(friendMap).find(k => String(k || '').toLowerCase() === target) || null;
+    }
 
-        // Verify the target user actually exists
-        const userExists = await this._fbGet(`${this._cols.users}/${targetUsername}`);
-        if (!userExists) {
-            alert(`User "${targetUsername}" doesn't exist.`);
+    async _resolveExistingUsername(inputUsername) {
+        const raw = String(inputUsername || '').trim();
+        if (!raw) return null;
+
+        if (!this._online) return raw;
+
+        const lower = raw.toLowerCase();
+        const rawDoc = await this._fbGet(`${this._cols.users}/${raw}`);
+        if (rawDoc) return raw;
+
+        if (lower !== raw) {
+            const lowerDoc = await this._fbGet(`${this._cols.users}/${lower}`);
+            if (lowerDoc) return lower;
+        }
+
+        return null;
+    }
+
+    async _sendFriendRequest(targetUsername) {
+        if (!this._online || !targetUsername) return;
+
+        const resolvedTarget = await this._resolveExistingUsername(targetUsername);
+        const myLower = String(this.username || '').trim().toLowerCase();
+        const targetLower = String(resolvedTarget || '').trim().toLowerCase();
+
+        if (!resolvedTarget) {
+            alert(`User "${String(targetUsername).trim()}" doesn't exist.`);
             return;
         }
+
+        if (targetLower === myLower) return;
+        if (targetLower === 'guest') { alert('Cannot add guest as a friend.'); return; }
 
         // Update our friends doc
         const myData = await this._fbGet(`${this._cols.friends}/${this.username}`) || { friends: {} };
-        if (myData.friends[targetUsername]) {
-            alert(`You already have a relationship with ${targetUsername}`);
+        myData.friends = myData.friends || {};
+
+        const existingKey = this._findFriendKey(myData.friends, resolvedTarget);
+        if (existingKey) {
+            const existingStatus = myData.friends[existingKey] && myData.friends[existingKey].status;
+            if (existingStatus === 'pending_in') {
+                await this._acceptFriendRequest(existingKey);
+                alert(`Friend request from ${existingKey} accepted.`);
+                return;
+            }
+            alert(`You already have a relationship with ${existingKey}`);
             return;
         }
-        myData.friends[targetUsername] = { status: 'pending_out', since: Date.now() };
+
+        myData.friends[resolvedTarget] = { status: 'pending_out', since: Date.now() };
         await this._fbSet(`${this._cols.friends}/${this.username}`, { friends: myData.friends });
 
         // Update target's friends doc
-        const targetData = await this._fbGet(`${this._cols.friends}/${targetUsername}`) || { friends: {} };
+        const targetData = await this._fbGet(`${this._cols.friends}/${resolvedTarget}`) || { friends: {} };
+        targetData.friends = targetData.friends || {};
         targetData.friends[this.username] = { status: 'pending_in', since: Date.now() };
-        await this._fbSet(`${this._cols.friends}/${targetUsername}`, { friends: targetData.friends });
+        await this._fbSet(`${this._cols.friends}/${resolvedTarget}`, { friends: targetData.friends });
 
-        alert(`Friend request sent to ${targetUsername}!`);
+        alert(`Friend request sent to ${resolvedTarget}!`);
     }
 
     // Search for users by username prefix (queries the users collection)
@@ -1813,11 +1852,13 @@ class WigCord {
 
         // Update our record
         const myData = await this._fbGet(`${this._cols.friends}/${this.username}`) || { friends: {} };
+        myData.friends = myData.friends || {};
         myData.friends[targetUsername] = { status: 'accepted', since: Date.now() };
         await this._fbSet(`${this._cols.friends}/${this.username}`, { friends: myData.friends });
 
         // Update their record
         const targetData = await this._fbGet(`${this._cols.friends}/${targetUsername}`) || { friends: {} };
+        targetData.friends = targetData.friends || {};
         targetData.friends[this.username] = { status: 'accepted', since: Date.now() };
         await this._fbSet(`${this._cols.friends}/${targetUsername}`, { friends: targetData.friends });
     }
@@ -1826,10 +1867,12 @@ class WigCord {
         if (!this._online) return;
 
         const myData = await this._fbGet(`${this._cols.friends}/${this.username}`) || { friends: {} };
+        myData.friends = myData.friends || {};
         delete myData.friends[targetUsername];
         await this._fbSet(`${this._cols.friends}/${this.username}`, { friends: myData.friends });
 
         const targetData = await this._fbGet(`${this._cols.friends}/${targetUsername}`) || { friends: {} };
+        targetData.friends = targetData.friends || {};
         delete targetData.friends[this.username];
         await this._fbSet(`${this._cols.friends}/${targetUsername}`, { friends: targetData.friends });
     }

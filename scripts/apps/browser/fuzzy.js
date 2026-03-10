@@ -44,6 +44,15 @@ const WIGGLE_ADMIN_PANEL_POS_KEY = 'wiggle_admin_panel_position';
 const WIGGLE_ADMIN_PANEL_SIZE_KEY = 'wiggle_admin_panel_size';
 const WIGGLE_ADMIN_PANEL_HIDDEN_KEY = 'wiggle_admin_panel_hidden';
 const WIGGLE_ADMIN_PFP_CACHE_PREFIX = 'pfp_';
+const WIGGLE_ADMIN_CUSTOM_KEY = 'wiggle_admin_panel_custom';
+const WIGGLE_ADMIN_COLOR_SCHEMES = {
+  default:  { name: 'Default Blue',  shell: '#f3f8ff', border: '#0d2c63', gradL: '#1a4f9c', gradR: '#3c88df', card: '#fff', cardBorder: '#c2d8f5', accent: '#dfeaff', text: '#1f3d66', statusBg: '#f2fff4', statusBorder: '#b8d8be', statusText: '#173f21' },
+  dark:     { name: 'Dark Mode',     shell: '#1e1e2e', border: '#44475a', gradL: '#282a36', gradR: '#44475a', card: '#282a36', cardBorder: '#6272a4', accent: '#44475a', text: '#f8f8f2', statusBg: '#1a1a2e', statusBorder: '#6272a4', statusText: '#50fa7b' },
+  red:      { name: 'Crimson',       shell: '#fff5f5', border: '#8b0000', gradL: '#8b0000', gradR: '#cd5c5c', card: '#fff', cardBorder: '#e8b4b4', accent: '#ffe0e0', text: '#4a0000', statusBg: '#fef2f2', statusBorder: '#e8b4b4', statusText: '#5a1a1a' },
+  green:    { name: 'Forest',        shell: '#f0fff0', border: '#1a5c1a', gradL: '#1a5c1a', gradR: '#3cb371', card: '#fff', cardBorder: '#a8d8a8', accent: '#d8ffd8', text: '#1a3d1a', statusBg: '#f0fff0', statusBorder: '#a8d8a8', statusText: '#1a3d1a' },
+  purple:   { name: 'Royal Purple',  shell: '#f8f0ff', border: '#4b0082', gradL: '#4b0082', gradR: '#9370db', card: '#fff', cardBorder: '#c8b0e8', accent: '#e8d8ff', text: '#2d004d', statusBg: '#f8f0ff', statusBorder: '#c8b0e8', statusText: '#2d004d' },
+  gold:     { name: 'Gold',          shell: '#fffdf0', border: '#8b6914', gradL: '#8b6914', gradR: '#daa520', card: '#fff', cardBorder: '#e8d8a0', accent: '#fff8d0', text: '#4a3600', statusBg: '#fffef5', statusBorder: '#e8d8a0', statusText: '#4a3600' },
+};
 let wiggleUserCache = null;
 
 function normalizeWiggleUsername(username) {
@@ -462,12 +471,37 @@ async function findSpecificWigCordMessagesByPrefix(prefix) {
 function createAdminPanelMarkup(username, panelTitle) {
   return `
     <button id="wiggleAdminShowBtn" style="position: fixed; top: 72px; right: 12px; z-index: 11999; display: none; padding: 6px 10px; border: 1px solid #2f4f85; background: #dfeaff; color: #1f3d66; font-family: Tahoma, sans-serif; font-size: 12px; cursor: pointer; box-shadow: 2px 2px 0 #7f9db9;">Show Admin Panel</button>
-    <div id="wiggleAdminShell" style="position: fixed; top: 72px; right: 12px; width: min(760px, calc(100vw - 24px)); min-width: 360px; min-height: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; border: 2px solid #0d2c63; background: #f3f8ff; box-shadow: 3px 3px 0 #7f9db9; font-family: Tahoma, sans-serif; z-index: 12000;">
-      <div id="wiggleAdminDragHandle" style="padding: 10px 12px; background: linear-gradient(to right, #1a4f9c, #3c88df); color: #fff; font-weight: bold; font-size: 13px; cursor: move; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-        <span>${panelTitle} <span style="font-size: 11px; opacity: 0.9;">(drag + resize)</span></span>
-        <button id="wiggleAdminHideBtn" style="padding: 3px 8px; border: 1px solid #f0f6ff; background: rgba(255,255,255,0.2); color: #fff; font-family: Tahoma, sans-serif; font-size: 11px; cursor: pointer;">Hide</button>
+    <div id="wiggleAdminShell" style="position: fixed; top: 72px; right: 12px; width: min(760px, calc(100vw - 24px)); min-width: 360px; min-height: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: hidden; display: flex; flex-direction: column; border: 2px solid #0d2c63; background: #f3f8ff; box-shadow: 3px 3px 0 #7f9db9; font-family: Tahoma, sans-serif; z-index: 12000;">
+      <div id="wiggleAdminDragHandle" style="padding: 8px 12px; background: linear-gradient(to right, #1a4f9c, #3c88df); color: #fff; font-weight: bold; font-size: 13px; cursor: move; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <div id="wiggleAdminPfp" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.6); overflow: hidden; flex-shrink: 0; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold;"></div>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${panelTitle}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <button id="wiggleAdminCustomizeToggle" style="padding: 3px 8px; border: 1px solid #f0f6ff; background: rgba(255,255,255,0.2); color: #fff; font-family: Tahoma, sans-serif; font-size: 11px; cursor: pointer;" title="Customization">&#9881;</button>
+          <button id="wiggleAdminHideBtn" style="padding: 3px 8px; border: 1px solid #f0f6ff; background: rgba(255,255,255,0.2); color: #fff; font-family: Tahoma, sans-serif; font-size: 11px; cursor: pointer;">Hide</button>
+        </div>
       </div>
-      <div id="wiggleAdminGate" style="padding: 12px; border-top: 1px solid #d0def3;">
+      <div id="wiggleAdminCustomizePanel" style="display: none; padding: 10px 12px; border-top: 1px solid #d0def3; background: rgba(0,0,0,0.03); flex-shrink: 0;">
+        <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px;">Panel Customization</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+          <div>
+            <label style="display: block; margin-bottom: 3px; font-weight: bold;">Colour Scheme</label>
+            <select id="wiggleAdminSchemeSelect" style="width: 100%; padding: 4px; border: 1px solid #7f9db9; font-family: Tahoma, sans-serif; font-size: 11px;">
+              ${Object.entries(WIGGLE_ADMIN_COLOR_SCHEMES).map(([key, s]) => `<option value="${key}">${s.name}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 3px; font-weight: bold;">Bottom GIF URL</label>
+            <input id="wiggleAdminGifInput" type="text" placeholder="https://example.com/cool.gif" style="width: 100%; padding: 4px; border: 1px solid #7f9db9; font-family: Tahoma, sans-serif; font-size: 11px; box-sizing: border-box;" />
+          </div>
+        </div>
+        <div style="margin-top: 6px; display: flex; gap: 6px;">
+          <button id="wiggleAdminApplyCustom" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Apply</button>
+          <button id="wiggleAdminResetCustom" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Reset to Default</button>
+        </div>
+      </div>
+      <div id="wiggleAdminGate" style="padding: 12px; border-top: 1px solid #d0def3; flex-shrink: 0;">
         <div style="font-size: 12px; margin-bottom: 8px; color: #1f3d66;">Signed in as <strong>${username}</strong>. Enter your admin confirmation code.</div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <input id="wiggleAdminCodeInput" type="password" placeholder="Admin confirmation code" style="flex: 1; min-width: 210px; padding: 6px; border: 1px solid #7f9db9;" />
@@ -475,9 +509,9 @@ function createAdminPanelMarkup(username, panelTitle) {
         </div>
         <div id="wiggleAdminGateStatus" style="margin-top: 8px; font-size: 12px; color: #8a1c1c;"></div>
       </div>
-      <div id="wiggleAdminPanel" style="display: none; padding: 12px; border-top: 1px solid #d0def3;">
+      <div id="wiggleAdminPanel" style="display: none; padding: 12px; border-top: 1px solid #d0def3; flex: 1; overflow: auto;">
         <div style="display: grid; gap: 10px;">
-          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+          <div class="wiggleAdminCard" style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
             <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">User Roles and Access</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <input id="adminTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
@@ -488,7 +522,7 @@ function createAdminPanelMarkup(username, panelTitle) {
             </div>
             <div id="adminSelectedUserCard" style="display:none; margin-top:8px;"></div>
           </div>
-          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+          <div class="wiggleAdminCard" style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
             <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">WigTube Moderation</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <input id="wigtubeTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
@@ -500,8 +534,17 @@ function createAdminPanelMarkup(username, panelTitle) {
             </div>
             <div id="wigtubeSelectedUserCard" style="display:none; margin-top:8px;"></div>
             <div id="wigTubeSpecificResults" style="margin-top: 8px; max-height: 180px; overflow: auto; font-size: 11px; border-top: 1px solid #dbe7f7; padding-top: 8px;"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #b7cdea;">
+              <div style="font-size: 11px; color: #1d3e6b;">
+                Reports: <strong id="wigtubeReportsPingBadge" style="color:#8a1c1c;">0 pending</strong>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button id="refreshWigTubeReportsBtn" style="padding: 4px 8px;">Refresh Reports</button>
+              </div>
+            </div>
+            <div id="wigTubeReportResults" style="margin-top: 8px; max-height: 210px; overflow: auto; font-size: 11px; border-top: 1px solid #dbe7f7; padding-top: 8px;"></div>
           </div>
-          <div style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
+          <div class="wiggleAdminCard" style="padding: 10px; border: 1px solid #c2d8f5; background: #fff;">
             <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px;">WigCord Moderation</div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <input id="wigcordTargetUser" type="text" placeholder="Target username" style="flex: 1; min-width: 180px; padding: 6px; border: 1px solid #7f9db9;" />
@@ -515,14 +558,17 @@ function createAdminPanelMarkup(username, panelTitle) {
           <div id="wiggleAdminStatus" style="font-size: 12px; color: #173f21; padding: 8px; border: 1px solid #b8d8be; background: #f2fff4;">Ready.</div>
         </div>
       </div>
-      <div data-resize-dir="n" style="position: absolute; top: -4px; left: 8px; right: 8px; height: 8px; cursor: n-resize; z-index: 12010;"></div>
-      <div data-resize-dir="s" style="position: absolute; bottom: -4px; left: 8px; right: 8px; height: 8px; cursor: s-resize; z-index: 12010;"></div>
-      <div data-resize-dir="e" style="position: absolute; top: 8px; right: -4px; bottom: 8px; width: 8px; cursor: e-resize; z-index: 12010;"></div>
-      <div data-resize-dir="w" style="position: absolute; top: 8px; left: -4px; bottom: 8px; width: 8px; cursor: w-resize; z-index: 12010;"></div>
-      <div data-resize-dir="ne" style="position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; cursor: ne-resize; z-index: 12011;"></div>
-      <div data-resize-dir="nw" style="position: absolute; top: -4px; left: -4px; width: 10px; height: 10px; cursor: nw-resize; z-index: 12011;"></div>
-      <div data-resize-dir="se" style="position: absolute; bottom: -4px; right: -4px; width: 10px; height: 10px; cursor: se-resize; z-index: 12011;"></div>
-      <div data-resize-dir="sw" style="position: absolute; bottom: -4px; left: -4px; width: 10px; height: 10px; cursor: sw-resize; z-index: 12011;"></div>
+      <div id="wiggleAdminBottomGif" style="display: none; flex-shrink: 0; text-align: center; padding: 4px; border-top: 1px solid #d0def3; background: rgba(0,0,0,0.02); overflow: hidden;">
+        <img id="wiggleAdminGifImg" src="" alt="" style="max-width: 100%; max-height: 120px; object-fit: contain; image-rendering: auto;" />
+      </div>
+      <div data-resize-dir="n" style="position: absolute; top: -5px; left: 12px; right: 12px; height: 10px; cursor: n-resize; z-index: 12010;"></div>
+      <div data-resize-dir="s" style="position: absolute; bottom: -5px; left: 12px; right: 12px; height: 10px; cursor: s-resize; z-index: 12010;"></div>
+      <div data-resize-dir="e" style="position: absolute; top: 12px; right: -5px; bottom: 12px; width: 10px; cursor: e-resize; z-index: 12010;"></div>
+      <div data-resize-dir="w" style="position: absolute; top: 12px; left: -5px; bottom: 12px; width: 10px; cursor: w-resize; z-index: 12010;"></div>
+      <div data-resize-dir="ne" style="position: absolute; top: -6px; right: -6px; width: 14px; height: 14px; cursor: ne-resize; z-index: 12011;"></div>
+      <div data-resize-dir="nw" style="position: absolute; top: -6px; left: -6px; width: 14px; height: 14px; cursor: nw-resize; z-index: 12011;"></div>
+      <div data-resize-dir="se" style="position: absolute; bottom: -6px; right: -6px; width: 14px; height: 14px; cursor: se-resize; z-index: 12011;"></div>
+      <div data-resize-dir="sw" style="position: absolute; bottom: -6px; left: -6px; width: 14px; height: 14px; cursor: sw-resize; z-index: 12011;"></div>
     </div>
   `;
 }
@@ -651,41 +697,39 @@ function makeAdminPanelResizable(panel) {
   const minWidth = 360;
   const minHeight = 260;
   let resizeState = null;
+  let resizeRAF = null;
 
-  const onResizeMove = (event) => {
+  const applyResize = () => {
+    resizeRAF = null;
     if (!resizeState) return;
 
-    const dx = event.clientX - resizeState.startX;
-    const dy = event.clientY - resizeState.startY;
-    const dir = resizeState.dir;
+    const { dir, lastX, lastY, startX, startY, startLeft, startTop, startWidth, startHeight } = resizeState;
+    const dx = lastX - startX;
+    const dy = lastY - startY;
 
-    let nextLeft = resizeState.startLeft;
-    let nextTop = resizeState.startTop;
-    let nextWidth = resizeState.startWidth;
-    let nextHeight = resizeState.startHeight;
+    let nextLeft = startLeft;
+    let nextTop = startTop;
+    let nextWidth = startWidth;
+    let nextHeight = startHeight;
 
-    if (dir.includes('e')) nextWidth = resizeState.startWidth + dx;
-    if (dir.includes('s')) nextHeight = resizeState.startHeight + dy;
+    if (dir.includes('e')) nextWidth = startWidth + dx;
+    if (dir.includes('s')) nextHeight = startHeight + dy;
     if (dir.includes('w')) {
-      nextWidth = resizeState.startWidth - dx;
-      nextLeft = resizeState.startLeft + dx;
+      nextWidth = startWidth - dx;
+      nextLeft = startLeft + dx;
     }
     if (dir.includes('n')) {
-      nextHeight = resizeState.startHeight - dy;
-      nextTop = resizeState.startTop + dy;
+      nextHeight = startHeight - dy;
+      nextTop = startTop + dy;
     }
 
     if (nextWidth < minWidth) {
-      if (dir.includes('w')) {
-        nextLeft -= (minWidth - nextWidth);
-      }
+      if (dir.includes('w')) nextLeft -= (minWidth - nextWidth);
       nextWidth = minWidth;
     }
 
     if (nextHeight < minHeight) {
-      if (dir.includes('n')) {
-        nextTop -= (minHeight - nextHeight);
-      }
+      if (dir.includes('n')) nextTop -= (minHeight - nextHeight);
       nextHeight = minHeight;
     }
 
@@ -704,8 +748,16 @@ function makeAdminPanelResizable(panel) {
     panel.style.right = 'auto';
   };
 
+  const onResizeMove = (event) => {
+    if (!resizeState) return;
+    resizeState.lastX = event.clientX;
+    resizeState.lastY = event.clientY;
+    if (!resizeRAF) resizeRAF = requestAnimationFrame(applyResize);
+  };
+
   const stopResize = () => {
     if (!resizeState) return;
+    if (resizeRAF) { cancelAnimationFrame(resizeRAF); resizeRAF = null; }
     resizeState = null;
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
@@ -732,6 +784,8 @@ function makeAdminPanelResizable(panel) {
         dir: handle.getAttribute('data-resize-dir') || 'se',
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
         startLeft: rect.left,
         startTop: rect.top,
         startWidth: rect.width,
@@ -755,8 +809,7 @@ async function initializeWiggleAdminPanel() {
 
   const wiggleSearch = document.getElementById('wiggle-search');
   const isWiggleSearchPage = !!wiggleSearch;
-  const isWigTubePlayerPage = window.location.pathname.includes('wigtube-player.html');
-  if (!isWiggleSearchPage && !isWigTubePlayerPage) return;
+  if (!isWiggleSearchPage) return;
 
   if (window.top !== window.self) {
     try {
@@ -792,8 +845,7 @@ async function initializeWiggleAdminPanel() {
   }
 
   const shellHost = document.createElement('div');
-  const panelTitle = isWigTubePlayerPage ? 'WigTube Player Admin Panel' : 'WiggleSearch Admin Panel';
-  shellHost.innerHTML = createAdminPanelMarkup(username, panelTitle);
+  shellHost.innerHTML = createAdminPanelMarkup(username, 'WiggleSearch Admin Panel');
   while (shellHost.firstChild) {
     document.body.appendChild(shellHost.firstChild);
   }
@@ -807,8 +859,132 @@ async function initializeWiggleAdminPanel() {
   makeAdminPanelDraggable(shell);
   makeAdminPanelResizable(shell);
 
+  // --- PFP in title bar ---
+  const pfpContainer = document.getElementById('wiggleAdminPfp');
+  if (pfpContainer) {
+    const pfpUrl = (userDoc && userDoc.profilePicture) || null;
+    if (pfpUrl) {
+      const pfpImg = document.createElement('img');
+      pfpImg.src = pfpUrl;
+      pfpImg.alt = username;
+      pfpImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      pfpContainer.appendChild(pfpImg);
+    } else {
+      pfpContainer.textContent = (username || '?').charAt(0).toUpperCase();
+    }
+  }
+
+  // --- Customization logic ---
+  function loadAdminCustomFromCache() {
+    try {
+      const raw = localStorage.getItem(WIGGLE_ADMIN_CUSTOM_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+
+  function loadAdminCustomFromFirebase() {
+    try {
+      return (userDoc && userDoc.adminPanelCustom && typeof userDoc.adminPanelCustom === 'object')
+        ? userDoc.adminPanelCustom : null;
+    } catch (e) { return null; }
+  }
+
+  function loadAdminCustom() {
+    const firebaseData = loadAdminCustomFromFirebase();
+    if (firebaseData) {
+      try { localStorage.setItem(WIGGLE_ADMIN_CUSTOM_KEY, JSON.stringify(firebaseData)); } catch (e) { /* noop */ }
+      return firebaseData;
+    }
+    return loadAdminCustomFromCache();
+  }
+
+  function saveAdminCustom(custom) {
+    try { localStorage.setItem(WIGGLE_ADMIN_CUSTOM_KEY, JSON.stringify(custom)); } catch (e) { /* noop */ }
+    updateWiggleUserDoc(normalizedUsername || username, { adminPanelCustom: custom }).catch(() => { /* non-blocking */ });
+  }
+
+  function applyColorScheme(schemeKey) {
+    const scheme = WIGGLE_ADMIN_COLOR_SCHEMES[schemeKey] || WIGGLE_ADMIN_COLOR_SCHEMES.default;
+    shell.style.borderColor = scheme.border;
+    shell.style.background = scheme.shell;
+    shell.style.color = scheme.text;
+    const dragHandle = document.getElementById('wiggleAdminDragHandle');
+    if (dragHandle) dragHandle.style.background = `linear-gradient(to right, ${scheme.gradL}, ${scheme.gradR})`;
+    const cards = shell.querySelectorAll('.wiggleAdminCard');
+    cards.forEach(c => { c.style.background = scheme.card; c.style.borderColor = scheme.cardBorder; });
+    const statusEl = document.getElementById('wiggleAdminStatus');
+    if (statusEl) {
+      statusEl.style.color = scheme.statusText;
+      statusEl.style.background = scheme.statusBg;
+      statusEl.style.borderColor = scheme.statusBorder;
+    }
+  }
+
+  function applyBottomGif(gifUrl) {
+    const gifContainer = document.getElementById('wiggleAdminBottomGif');
+    const gifImg = document.getElementById('wiggleAdminGifImg');
+    if (!gifContainer || !gifImg) return;
+    if (gifUrl && gifUrl.trim()) {
+      gifImg.src = gifUrl.trim();
+      gifContainer.style.display = 'block';
+    } else {
+      gifImg.src = '';
+      gifContainer.style.display = 'none';
+    }
+  }
+
+  let adminPanelUnlocked = false;
+
+  function applyAdminCustom(custom) {
+    if (custom.scheme) applyColorScheme(custom.scheme);
+    if (adminPanelUnlocked) applyBottomGif(custom.gif || '');
+  }
+
+  const savedCustom = loadAdminCustom();
+  applyAdminCustom(savedCustom);
+
+  // Customization panel toggle
+  const customToggle = document.getElementById('wiggleAdminCustomizeToggle');
+  const customPanel = document.getElementById('wiggleAdminCustomizePanel');
+  const schemeSelect = document.getElementById('wiggleAdminSchemeSelect');
+  const gifInput = document.getElementById('wiggleAdminGifInput');
+  const applyBtn = document.getElementById('wiggleAdminApplyCustom');
+  const resetBtn = document.getElementById('wiggleAdminResetCustom');
+
+  if (schemeSelect && savedCustom.scheme) schemeSelect.value = savedCustom.scheme;
+  if (gifInput && savedCustom.gif) gifInput.value = savedCustom.gif;
+
+  if (customToggle && customPanel) {
+    customToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      customPanel.style.display = customPanel.style.display === 'none' ? 'block' : 'none';
+    });
+  }
+
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      const custom = {
+        scheme: schemeSelect ? schemeSelect.value : 'default',
+        gif: gifInput ? gifInput.value : ''
+      };
+      saveAdminCustom(custom);
+      applyAdminCustom(custom);
+    });
+  }
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      saveAdminCustom({});
+      applyColorScheme('default');
+      applyBottomGif('');
+      if (schemeSelect) schemeSelect.value = 'default';
+      if (gifInput) gifInput.value = '';
+    });
+  }
+
   function setPanelHidden(hidden) {
-    shell.style.display = hidden ? 'none' : 'block';
+    shell.style.display = hidden ? 'none' : 'flex';
     if (showBtn) showBtn.style.display = hidden ? 'block' : 'none';
     try {
       localStorage.setItem(WIGGLE_ADMIN_PANEL_HIDDEN_KEY, hidden ? '1' : '0');
@@ -854,6 +1030,8 @@ async function initializeWiggleAdminPanel() {
   const adminStatus = document.getElementById('wiggleAdminStatus');
   const userSuggestionList = document.getElementById('wiggleAdminUserSuggestions');
   const wigTubeSpecificResults = document.getElementById('wigTubeSpecificResults');
+  const wigTubeReportResults = document.getElementById('wigTubeReportResults');
+  const wigTubeReportsPingBadge = document.getElementById('wigtubeReportsPingBadge');
   const wigCordSpecificResults = document.getElementById('wigCordSpecificResults');
   const selectedCardByInput = {
     adminTargetUser: document.getElementById('adminSelectedUserCard'),
@@ -983,6 +1161,116 @@ async function initializeWiggleAdminPanel() {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const getModerationPlayerURL = (videoId, fallbackUrl) => {
+    const safeVideoId = String(videoId || '').trim();
+    if (!safeVideoId) return null;
+
+    if (fallbackUrl) {
+      try {
+        const parsed = new URL(fallbackUrl, window.location.origin);
+        parsed.searchParams.set('v', safeVideoId);
+        return parsed.pathname + parsed.search;
+      } catch (e) {
+        // Ignore malformed fallback URL and build a safe one below.
+      }
+    }
+
+    return `apps/browser/pages/wigtube-player.html?v=${encodeURIComponent(safeVideoId)}&moderation=1`;
+  };
+
+  const openModerationVideoInActiveTab = (videoId, fallbackUrl) => {
+    const targetUrl = getModerationPlayerURL(videoId, fallbackUrl);
+    if (!targetUrl) throw new Error('Invalid report video ID.');
+
+    const activeTab = document.querySelector('.tab.active');
+    if (!activeTab) {
+      window.open(targetUrl, '_blank');
+      return;
+    }
+
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    const tabIndex = tabs.indexOf(activeTab);
+    if (tabIndex === -1) {
+      window.open(targetUrl, '_blank');
+      return;
+    }
+
+    const pageId = tabIndex === 0 ? 'wiggle-search' : `tab-${tabIndex + 1}`;
+    const tabContent = document.getElementById(pageId);
+    if (!tabContent) {
+      window.open(targetUrl, '_blank');
+      return;
+    }
+
+    const titleSpan = activeTab.querySelector('.title');
+    const faviconImg = activeTab.querySelector('.favicon');
+    if (titleSpan) titleSpan.textContent = 'WigTube Report';
+    if (faviconImg) faviconImg.src = 'assets/images/icons/48x/WigleTube.png';
+
+    tabContent.innerHTML = `<iframe src="${escapeHTML(targetUrl)}" style="width: 100%; height: 100%; border: none;" allow="autoplay; encrypted-media; fullscreen"></iframe>`;
+    if (typeof switchToPage === 'function') {
+      switchToPage(pageId);
+    }
+  };
+
+  const loadWigTubeReports = async () => {
+    if (typeof WigTubeDB !== 'undefined' && typeof WigTubeDB.getOpenModerationReports === 'function') {
+      return await WigTubeDB.getOpenModerationReports(100);
+    }
+
+    try {
+      const raw = localStorage.getItem('wigtube_moderation_reports');
+      const map = raw ? JSON.parse(raw) : {};
+      return Object.values(map || {})
+        .filter((item) => item && item.status !== 'resolved')
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const updateWigTubePingBadge = (count) => {
+    if (!wigTubeReportsPingBadge) return;
+    wigTubeReportsPingBadge.textContent = count === 1 ? '1 pending' : `${count} pending`;
+    wigTubeReportsPingBadge.style.color = count > 0 ? '#8a1c1c' : '#1d3e6b';
+  };
+
+  const renderWigTubeReports = (reports) => {
+    const items = Array.isArray(reports) ? reports : [];
+    updateWigTubePingBadge(items.length);
+
+    if (!wigTubeReportResults) return;
+
+    if (!items.length) {
+      wigTubeReportResults.innerHTML = '<div style="color:#6b6b6b;">No pending WigTube reports.</div>';
+      return;
+    }
+
+    wigTubeReportResults.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px;">Incoming Reports</div>
+      ${items.map((item) => `
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px; border:1px solid #d7e5f8; padding:6px; background:#fff;">
+          <div style="flex:1; min-width:0;">
+            <div><strong>${escapeHTML(item.title || item.videoId || 'Untitled Video')}</strong> ${item.targetType === 'reply' ? '<span style="font-size:10px;color:#7a2d2d;">[Reply]</span>' : (item.targetType === 'comment' ? '<span style="font-size:10px;color:#7a2d2d;">[Comment]</span>' : '<span style="font-size:10px;color:#1d3e6b;">[Video]</span>')}</div>
+            <div style="color:#3d3d3d;">Video ID: ${escapeHTML(item.videoId || '')} | Reporter: ${escapeHTML(item.reporter || 'unknown')} | Reason: ${escapeHTML(item.reason || 'inappropriate')}</div>
+            ${item.targetType === 'comment' ? `<div style="color:#2d2d2d; margin-top:2px;">Comment by ${escapeHTML(item.commentAuthor || 'unknown')}: <span style="font-style:italic;">${escapeHTML(item.commentText || '(no text)')}</span></div>` : ''}
+            ${item.targetType === 'reply' ? `<div style="color:#2d2d2d; margin-top:2px;">Reply by ${escapeHTML(item.replyAuthor || item.commentAuthor || 'unknown')} (comment ${escapeHTML(item.commentId || 'unknown')}): <span style="font-style:italic;">${escapeHTML(item.replyText || item.commentText || '(no text)')}</span></div>` : ''}
+          </div>
+          <button data-action="open-wt-report" data-video-id="${escapeHTML(item.videoId || '')}" data-player-url="${escapeHTML(item.playerUrl || '')}" style="padding:4px 8px;">Open</button>
+          <button data-action="resolve-wt-report" data-report-id="${escapeHTML(item.reportId || '')}" style="padding:4px 8px;">Resolve</button>
+        </div>
+      `).join('')}
+    `;
+  };
+
+  const refreshWigTubeReports = async (showPingStatus = false) => {
+    const reports = await loadWigTubeReports();
+    renderWigTubeReports(reports);
+    if (showPingStatus && reports.length > 0) {
+      setStatus(`🔔 New WigTube moderation report received (${reports.length} pending).`);
+    }
+  };
+
   const renderWigTubeSpecific = (data) => {
     const { comments, videos } = data;
     if (!comments.length && !videos.length) {
@@ -1060,6 +1348,8 @@ async function initializeWiggleAdminPanel() {
     gateStatus.textContent = 'Code confirmed.';
     panel.style.display = 'block';
     document.getElementById('wiggleAdminGate').style.display = 'none';
+    adminPanelUnlocked = true;
+    applyBottomGif((loadAdminCustom()).gif || '');
   });
 
   document.getElementById('setAdminBtn').addEventListener('click', () => doAction(async () => {
@@ -1123,6 +1413,11 @@ async function initializeWiggleAdminPanel() {
     setStatus(`Loaded specific WigTube matches for prefix "${target}".`);
   }));
 
+  document.getElementById('refreshWigTubeReportsBtn').addEventListener('click', () => doAction(async () => {
+    await refreshWigTubeReports(false);
+    setStatus('Refreshed WigTube moderation reports.');
+  }));
+
   document.getElementById('findWigCordSpecificBtn').addEventListener('click', () => doAction(async () => {
     const target = getTarget('wigcordTargetUser');
     const data = await findSpecificWigCordMessagesByPrefix(target);
@@ -1154,6 +1449,57 @@ async function initializeWiggleAdminPanel() {
     });
   });
 
+  wigTubeReportResults.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+
+    doAction(async () => {
+      if (action === 'open-wt-report') {
+        const videoId = btn.getAttribute('data-video-id');
+        const playerUrl = btn.getAttribute('data-player-url');
+        openModerationVideoInActiveTab(videoId, playerUrl);
+        setStatus(`Opened WigTube report video ${videoId} for moderation.`);
+      }
+
+      if (action === 'resolve-wt-report') {
+        const reportId = btn.getAttribute('data-report-id');
+        if (!reportId) throw new Error('Missing report ID.');
+        const resolvedBy = normalizeWiggleUsername(username || 'admin') || 'admin';
+        if (typeof WigTubeDB !== 'undefined' && typeof WigTubeDB.resolveModerationReport === 'function') {
+          const ok = await WigTubeDB.resolveModerationReport(reportId, resolvedBy);
+          if (!ok) throw new Error('Failed to resolve report.');
+        } else {
+          const raw = localStorage.getItem('wigtube_moderation_reports');
+          const reports = raw ? JSON.parse(raw) : {};
+          if (!reports[reportId]) throw new Error('Report not found in local storage.');
+          reports[reportId] = {
+            ...reports[reportId],
+            status: 'resolved',
+            resolvedAt: Date.now(),
+            resolvedBy
+          };
+          localStorage.setItem('wigtube_moderation_reports', JSON.stringify(reports));
+        }
+        await refreshWigTubeReports(false);
+        setStatus(`Resolved moderation report ${reportId}.`);
+      }
+    });
+  });
+
+  window.addEventListener('wigtube:report-created', () => {
+    refreshWigTubeReports(true).catch(() => {
+      // Keep panel stable even if a refresh fails.
+    });
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== 'wigtube_moderation_reports_ping' && event.key !== 'wigtube_moderation_reports') return;
+    refreshWigTubeReports(true).catch(() => {
+      // Keep panel stable even if a refresh fails.
+    });
+  });
+
   wigCordSpecificResults.addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-action]');
     if (!btn) return;
@@ -1176,6 +1522,9 @@ async function initializeWiggleAdminPanel() {
   refreshSelectedUserCard('adminTargetUser');
   refreshSelectedUserCard('wigtubeTargetUser');
   refreshSelectedUserCard('wigcordTargetUser');
+  refreshWigTubeReports(false).catch(() => {
+    wigTubeReportResults.innerHTML = '<div style="color:#8a1c1c;">Failed to load WigTube moderation reports.</div>';
+  });
 }
 
 function checkCode() {

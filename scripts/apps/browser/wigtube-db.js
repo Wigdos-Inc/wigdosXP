@@ -22,6 +22,7 @@ window.WigTubeDB = (function() {
     const DATA_DOC = 'data';
     const COMMENTS_DOC = 'wigtube_comments';
     const RATINGS_DOC = 'user_ratings';
+    const MODERATION_REPORTS_DOC = 'moderation_reports';
     
     // ============================================
     // Database Common Utilities (formerly wigtube-db-common.js)
@@ -31,6 +32,7 @@ window.WigTubeDB = (function() {
      * Storage key for offline data
      */
     const STORAGE_KEY = 'wigtube_offline_data';
+    const MODERATION_REPORTS_STORAGE_KEY = 'wigtube_moderation_reports';
     
     /**
      * Rating constants
@@ -62,6 +64,25 @@ window.WigTubeDB = (function() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
             console.error('Error saving offline data:', e);
+        }
+    }
+
+    function getOfflineModerationReports() {
+        try {
+            const data = localStorage.getItem(MODERATION_REPORTS_STORAGE_KEY);
+            const parsed = data ? JSON.parse(data) : {};
+            return typeof parsed === 'object' && parsed !== null ? parsed : {};
+        } catch (e) {
+            console.error('Error reading moderation reports:', e);
+            return {};
+        }
+    }
+
+    function saveOfflineModerationReports(reportsMap) {
+        try {
+            localStorage.setItem(MODERATION_REPORTS_STORAGE_KEY, JSON.stringify(reportsMap || {}));
+        } catch (e) {
+            console.error('Error saving moderation reports:', e);
         }
     }
     
@@ -1833,6 +1854,136 @@ window.WigTubeDB = (function() {
     }
 
     // ============================================
+    // Moderation Report Operations
+    // ============================================
+
+    async function createModerationReport(reportData, targetType = 'video') {
+        const reportId = `report_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const createdAt = Date.now();
+        const report = {
+            reportId,
+            targetType: ['video', 'comment', 'reply'].includes(targetType) ? targetType : 'video',
+            videoId: String(reportData?.videoId || '').trim(),
+            title: String(reportData?.title || 'Untitled Video').trim(),
+            reporter: String(reportData?.reporter || 'anonymous').trim(),
+            reason: String(reportData?.reason || 'inappropriate').trim(),
+            playerUrl: String(reportData?.playerUrl || '').trim(),
+            commentId: String(reportData?.commentId || '').trim(),
+            commentAuthor: String(reportData?.commentAuthor || '').trim(),
+            commentText: String(reportData?.commentText || '').trim(),
+            replyId: String(reportData?.replyId || '').trim(),
+            replyAuthor: String(reportData?.replyAuthor || '').trim(),
+            replyText: String(reportData?.replyText || '').trim(),
+            createdAt,
+            status: 'open'
+        };
+
+        if (!report.videoId) {
+            throw new Error('videoId is required to report a video');
+        }
+
+        const db = getDB();
+        if (!db) {
+            const reports = getOfflineModerationReports();
+            reports[reportId] = report;
+            saveOfflineModerationReports(reports);
+            return report;
+        }
+
+        try {
+            const { doc, setDoc } = window.firebaseAPI;
+            const moderationRef = doc(db, COLLECTION, MODERATION_REPORTS_DOC);
+            await setDoc(moderationRef, {
+                reports: {
+                    [reportId]: report
+                }
+            }, { merge: true });
+            return report;
+        } catch (error) {
+            console.error('Error saving moderation report:', error);
+            throw error;
+        }
+    }
+
+    async function reportVideo(reportData) {
+        return createModerationReport(reportData, 'video');
+    }
+
+    async function reportComment(reportData) {
+        return createModerationReport(reportData, 'comment');
+    }
+
+    async function reportReply(reportData) {
+        return createModerationReport(reportData, 'reply');
+    }
+
+    async function getOpenModerationReports(limit = 100) {
+        const db = getDB();
+        const maxItems = Math.max(1, Number(limit) || 100);
+
+        if (!db) {
+            const reports = Object.values(getOfflineModerationReports())
+                .filter((item) => item && item.status !== 'resolved')
+                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            return reports.slice(0, maxItems);
+        }
+
+        try {
+            const { doc, getDoc } = window.firebaseAPI;
+            const moderationRef = doc(db, COLLECTION, MODERATION_REPORTS_DOC);
+            const snap = await getDoc(moderationRef);
+            if (!snap.exists()) return [];
+
+            const data = snap.data() || {};
+            const reportsMap = data.reports || {};
+            const reports = Object.values(reportsMap)
+                .filter((item) => item && item.status !== 'resolved')
+                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            return reports.slice(0, maxItems);
+        } catch (error) {
+            console.error('Error loading moderation reports:', error);
+            return [];
+        }
+    }
+
+    async function resolveModerationReport(reportId, resolvedBy = 'admin') {
+        const safeReportId = String(reportId || '').trim();
+        if (!safeReportId) throw new Error('reportId is required');
+
+        const resolvedAt = Date.now();
+        const db = getDB();
+
+        if (!db) {
+            const reports = getOfflineModerationReports();
+            const existing = reports[safeReportId];
+            if (!existing) return false;
+            reports[safeReportId] = {
+                ...existing,
+                status: 'resolved',
+                resolvedAt,
+                resolvedBy: String(resolvedBy || 'admin').trim()
+            };
+            saveOfflineModerationReports(reports);
+            return true;
+        }
+
+        try {
+            const { doc, updateDoc } = window.firebaseAPI;
+            const moderationRef = doc(db, COLLECTION, MODERATION_REPORTS_DOC);
+            await updateDoc(moderationRef, {
+                [`reports.${safeReportId}.status`]: 'resolved',
+                [`reports.${safeReportId}.resolvedAt`]: resolvedAt,
+                [`reports.${safeReportId}.resolvedBy`]: String(resolvedBy || 'admin').trim()
+            });
+            return true;
+        } catch (error) {
+            console.error('Error resolving moderation report:', error);
+            return false;
+        }
+    }
+
+    // ============================================
     // Public API
     // ============================================
 
@@ -1894,6 +2045,13 @@ window.WigTubeDB = (function() {
         removeVideoFromPlaylist,
         getUserPlaylists,
         getPlaylistById,
+
+        // Moderation operations
+        reportVideo,
+        reportComment,
+        reportReply,
+        getOpenModerationReports,
+        resolveModerationReport,
         
         // Utility functions
         formatTimestamp,
