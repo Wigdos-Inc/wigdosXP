@@ -359,7 +359,7 @@ const applications = {
 
     // Carl the Urgent Slug Urchin
     carl2D: new Application(
-        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
+        ["carl2D", "Carl Mobile", "Carl is Mobile (Carl 2D)"],
         "carl",
         true,
         ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
