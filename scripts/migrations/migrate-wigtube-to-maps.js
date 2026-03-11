@@ -135,7 +135,8 @@ async function migrateComments() {
         
         // Write to new structure
         const commentsDocRef = doc(db, 'wigtube', 'wigtube_comments');
-        await setDoc(commentsDocRef, { comments }, { merge: true });
+        // Firestore rejects non-plain/custom objects from snapshot data.
+        await setDoc(commentsDocRef, JSON.parse(JSON.stringify({ comments })), { merge: true });
         
         console.log(`  ✅ Migrated ${count} comments to wigtube/wigtube_comments`);
         return { success: true, count };

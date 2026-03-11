@@ -216,8 +216,69 @@ async function waitForFirebaseReady(timeoutMs = 10000) {
     });
 }
 
+let liveCommentsSyncRegistered = false;
+let liveCommentsReloadTimer = null;
+
+function shouldRefreshCommentsFromPayload(payload) {
+    if (!payload || payload.type !== 'wigtube-comments-changed') return false;
+
+    const activeVideoId = currentVideoId || getVideoIdFromURL();
+    if (!activeVideoId) return false;
+
+    if (payload.videoId && payload.videoId !== activeVideoId) {
+        return false;
+    }
+
+    if (Array.isArray(payload.videoIds) && payload.videoIds.length > 0 && !payload.videoIds.includes(activeVideoId)) {
+        return false;
+    }
+
+    return true;
+}
+
+function scheduleLiveCommentsReload() {
+    if (_isEmbedMode) return;
+    if (liveCommentsReloadTimer) {
+        clearTimeout(liveCommentsReloadTimer);
+    }
+
+    liveCommentsReloadTimer = setTimeout(async () => {
+        liveCommentsReloadTimer = null;
+        try {
+            await loadComments();
+        } catch (error) {
+            console.warn('[WigTube] Live comments reload failed:', error);
+        }
+    }, 80);
+}
+
+function handleLiveCommentsSignal(payload) {
+    if (!shouldRefreshCommentsFromPayload(payload)) return;
+    scheduleLiveCommentsReload();
+}
+
+function registerLiveCommentsSync() {
+    if (liveCommentsSyncRegistered) return;
+    liveCommentsSyncRegistered = true;
+
+    window.addEventListener('wigtube:comments-changed', (event) => {
+        handleLiveCommentsSignal(event.detail);
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== 'wigtube_comments_ping' || !event.newValue) return;
+        try {
+            const payload = JSON.parse(event.newValue);
+            handleLiveCommentsSignal(payload);
+        } catch (error) {
+            console.warn('[WigTube] Invalid comments ping payload:', error);
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     debugLog('DOM Content Loaded' + (_isEmbedMode ? ' (EMBED MODE)' : ''));
+    registerLiveCommentsSync();
     
     // Load video data from JSON first
     const jsonLoaded = await initializePlayerVideoData();

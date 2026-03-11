@@ -112,7 +112,7 @@ main {
     height: 100%;
 }
 
-#wiggle-search {
+#wiggle-search.page-content.active {
     display: flex;
     align-items: center;
     justify-content: center;

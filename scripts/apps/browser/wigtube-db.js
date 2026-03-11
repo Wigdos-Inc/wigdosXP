@@ -28,6 +28,80 @@ window.WigTubeDB = (function() {
     // Database Common Utilities (formerly wigtube-db-common.js)
     // ============================================
     
+    function getFirebaseHostWindow() {
+        let host = null;
+        try {
+            let current = window;
+            while (current) {
+                if (current.firebaseAPI && current.firebaseAPI.db) {
+                    host = current;
+                }
+                if (!current.parent || current.parent === current) {
+                    break;
+                }
+                current = current.parent;
+            }
+        } catch (e) {}
+        return host || window;
+    }
+
+    function getFirebaseContext() {
+        const hostWindow = getFirebaseHostWindow();
+        const api = (hostWindow && hostWindow.firebaseAPI) ? hostWindow.firebaseAPI : window.firebaseAPI;
+        return { hostWindow, api };
+    }
+
+    /**
+     * Sanitize data before writing to Firestore.
+     * Use host-window JSON so objects are plain in the same JS realm as Firebase.
+     */
+    function toPlainObject(obj) {
+        const hostWindow = getFirebaseHostWindow();
+        const stringify = hostWindow.JSON ? hostWindow.JSON.stringify : JSON.stringify;
+        const parse = hostWindow.JSON ? hostWindow.JSON.parse : JSON.parse;
+        return parse(stringify(obj));
+    }
+
+    function toPlainObjectInWindow(obj, hostWindow) {
+        const jsonWindow = hostWindow || getFirebaseHostWindow();
+        const stringify = jsonWindow.JSON ? jsonWindow.JSON.stringify : JSON.stringify;
+        const parse = jsonWindow.JSON ? jsonWindow.JSON.parse : JSON.parse;
+        return parse(stringify(obj));
+    }
+
+    function sanitizeReplyForStorage(reply) {
+        const source = reply && typeof reply === 'object' ? reply : {};
+        const nestedReplies = Array.isArray(source.replies)
+            ? source.replies.map(sanitizeReplyForStorage)
+            : [];
+
+        return {
+            id: source.id ? String(source.id) : ('reply_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9)),
+            author: source.author ? String(source.author) : 'Anonymous',
+            text: source.text ? String(source.text) : '',
+            timestamp: source.timestamp ? String(source.timestamp) : new Date().toISOString(),
+            replies: nestedReplies
+        };
+    }
+
+    function sanitizeCommentForStorage(comment) {
+        const source = comment && typeof comment === 'object' ? comment : {};
+        const replies = Array.isArray(source.replies)
+            ? source.replies.map(sanitizeReplyForStorage)
+            : [];
+
+        return {
+            id: source.id ? String(source.id) : ('comment_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9)),
+            videoId: source.videoId ? String(source.videoId) : '',
+            author: source.author ? String(source.author) : 'Anonymous',
+            text: source.text ? String(source.text) : '',
+            image: source.image ? String(source.image) : null,
+            timestamp: source.timestamp ? String(source.timestamp) : new Date().toISOString(),
+            likes: Number.isFinite(source.likes) ? source.likes : 0,
+            replies
+        };
+    }
+
     /**
      * Storage key for offline data
      */
@@ -873,13 +947,14 @@ window.WigTubeDB = (function() {
     async function addComment(videoId, commentData) {
         debugLog(`addComment: Adding comment to video ${videoId}`);
         const db = getDB();
+        const { hostWindow, api: firebaseAPI } = getFirebaseContext();
         
         const comment = {
             videoId: videoId,
             author: commentData.author || 'Anonymous',
             text: commentData.text || '',
             image: commentData.image || null,
-            timestamp: db ? window.firebaseAPI.serverTimestamp() : new Date().toISOString(),
+            timestamp: new Date().toISOString(),
             likes: 0
         };
 
@@ -907,21 +982,19 @@ window.WigTubeDB = (function() {
         try {
             debugLog(`addComment: Saving to Firestore for ${videoId}`);
             console.debug('[WigTubeDB] addComment called for:', videoId, 'by:', commentData.author);
-            const { doc, getDoc, setDoc, collection, updateDoc } = window.firebaseAPI;
+            const { doc, getDoc, setDoc, collection, updateDoc } = firebaseAPI;
+            const activeDb = firebaseAPI && firebaseAPI.db ? firebaseAPI.db : db;
             
-            const commentsRef = doc(db, COLLECTION, COMMENTS_DOC);
-            const dataRef = doc(db, COLLECTION, DATA_DOC);
+            const commentsRef = doc(activeDb, COLLECTION, COMMENTS_DOC);
             
             // Get current comments
             console.debug('[WigTubeDB] Fetching comments from: wigtube/wigtube_comments');
             const commentsSnap = await getDoc(commentsRef);
             const commentsData = commentsSnap.exists() ? commentsSnap.data() : {};
             const comments = commentsData.comments || {};
+            const currentVideoComments = Array.isArray(comments[videoId]) ? comments[videoId] : [];
             console.debug('[WigTubeDB] Comments document exists:', commentsSnap.exists(), 'videos with comments:', Object.keys(comments).length);
-            
-            // Initialize video comments array if needed
-            if (!comments[videoId]) {
-                comments[videoId] = [];
+            if (!Array.isArray(comments[videoId])) {
                 console.debug('[WigTubeDB] Initializing comments array for video:', videoId);
             }
             
@@ -929,17 +1002,20 @@ window.WigTubeDB = (function() {
             const commentId = 'comment_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
             comment.id = commentId;
             comment.timestamp = new Date().toISOString();
-            comments[videoId].unshift(comment);
-            console.debug('[WigTubeDB] Added comment:', commentId, 'total comments for video:', comments[videoId].length);
-            
-            // Update comments document
-            await setDoc(commentsRef, { comments }, { merge: true });
+            const nextVideoComments = currentVideoComments.map(sanitizeCommentForStorage);
+            nextVideoComments.unshift(sanitizeCommentForStorage(comment));
+            console.debug('[WigTubeDB] Added comment:', commentId, 'total comments for video:', nextVideoComments.length);
+
+            // Only patch this video's comments to avoid cross-realm objects from unrelated entries.
+            const commentsPatch = {};
+            commentsPatch[videoId] = nextVideoComments;
+            await setDoc(commentsRef, toPlainObjectInWindow({ comments: commentsPatch }, hostWindow), { merge: true });
             debugLog(`addComment: Comment saved with ID ${commentId}`);
             console.debug('[WigTubeDB] Comments document updated');
             
             // Update comment count in video data
             try {
-                const videosCollectionRef = collection(db, COLLECTION, DATA_DOC, 'videos');
+                const videosCollectionRef = collection(activeDb, COLLECTION, DATA_DOC, 'videos');
                 const videoDocRef = doc(videosCollectionRef, videoId);
                 const videoSnap = await getDoc(videoDocRef);
                 
@@ -1055,7 +1131,7 @@ window.WigTubeDB = (function() {
                 comments[videoId] = videoComments;
                 
                 // Update comments document
-                await setDoc(commentsRef, { comments }, { merge: true });
+                await setDoc(commentsRef, toPlainObject({ comments }), { merge: true });
                 debugLog(`deleteComment: Comment ${commentId} deleted from Firestore`);
                 
                 // Update comment count in video data
@@ -1768,7 +1844,7 @@ window.WigTubeDB = (function() {
             }
             
             // Update comments document
-            await setDoc(commentsRef, { comments }, { merge: true });
+            await setDoc(commentsRef, toPlainObject({ comments }), { merge: true });
             debugLog(`addReply: Reply saved with ID ${replyId}`);
             
             return reply;
@@ -1838,7 +1914,7 @@ window.WigTubeDB = (function() {
                 
                 if (deleted) {
                     // Update comments document
-                    await setDoc(commentsRef, { comments }, { merge: true });
+                    await setDoc(commentsRef, toPlainObject({ comments }), { merge: true });
                     debugLog(`deleteReply: Reply ${replyId} deleted from Firestore`);
                 } else {
                     debugLog(`deleteReply: Reply ${replyId} not found`);
