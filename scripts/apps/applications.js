@@ -238,7 +238,7 @@ const applications = {
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/SloppyCarlGames/engine/v1/testGame/output.html"]
-    )
+    ),
    
     uh: new Application(
         ["uh", "ultrahill", "ultrakill autistic little brother"],
