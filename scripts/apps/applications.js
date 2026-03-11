@@ -241,35 +241,35 @@ const applications = {
     ),
    
     uh: new Application(
-        ["uh", "ultrahill", "ultrakill autistic little brother"],
+        ["uh", "Ultrahill", "Ultrakill autistic little brother"],
         "other",
         true,
         ["external", "https://danie-glr.github.io/ultrahill/"],
     ),
        
-    bk: new Application(
-        ["bk", "banjo", "Banjo-Kazooie"],
+    banjo: new Application(
+        ["banjo", "Banjo-Kazooie", "Banjo-Kazooie"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=bk"],
     ),
 
-    cbfd: new Application(
-        ["cbfd", "conker", "Conker's Bad Fur Day"],
+    conker: new Application(
+        ["conker", "Conker", "Conker's Bad Fur Day"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=cbfd"],
     ),
 
-    dk: new Application(
-        ["dk", "donkey kong", "Donkey Kong 64"],
+    dk64: new Application(
+        ["dk64", "DK64", "Donkey Kong 64"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=dk"],
     ),
 
-      dkr: new Application(
-        ["dkr", "Diddy kong racing", "Diddy Kong Racing"],
+    dkRacing: new Application(
+        ["dkRacing", "Diddy Racing", "Diddy Kong Racing"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=dkr"],
@@ -289,12 +289,14 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=mp3"],
     ),
 
-    ys: new Application(
-        ["ys", "YS", "Yoshi story (stupid ass dino)"],
+    yoshi: new Application(
+        ["yoshi", "Yoshi Story", "Yoshi story (stupid ass dino)"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=ys"],
     ),
+
+    
     /* INTERNAL-GAMES (Repository) */
     bombs: new Application(
         ["bombs", "Wigsplosionator"],
