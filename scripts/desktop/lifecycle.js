@@ -94,7 +94,32 @@ function load() {
 
         document.body.style.backgroundImage = "url(assets/images/background/desktop.jpg)";
         if (window.desktopFill) {
-            window.desktopFill("load", JSON.parse(localStorage.getItem("layout")));
+            let parsedLayout = null;
+            const rawLayout = localStorage.getItem("layout");
+
+            if (rawLayout) {
+                try {
+                    parsedLayout = JSON.parse(rawLayout);
+                } catch (error) {
+                    console.warn('[Lifecycle] Invalid layout JSON in localStorage, rebuilding base layout:', error);
+                    parsedLayout = null;
+                }
+            }
+
+            window.desktopFill("load", parsedLayout);
+
+            // Keep local storage valid after fallback/migration inside desktopFill.
+            if (!rawLayout) {
+                try {
+                    const freshLayout = localStorage.getItem("layout");
+                    if (!freshLayout) {
+                        const baseLayout = window.desktopFill("base");
+                        localStorage.setItem("layout", JSON.stringify(baseLayout));
+                    }
+                } catch (error) {
+                    console.warn('[Lifecycle] Failed to ensure base layout after auto-login:', error);
+                }
+            }
         }
         document.getElementsByTagName("main")[0].style.opacity = 1;
         document.getElementsByTagName("footer")[0].style.opacity = 1;
