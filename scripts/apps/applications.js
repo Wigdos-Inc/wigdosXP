@@ -222,7 +222,7 @@ const applications = {
         ["sm64", "Mario 64", "Super Mario 64"],
         "other",
         true, 
-        ["external", "https://danie-glr.github.io/wigdos_mayro/sm64/mario.html"],
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/sm64/"],
         true
     ),
 
