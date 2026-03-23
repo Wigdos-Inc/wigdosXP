@@ -219,6 +219,15 @@ async function waitForFirebaseReady(timeoutMs = 10000) {
 let liveCommentsSyncRegistered = false;
 let liveCommentsReloadTimer = null;
 
+function clearVideoLoadErrorOverlay() {
+    const videoScreen = document.getElementById('videoScreen');
+    if (!videoScreen) return;
+
+    videoScreen.querySelectorAll('.video-load-error-overlay').forEach((overlay) => {
+        overlay.remove();
+    });
+}
+
 function shouldRefreshCommentsFromPayload(payload) {
     if (!payload || payload.type !== 'wigtube-comments-changed') return false;
 
@@ -380,6 +389,7 @@ async function initializePlayer() {
 
 async function loadVideo(videoId) {
     debugLog('loadVideo: Starting for', videoId);
+    clearVideoLoadErrorOverlay();
     let video = videoData[videoId];
     
     // If video not found in local data, try to fetch from WigTubeDB
@@ -1076,6 +1086,8 @@ function stopVideo() {
         videoElement.remove();
         videoElement = null;
     }
+
+    clearVideoLoadErrorOverlay();
 }
 
 function createVideoElement() {
@@ -1083,6 +1095,7 @@ function createVideoElement() {
     if (!currentVideo.videoFile) return;
     
     const videoScreen = document.getElementById('videoScreen');
+    clearVideoLoadErrorOverlay();
     
     // If video element already exists, don't create a new one
     if (videoElement) {
@@ -1121,6 +1134,7 @@ function createVideoElement() {
         
         // Show error message
         const errorMsg = document.createElement('div');
+        errorMsg.className = 'video-load-error-overlay';
         errorMsg.style.cssText = `
             position: absolute;
             top: 50%;

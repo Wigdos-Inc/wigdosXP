@@ -83,8 +83,14 @@ class WigCord {
         // Asset base path (relative to wigcord.html)
         ASSET_BASE: '../../../assets/images/icons/wigcord',
 
-        // Emojis for picker — grouped for future category support
-        EMOJIS: [
+        // Notification ping sound (user-provided file)
+        NOTIFICATION_SOUND_SRC: '../../../assets/audio/misc/Reverse Piano Sample - Piano Playing Backwards Effect (mp3cut.net).mp3',
+
+        // Emoji data URL — loaded at runtime from unicode-emoji-json
+        EMOJI_DATA_URL: 'https://cdn.jsdelivr.net/npm/unicode-emoji-json@0.6.0/data-by-group.json',
+
+        // Fallback emojis if CDN fails
+        EMOJIS_FALLBACK: [
             '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇',
             '🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚',
             '😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩',
@@ -105,6 +111,25 @@ class WigCord {
             '💢','💨','💦','🎉','🎊','🎈','🎁','🎂','🍰','🍕',
             '🍔','🍟','🌭','🌮','🌯','🍣','🍦','🍩','🍪','🎲',
         ],
+
+        // Emoji category icons for tab buttons
+        EMOJI_CATEGORY_ICONS: {
+            'Smileys & Emotion': '😀',
+            'People & Body': '👋',
+            'Animals & Nature': '🐱',
+            'Food & Drink': '🍔',
+            'Travel & Places': '✈️',
+            'Activities': '⚽',
+            'Objects': '💡',
+            'Symbols': '❤️',
+            'Flags': '🏁',
+            'Component': '🔧',
+        },
+
+        // Max image upload size (pixels) and quality
+        IMAGE_MAX_WIDTH: 800,
+        IMAGE_MAX_HEIGHT: 800,
+        IMAGE_QUALITY: 0.7,
     };
 
     // =========================================================================
@@ -151,8 +176,28 @@ class WigCord {
         // Reply state
         this._replyingTo = null; // { id, author, content }
 
+        // Image upload state
+        this._pendingImage = null; // data URL of staged image
+
+        // Emoji data (loaded from CDN)
+        this._emojiData = null; // { group: [{ emoji, name }, ...] }
+
         // Notification sound
         this._notifSound = null;
+
+        // Notification/unread state
+        this._channelMentionCounts = {};      // { "serverId__channelId": number }
+        this._serverMentionUnsubs = {};       // { "serverId__channelId": unsubscribeFn }
+        this._serverLastMessageIds = {};      // { "serverId__channelId": lastMessageId }
+        this._dmUnreadCounts = {};            // { username: number }
+        this._dmNotifUnsubs = {};             // { username: unsubscribeFn }
+        this._dmLastMessageIds = {};          // { username: lastMessageId }
+
+        // Mention picker state
+        this._mentionPickerEl = null;
+        this._mentionCandidates = [];
+        this._mentionSelectedIndex = -1;
+        this._mentionAnchor = null; // { start, end, query }
 
         // Spotify polling timer (profile viewer)
         this._spotifyPollTimer = null;
@@ -253,6 +298,7 @@ class WigCord {
 
         // Load servers from Firebase
         await this._loadServers();
+        this._refreshServerMentionWatchers();
 
         // Start friends listener
         this._startFriendsListener();
@@ -746,6 +792,7 @@ class WigCord {
             this._loadServersFromLocal();
         }
         this._renderServers();
+        this._refreshServerMentionWatchers();
     }
 
     _getLocalServers() {
@@ -844,6 +891,7 @@ class WigCord {
         this.servers.push(serverData);
         this._cacheServersLocally();
         this._renderServers();
+        this._refreshServerMentionWatchers();
         this.closeAddServerModal();
         this.switchToServer(serverData.id);
 
@@ -867,6 +915,7 @@ class WigCord {
         this.servers = this.servers.filter(s => s.id !== serverId);
         this._cacheServersLocally();
         this._renderServers();
+        this._refreshServerMentionWatchers();
         this.switchToDMView();
     }
 
@@ -909,12 +958,16 @@ class WigCord {
             el.className = 'server-item' + (this.currentServer === server.id ? ' active' : '');
             el.dataset.serverId = server.id;
             el.title = server.name;
+            const mentionCount = this._getServerMentionCount(server.id);
+            const badgeHtml = mentionCount > 0
+                ? `<span class="server-notification-badge">${this._formatBadgeCount(mentionCount)}</span>`
+                : '';
 
             if (server.icon && server.icon.startsWith && server.icon.startsWith('data:image/')) {
-                el.innerHTML = `<img class="server-icon-img" src="${server.icon}" alt="${this._esc(server.name)}">`;
+                el.innerHTML = `<img class="server-icon-img" src="${server.icon}" alt="${this._esc(server.name)}">${badgeHtml}`;
             } else {
                 const txt = (server.icon && server.icon.length <= 2) ? server.icon : (server.name || '?').substring(0,2).toUpperCase();
-                el.innerHTML = `<div class="server-icon server-icon-text">${this._esc(txt)}</div>`;
+                el.innerHTML = `<div class="server-icon server-icon-text">${this._esc(txt)}</div>${badgeHtml}`;
             }
 
             el.addEventListener('click', () => this.switchToServer(server.id));
@@ -924,6 +977,8 @@ class WigCord {
             });
             serverList.appendChild(el);
         });
+
+        this._updateHomeServerBadge();
     }
 
     // =========================================================================
@@ -1015,6 +1070,7 @@ class WigCord {
         }
 
         this.currentChannel = channelId;
+        this._clearChannelMention(this.currentServer, channelId);
 
         // Update active channel in sidebar
         document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
@@ -1080,6 +1136,210 @@ class WigCord {
         return `${serverId}__${channelId}`;
     }
 
+    _escapeRegex(text) {
+        return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    _hasUserMention(messageData) {
+        if (!messageData || messageData.isSystem) return false;
+        const rawContent = String(messageData.content || messageData.text || '');
+        const uname = String(this.username || '').trim();
+        if (!uname) return false;
+        const mentionRe = new RegExp(`(^|[^A-Za-z0-9_])@${this._escapeRegex(uname)}(?![A-Za-z0-9_])`, 'i');
+        const isMention = mentionRe.test(rawContent);
+        const isReplyToMe = messageData.replyTo && String(messageData.replyTo.author || '').toLowerCase() === uname.toLowerCase();
+        return isMention || isReplyToMe;
+    }
+
+    _isMentionableUsername(username) {
+        const target = String(username || '').trim().toLowerCase();
+        if (!target) return false;
+
+        if (this.currentView === 'server' && this.currentServer) {
+            const server = this.servers.find(s => s.id === this.currentServer);
+            const memberNames = Object.keys((server && server.members) || {});
+            return memberNames.some(name => String(name || '').toLowerCase() === target);
+        }
+
+        if (this.currentView === 'dm-chat') {
+            const me = String(this.username || '').toLowerCase();
+            const partner = String(this.currentDmPartner || '').toLowerCase();
+            return target === me || target === partner;
+        }
+
+        // Fallback: still highlight @tokens outside specific chat contexts.
+        return true;
+    }
+
+    _highlightMentionsInEscapedHtml(escapedHtml) {
+        if (!escapedHtml) return escapedHtml;
+        return escapedHtml.replace(/(^|[^A-Za-z0-9_])@([A-Za-z0-9_]+)/g, (full, prefix, user) => {
+            if (!this._isMentionableUsername(user)) return full;
+            return `${prefix}<span class="message-mention">@${this._esc(user)}</span>`;
+        });
+    }
+
+    _formatBadgeCount(n) {
+        const count = Number(n) || 0;
+        return count > 99 ? '99+' : String(count);
+    }
+
+    _getServerMentionCount(serverId) {
+        let total = 0;
+        const prefix = `${serverId}__`;
+        Object.entries(this._channelMentionCounts).forEach(([channelKey, count]) => {
+            if (channelKey.startsWith(prefix)) total += Number(count) || 0;
+        });
+        return total;
+    }
+
+    _getTotalDmUnreadCount() {
+        return Object.values(this._dmUnreadCounts).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    }
+
+    _incrementChannelMention(serverId, channelId, amount = 1) {
+        if (!serverId || !channelId || amount <= 0) return;
+        const key = this._getChannelKey(serverId, channelId);
+        this._channelMentionCounts[key] = (this._channelMentionCounts[key] || 0) + amount;
+        this._renderServers();
+    }
+
+    _clearChannelMention(serverId, channelId) {
+        if (!serverId || !channelId) return;
+        const key = this._getChannelKey(serverId, channelId);
+        if (this._channelMentionCounts[key]) {
+            delete this._channelMentionCounts[key];
+            this._renderServers();
+        }
+    }
+
+    _incrementDmUnread(username, amount = 1) {
+        if (!username || amount <= 0) return;
+        this._dmUnreadCounts[username] = (this._dmUnreadCounts[username] || 0) + amount;
+        this._renderServers();
+        this._renderDMList();
+    }
+
+    _clearDmUnread(username) {
+        if (!username) return;
+        if (this._dmUnreadCounts[username]) {
+            delete this._dmUnreadCounts[username];
+            this._renderServers();
+            this._renderDMList();
+        }
+    }
+
+    _updateHomeServerBadge() {
+        const homeEl = document.getElementById('home-server');
+        if (!homeEl) return;
+
+        const existing = homeEl.querySelector('.server-notification-badge');
+        if (existing) existing.remove();
+
+        const dmUnread = this._getTotalDmUnreadCount();
+        if (dmUnread > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'server-notification-badge';
+            badge.textContent = this._formatBadgeCount(dmUnread);
+            homeEl.appendChild(badge);
+        }
+    }
+
+    _clearServerMentionWatchers() {
+        Object.values(this._serverMentionUnsubs).forEach(unsub => {
+            try { if (typeof unsub === 'function') unsub(); } catch(e) {}
+        });
+        this._serverMentionUnsubs = {};
+        this._serverLastMessageIds = {};
+    }
+
+    _refreshServerMentionWatchers() {
+        this._clearServerMentionWatchers();
+        if (!this._online || !this._fb || !Array.isArray(this.servers)) return;
+
+        const { collection, query, orderBy, limit, onSnapshot } = this._fb;
+
+        this.servers.forEach(server => {
+            const channels = (server.channels || []).filter(ch => ch.type === 'text');
+            channels.forEach(channel => {
+                const channelKey = this._getChannelKey(server.id, channel.id);
+                const colRef = collection(this._fb.db, this._cols.messages, channelKey, 'msgs');
+                const q = query(colRef, orderBy('timestamp', 'desc'), limit(1));
+
+                this._serverMentionUnsubs[channelKey] = onSnapshot(q, (snapshot) => {
+                    if (snapshot.empty) return;
+
+                    const latest = snapshot.docs[0];
+                    const latestId = latest.id;
+                    const previousId = this._serverLastMessageIds[channelKey];
+                    this._serverLastMessageIds[channelKey] = latestId;
+
+                    // Skip initial snapshot so old messages do not create false unread counters.
+                    if (!previousId || previousId === latestId) return;
+
+                    const data = latest.data();
+                    if (!data || data.author === this.username || data.isSystem) return;
+                    if (!this._hasUserMention(data)) return;
+
+                    const isCurrentChannel = this.currentView === 'server'
+                        && this.currentServer === server.id
+                        && this.currentChannel === channel.id;
+                    if (isCurrentChannel) return;
+
+                    this._incrementChannelMention(server.id, channel.id);
+                    this._playNotificationSound();
+                }, err => {
+                    console.error('[WigCord] Mention watcher error:', err);
+                });
+            });
+        });
+    }
+
+    _clearDmNotificationWatchers() {
+        Object.values(this._dmNotifUnsubs).forEach(unsub => {
+            try { if (typeof unsub === 'function') unsub(); } catch(e) {}
+        });
+        this._dmNotifUnsubs = {};
+        this._dmLastMessageIds = {};
+    }
+
+    _refreshDmNotificationWatchers() {
+        this._clearDmNotificationWatchers();
+        if (!this._online || this.username === 'guest' || !this._fb) return;
+
+        const { collection, query, orderBy, limit, onSnapshot } = this._fb;
+        const acceptedFriends = Object.entries(this.friends || {}).filter(([, data]) => data.status === 'accepted');
+
+        acceptedFriends.forEach(([friendName]) => {
+            const dmId = this._getDmId(this.username, friendName);
+            const colRef = collection(this._fb.db, this._cols.dms, dmId, 'messages');
+            const q = query(colRef, orderBy('timestamp', 'desc'), limit(1));
+
+            this._dmNotifUnsubs[friendName] = onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) return;
+
+                const latest = snapshot.docs[0];
+                const latestId = latest.id;
+                const previousId = this._dmLastMessageIds[friendName];
+                this._dmLastMessageIds[friendName] = latestId;
+
+                // Skip initial snapshot so old DMs do not create false unread counters.
+                if (!previousId || previousId === latestId) return;
+
+                const data = latest.data();
+                if (!data || data.author === this.username || data.isSystem) return;
+
+                const isCurrentDm = this.currentView === 'dm-chat' && this.currentDmPartner === friendName;
+                if (isCurrentDm) return;
+
+                this._incrementDmUnread(friendName);
+                this._playNotificationSound();
+            }, err => {
+                console.error('[WigCord] DM watcher error:', err);
+            });
+        });
+    }
+
     _unsubMessages() {
         if (this._msgUnsub) { this._msgUnsub(); this._msgUnsub = null; }
         if (this._dmUnsub) { this._dmUnsub(); this._dmUnsub = null; }
@@ -1120,10 +1380,11 @@ class WigCord {
                     if (change.type === 'added') {
                         const d = change.doc.data();
                         if (d.author !== this.username && !d.isSystem) {
-                            // Notify on @mention or reply to this user
-                            const isMention = (d.content || '').includes(`@${this.username}`);
-                            const isReplyToMe = d.replyTo && d.replyTo.author === this.username;
-                            if (isMention || isReplyToMe) {
+                            const isCurrentChannel = this.currentView === 'server'
+                                && this.currentServer === serverId
+                                && this.currentChannel === channelId;
+                            if (!isCurrentChannel && this._hasUserMention(d)) {
+                                this._incrementChannelMention(serverId, channelId);
                                 this._playNotificationSound();
                             }
                         }
@@ -1244,14 +1505,15 @@ class WigCord {
             avatarHTML = `<div class="message-avatar msg-avatar-letter" id="${avatarId}">${letter}</div>`;
         }
 
-        let messageHTML = this._esc(msg.content || msg.text || '');
         const rawContent = msg.content || msg.text || '';
+        const contentWithoutInviteLinks = this._stripInviteLinksFromText(rawContent);
+        let messageHTML = this._esc(contentWithoutInviteLinks);
 
         // Detect GIF/media URLs (including Giphy media links)
         const gifUrlPattern = /(https?:\/\/(?:[^\s]+\.gif(?:\?[^\s]*)?|media\d*\.giphy\.com\/[^\s]+|i\.giphy\.com\/[^\s]+))/gi;
-        const gifUrls = rawContent.match(gifUrlPattern);
+        const gifUrls = contentWithoutInviteLinks.match(gifUrlPattern);
         if (gifUrls) {
-            messageHTML = this._esc(rawContent.replace(gifUrlPattern, '').trim());
+            messageHTML = this._esc(contentWithoutInviteLinks.replace(gifUrlPattern, '').trim());
             gifUrls.forEach(url => {
                 messageHTML += `<img src="${this._esc(url)}" class="message-gif" alt="GIF">`;
             });
@@ -1261,7 +1523,7 @@ class WigCord {
         const ytPattern = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})[^\s]*/gi;
         let ytMatch;
         const ytEmbeds = [];
-        while ((ytMatch = ytPattern.exec(rawContent)) !== null) {
+        while ((ytMatch = ytPattern.exec(contentWithoutInviteLinks)) !== null) {
             const videoId = ytMatch[1];
             const ytUrl = `https://www.youtube.com/watch?v=${this._esc(videoId)}`;
             messageHTML = messageHTML.replace(this._esc(ytMatch[0]), `<a href="${this._esc(ytMatch[0])}" class="message-link" target="_blank" rel="noopener noreferrer">${this._esc(ytMatch[0])}</a>`);
@@ -1282,7 +1544,7 @@ class WigCord {
         const wtPattern = /(?:https?:\/\/[^\s]*)?wigtube-player\.html\?v=([a-zA-Z0-9_-]+)[^\s]*/gi;
         let wtMatch;
         const wtEmbeds = [];
-        while ((wtMatch = wtPattern.exec(rawContent)) !== null) {
+        while ((wtMatch = wtPattern.exec(contentWithoutInviteLinks)) !== null) {
             const videoId = wtMatch[1];
             messageHTML = messageHTML.replace(this._esc(wtMatch[0]), `<a href="${this._esc(wtMatch[0])}" class="message-link" target="_blank" rel="noopener noreferrer">${this._esc(wtMatch[0])}</a>`);
             wtEmbeds.push(`<div class="message-embed wigtube-embed">
@@ -1311,9 +1573,16 @@ class WigCord {
         `);
 
         // Linkify any remaining URLs in message text (not just YouTube/WigTube)
+        messageHTML = this._highlightMentionsInEscapedHtml(messageHTML);
         messageHTML = this._linkifyEscapedHtml(messageHTML);
 
         messageHTML = this._parseEmojis(messageHTML);
+
+        // Render attached image if present
+        let imageHTML = '';
+        if (msg.imageUrl) {
+            imageHTML = `<img src="${this._esc(msg.imageUrl)}" class="message-image" alt="Image" loading="lazy">`;
+        }
 
         // Append video embeds after the message text
         const embedsHTML = [...ytEmbeds, ...wtEmbeds, ...inviteEmbeds].join('');
@@ -1341,6 +1610,7 @@ class WigCord {
                         ${actionsHTML}
                     </div>
                     <div class="message-text">${messageHTML}</div>
+                    ${imageHTML}
                     ${embedsHTML}
                 </div>
             </div>
@@ -1478,25 +1748,15 @@ class WigCord {
     _playNotificationSound() {
         try {
             if (!this._notifSound) {
-                // Generate a simple Discord-like notification blip using AudioContext
-                this._notifSound = { play: () => {
-                    try {
-                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(880, ctx.currentTime);
-                        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.08);
-                        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                        osc.start(ctx.currentTime);
-                        osc.stop(ctx.currentTime + 0.2);
-                    } catch(e) {}
-                }};
+                this._notifSound = new Audio(encodeURI(this._c.NOTIFICATION_SOUND_SRC));
+                this._notifSound.preload = 'auto';
+                this._notifSound.volume = 1.0;
             }
-            this._notifSound.play();
+
+            // Clone so fast consecutive pings are all audible.
+            const sound = this._notifSound.cloneNode(true);
+            sound.volume = this._notifSound.volume;
+            sound.play().catch(() => {});
         } catch(e) {}
     }
 
@@ -1519,11 +1779,13 @@ class WigCord {
     async sendMessage() {
         const input = document.getElementById('message-input');
         const text = input.value.trim();
-        if (!text) return;
+        const hasImage = !!this._pendingImage;
+        if (!text && !hasImage) return;
 
         if (this.currentView === 'dm-chat' && this.currentDmPartner) {
             await this._sendDMMessage(text);
             input.value = '';
+            this._clearPendingImage();
             return;
         }
 
@@ -1544,6 +1806,12 @@ class WigCord {
             timestamp: Date.now(),
             isSystem: false
         };
+
+        // Attach image if pending
+        if (this._pendingImage) {
+            msgData.imageUrl = this._pendingImage;
+            this._clearPendingImage();
+        }
 
         // Attach reply reference if replying
         if (this._replyingTo) {
@@ -1735,7 +2003,10 @@ class WigCord {
     // =========================================================================
 
     _startFriendsListener() {
-        if (!this._online || this.username === 'guest') return;
+        if (!this._online || this.username === 'guest') {
+            this._clearDmNotificationWatchers();
+            return;
+        }
 
         const { doc, onSnapshot } = this._fb;
         const friendsRef = doc(this._fb.db, this._cols.friends, this.username);
@@ -1751,6 +2022,7 @@ class WigCord {
                 this._renderFriendsTab();
             }
             this._renderDMList();
+            this._refreshDmNotificationWatchers();
         }, err => {
             console.error('[WigCord] Friends listener error:', err);
         });
@@ -2147,12 +2419,14 @@ class WigCord {
         dmList.innerHTML = '';
 
         acceptedFriends.forEach(([username]) => {
+            const unread = this._dmUnreadCounts[username] || 0;
             const el = document.createElement('div');
-            el.className = 'dm-item';
+            el.className = 'dm-item' + (this.currentView === 'dm-chat' && this.currentDmPartner === username ? ' active' : '');
             el.dataset.username = username;
             el.innerHTML = `
                 <div class="dm-item-avatar">${username.charAt(0).toUpperCase()}</div>
                 <div class="dm-item-name">${this._esc(username)}</div>
+                ${unread > 0 ? `<span class="dm-unread-badge">${this._formatBadgeCount(unread)}</span>` : ''}
             `;
             el.addEventListener('click', () => this._openDMChat(username));
             dmList.appendChild(el);
@@ -2173,6 +2447,7 @@ class WigCord {
         this.currentDmPartner = username;
         this.currentServer = null;
         this.currentChannel = null;
+        this._clearDmUnread(username);
 
         document.querySelectorAll('.server-item, .server-home').forEach(el => el.classList.remove('active'));
         document.getElementById('home-server').classList.add('active');
@@ -2237,7 +2512,11 @@ class WigCord {
                     if (change.type === 'added') {
                         const d = change.doc.data();
                         if (d.author !== this.username && !d.isSystem) {
-                            this._playNotificationSound();
+                            const isCurrentDm = this.currentView === 'dm-chat' && this.currentDmPartner === username;
+                            if (!isCurrentDm) {
+                                this._incrementDmUnread(username);
+                                this._playNotificationSound();
+                            }
                         }
                     }
                 });
@@ -2334,6 +2613,12 @@ class WigCord {
             timestamp: Date.now(),
             isSystem: false
         };
+
+        // Attach image if pending
+        if (this._pendingImage) {
+            dmMsgData.imageUrl = this._pendingImage;
+            this._clearPendingImage();
+        }
 
         // Attach reply reference if replying
         if (this._replyingTo) {
@@ -2940,8 +3225,16 @@ class WigCord {
 
         // Message sending
         document.getElementById('message-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.sendMessage();
+            if (e.key === 'Enter') {
+                if (this._isMentionPickerOpen() && this._applySelectedMention()) {
+                    e.preventDefault();
+                    return;
+                }
+                this.sendMessage();
+            }
         });
+
+        this._setupMentionPicker();
 
         // Reply bar close
         document.getElementById('reply-bar-close').addEventListener('click', () => this._clearReply());
@@ -2989,6 +3282,7 @@ class WigCord {
         // Emoji and GIF pickers
         this._setupEmojiPicker();
         this._setupGifPicker();
+        this._setupImageUpload();
 
         // Profile editor
         document.getElementById('btn-user-settings').addEventListener('click', () => this._openProfileEditor());
@@ -3623,6 +3917,23 @@ class WigCord {
         return Array.from(set);
     }
 
+    _stripInviteLinksFromText(text) {
+        if (!text) return '';
+
+        const cleaned = String(text)
+            // Full URL with invite query (?invite=CODE)
+            .replace(/https?:\/\/[^\s]*[?&]invite=[A-Za-z0-9_-]+[^\s]*/gi, ' ')
+            // Full URL with invite path (/invite/CODE)
+            .replace(/https?:\/\/[^\s]*\/invite\/[A-Za-z0-9_-]+[^\s]*/gi, ' ')
+            // Relative invite links
+            .replace(/(^|\s)(\/invite\/[A-Za-z0-9_-]+[^\s]*)/gi, '$1')
+            .replace(/(^|\s)(\?invite=[A-Za-z0-9_-]+[^\s]*)/gi, '$1')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+
+        return cleaned;
+    }
+
     async _hydrateInviteEmbed(embedEl, code) {
         if (!embedEl || !code) return;
 
@@ -3817,27 +4128,286 @@ class WigCord {
     }
 
     // =========================================================================
+    // Image Upload
+    // =========================================================================
+
+    _setupImageUpload() {
+        const attachBtn = document.getElementById('attach-btn');
+        const fileInput = document.getElementById('image-upload-input');
+        const preview = document.getElementById('image-upload-preview');
+        const previewImg = document.getElementById('image-preview-img');
+        const removeBtn = document.getElementById('image-preview-remove');
+
+        attachBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                fileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const compressed = await this._compressImage(
+                    ev.target.result,
+                    this._c.IMAGE_MAX_WIDTH,
+                    this._c.IMAGE_MAX_HEIGHT,
+                    this._c.IMAGE_QUALITY
+                );
+                this._pendingImage = compressed;
+                previewImg.src = compressed;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
+        });
+
+        removeBtn.addEventListener('click', () => {
+            this._pendingImage = null;
+            previewImg.src = '';
+            preview.style.display = 'none';
+        });
+    }
+
+    _clearPendingImage() {
+        this._pendingImage = null;
+        const preview = document.getElementById('image-upload-preview');
+        const previewImg = document.getElementById('image-preview-img');
+        if (preview) preview.style.display = 'none';
+        if (previewImg) previewImg.src = '';
+    }
+
+    // =========================================================================
+    // Mention Picker
+    // =========================================================================
+
+    _setupMentionPicker() {
+        const input = document.getElementById('message-input');
+        const area = document.getElementById('message-input-area');
+        if (!input || !area) return;
+
+        let picker = document.getElementById('mention-picker');
+        if (!picker) {
+            picker = document.createElement('div');
+            picker.id = 'mention-picker';
+            picker.className = 'mention-picker';
+            picker.style.display = 'none';
+            area.appendChild(picker);
+        }
+        this._mentionPickerEl = picker;
+
+        input.addEventListener('input', () => this._updateMentionPicker());
+        input.addEventListener('click', () => this._updateMentionPicker());
+
+        input.addEventListener('keydown', (e) => {
+            if (!this._isMentionPickerOpen()) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this._moveMentionSelection(1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this._moveMentionSelection(-1);
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                if (this._applySelectedMention()) {
+                    e.preventDefault();
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                this._hideMentionPicker();
+            }
+        });
+
+        picker.addEventListener('mousedown', (e) => {
+            const item = e.target.closest('.mention-item');
+            if (!item) return;
+            e.preventDefault();
+            const idx = Number(item.dataset.index);
+            if (!Number.isNaN(idx)) {
+                this._mentionSelectedIndex = idx;
+                this._applySelectedMention();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!this._isMentionPickerOpen()) return;
+            if (e.target === input || picker.contains(e.target)) return;
+            this._hideMentionPicker();
+        });
+    }
+
+    _isMentionPickerOpen() {
+        return !!(this._mentionPickerEl && this._mentionPickerEl.style.display !== 'none');
+    }
+
+    _getMentionCandidates(queryText) {
+        const query = String(queryText || '').toLowerCase();
+        const candidates = [];
+
+        if (this.currentView === 'server' && this.currentServer) {
+            const server = this.servers.find(s => s.id === this.currentServer);
+            const members = Object.keys((server && server.members) || {});
+            members.forEach(username => {
+                if (!username) return;
+                const profile = this.friendProfiles[username] || {};
+                const displayName = profile.displayName || username;
+                candidates.push({
+                    username,
+                    displayName,
+                    avatarUrl: profile.pfpUrl || null
+                });
+            });
+        } else if (this.currentView === 'dm-chat' && this.currentDmPartner) {
+            const username = this.currentDmPartner;
+            const profile = this.friendProfiles[username] || {};
+            candidates.push({
+                username,
+                displayName: profile.displayName || username,
+                avatarUrl: profile.pfpUrl || null
+            });
+        }
+
+        const filtered = candidates.filter(c => {
+            const uname = String(c.username || '').toLowerCase();
+            const dname = String(c.displayName || '').toLowerCase();
+            if (!query) return true;
+            return uname.includes(query) || dname.includes(query);
+        });
+
+        filtered.sort((a, b) => {
+            const au = String(a.username || '').toLowerCase();
+            const bu = String(b.username || '').toLowerCase();
+            const aStarts = query ? au.startsWith(query) : false;
+            const bStarts = query ? bu.startsWith(query) : false;
+            if (aStarts !== bStarts) return aStarts ? -1 : 1;
+            return au.localeCompare(bu);
+        });
+
+        const unique = [];
+        const seen = new Set();
+        filtered.forEach(c => {
+            const key = String(c.username || '').toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            unique.push(c);
+        });
+        return unique.slice(0, 8);
+    }
+
+    _updateMentionPicker() {
+        const input = document.getElementById('message-input');
+        if (!input || input.disabled) {
+            this._hideMentionPicker();
+            return;
+        }
+
+        const caret = input.selectionStart;
+        const left = input.value.slice(0, caret);
+        const match = left.match(/(^|\s)@([A-Za-z0-9_]*)$/);
+        if (!match) {
+            this._hideMentionPicker();
+            return;
+        }
+
+        const query = match[2] || '';
+        const mentionStart = caret - query.length - 1;
+        const candidates = this._getMentionCandidates(query);
+        if (!candidates.length) {
+            this._hideMentionPicker();
+            return;
+        }
+
+        this._mentionCandidates = candidates;
+        this._mentionAnchor = { start: mentionStart, end: caret, query };
+        if (this._mentionSelectedIndex < 0 || this._mentionSelectedIndex >= candidates.length) {
+            this._mentionSelectedIndex = 0;
+        }
+        this._renderMentionPicker();
+    }
+
+    _renderMentionPicker() {
+        if (!this._mentionPickerEl) return;
+        const html = this._mentionCandidates.map((candidate, idx) => {
+            const selected = idx === this._mentionSelectedIndex ? ' selected' : '';
+            const avatar = candidate.avatarUrl
+                ? `<img src="${this._esc(candidate.avatarUrl)}" class="mention-avatar-img" alt="">`
+                : this._esc((candidate.displayName || candidate.username || '?').charAt(0).toUpperCase());
+            return `
+                <button type="button" class="mention-item${selected}" data-index="${idx}">
+                    <span class="mention-avatar">${avatar}</span>
+                    <span class="mention-meta">
+                        <span class="mention-name">${this._esc(candidate.displayName || candidate.username)}</span>
+                        <span class="mention-username">@${this._esc(candidate.username)}</span>
+                    </span>
+                </button>
+            `;
+        }).join('');
+
+        this._mentionPickerEl.innerHTML = html;
+        this._mentionPickerEl.style.display = 'block';
+    }
+
+    _moveMentionSelection(delta) {
+        const len = this._mentionCandidates.length;
+        if (!len) return;
+        const next = (this._mentionSelectedIndex + delta + len) % len;
+        this._mentionSelectedIndex = next;
+        this._renderMentionPicker();
+    }
+
+    _applySelectedMention() {
+        const input = document.getElementById('message-input');
+        if (!input || !this._mentionAnchor || !this._mentionCandidates.length) return false;
+
+        const idx = this._mentionSelectedIndex >= 0 ? this._mentionSelectedIndex : 0;
+        const chosen = this._mentionCandidates[idx];
+        if (!chosen || !chosen.username) return false;
+
+        const before = input.value.slice(0, this._mentionAnchor.start);
+        const after = input.value.slice(this._mentionAnchor.end);
+        // Invisible separator keeps mentions detectable without adding a visible space.
+        const mentionText = `@${chosen.username}\u200B`;
+        const nextValue = before + mentionText + after;
+        const nextCaret = before.length + mentionText.length;
+
+        input.value = nextValue;
+        input.focus();
+        input.setSelectionRange(nextCaret, nextCaret);
+
+        this._hideMentionPicker();
+        return true;
+    }
+
+    _hideMentionPicker() {
+        if (!this._mentionPickerEl) return;
+        this._mentionPickerEl.style.display = 'none';
+        this._mentionPickerEl.innerHTML = '';
+        this._mentionCandidates = [];
+        this._mentionSelectedIndex = -1;
+        this._mentionAnchor = null;
+    }
+
+    // =========================================================================
     // Emoji Picker
     // =========================================================================
 
-    _setupEmojiPicker() {
+    async _setupEmojiPicker() {
         const emojiBtn = document.getElementById('emoji-btn');
         const emojiPicker = document.getElementById('emoji-picker');
         const emojiGrid = document.getElementById('emoji-grid');
+        const emojiSearch = document.getElementById('emoji-search');
+        const emojiClose = document.getElementById('emoji-close');
+        const emojiCategories = document.getElementById('emoji-categories');
 
-        const emojis = this._c.EMOJIS;
+        // Load emoji data from CDN
+        await this._loadEmojiData();
 
-        emojis.forEach(emoji => {
-            const el = document.createElement('div');
-            el.className = 'emoji-item';
-            el.textContent = emoji;
-            el.addEventListener('click', () => {
-                this._insertEmoji(emoji);
-                emojiPicker.style.display = 'none';
-            });
-            emojiGrid.appendChild(el);
-        });
+        // Build category tabs and grid
+        this._buildEmojiCategories(emojiCategories, emojiGrid);
+        this._renderEmojiGrid(emojiGrid, null, '');
 
+        // Toggle picker
         emojiBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isVisible = emojiPicker.style.display === 'flex';
@@ -3845,11 +4415,131 @@ class WigCord {
             emojiPicker.style.display = isVisible ? 'none' : 'flex';
         });
 
+        // Close button
+        emojiClose.addEventListener('click', () => emojiPicker.style.display = 'none');
+
+        // Search
+        let searchTimeout;
+        emojiSearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const q = e.target.value.trim().toLowerCase();
+                this._renderEmojiGrid(emojiGrid, null, q);
+                // Deselect category buttons when searching
+                emojiCategories.querySelectorAll('.emoji-category-btn').forEach(b => b.classList.remove('active'));
+            }, 200);
+        });
+
+        // Click outside closes
         document.addEventListener('click', (e) => {
             if (!emojiPicker.contains(e.target) && e.target !== emojiBtn) {
                 emojiPicker.style.display = 'none';
             }
         });
+    }
+
+    async _loadEmojiData() {
+        try {
+            const resp = await fetch(this._c.EMOJI_DATA_URL);
+            if (!resp.ok) throw new Error('Failed to fetch');
+            const data = await resp.json();
+
+            const normalized = {};
+
+            if (Array.isArray(data)) {
+                // Format like unicode-emoji-json data-by-group.json:
+                // [{ name: 'Smileys & Emotion', emojis: [...] }, ...]
+                data.forEach(groupObj => {
+                    const groupName = groupObj && groupObj.name;
+                    const emojis = groupObj && groupObj.emojis;
+                    if (!groupName || groupName === 'Component' || !Array.isArray(emojis)) return;
+
+                    normalized[groupName] = emojis
+                        .filter(e => e && typeof e.emoji === 'string')
+                        .map(e => ({
+                            emoji: e.emoji,
+                            name: e.name || e.slug || ''
+                        }));
+                });
+            } else if (data && typeof data === 'object') {
+                // Backward-compatible format:
+                // { 'Smileys & Emotion': [...], ... }
+                for (const [groupName, emojis] of Object.entries(data)) {
+                    if (groupName === 'Component' || !Array.isArray(emojis)) continue;
+
+                    normalized[groupName] = emojis
+                        .filter(e => e && typeof e.emoji === 'string')
+                        .map(e => ({
+                            emoji: e.emoji,
+                            name: e.name || e.slug || ''
+                        }));
+                }
+            }
+
+            if (Object.keys(normalized).length === 0) {
+                throw new Error('Emoji data payload did not contain any valid groups');
+            }
+
+            this._emojiData = normalized;
+        } catch(e) {
+            console.warn('[WigCord] Emoji CDN unavailable, using fallback:', e);
+            this._emojiData = {
+                'Smileys & Emotion': this._c.EMOJIS_FALLBACK.map(em => ({ emoji: em, name: '' }))
+            };
+        }
+    }
+
+    _buildEmojiCategories(container, grid) {
+        container.innerHTML = '';
+        const groups = Object.keys(this._emojiData);
+        groups.forEach((group, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'emoji-category-btn' + (i === 0 ? ' active' : '');
+            btn.textContent = this._c.EMOJI_CATEGORY_ICONS[group] || '📦';
+            btn.title = group;
+            btn.addEventListener('click', () => {
+                container.querySelectorAll('.emoji-category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('emoji-search').value = '';
+                this._renderEmojiGrid(grid, group, '');
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    _renderEmojiGrid(grid, category, searchQuery) {
+        grid.innerHTML = '';
+        const groups = category ? { [category]: this._emojiData[category] } : this._emojiData;
+
+        for (const [group, emojis] of Object.entries(groups)) {
+            const filtered = searchQuery
+                ? emojis.filter(e => e.name.toLowerCase().includes(searchQuery))
+                : emojis;
+            if (filtered.length === 0) continue;
+
+            // Group label
+            if (!category || Object.keys(groups).length > 1) {
+                const label = document.createElement('div');
+                label.className = 'emoji-grid-label';
+                label.textContent = group;
+                grid.appendChild(label);
+            }
+
+            filtered.forEach(({ emoji }) => {
+                const el = document.createElement('div');
+                el.className = 'emoji-item';
+                el.textContent = emoji;
+                el.addEventListener('click', () => {
+                    this._insertEmoji(emoji);
+                    document.getElementById('emoji-picker').style.display = 'none';
+                });
+                grid.appendChild(el);
+            });
+        }
+
+        if (grid.children.length === 0) {
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#888;font-size:11px;">No emoji found</div>';
+        }
     }
 
     _insertEmoji(emoji) {

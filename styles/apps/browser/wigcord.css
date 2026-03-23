@@ -56,6 +56,7 @@ body {
     cursor: pointer;
     transition: none;
     flex-shrink: 0;
+    position: relative;
 }
 
 .server-home:hover,
@@ -100,6 +101,25 @@ body {
     background: #808080;
     margin: 4px 0;
     flex-shrink: 0;
+}
+
+.server-notification-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #d6212b;
+    color: #ffffff;
+    border: 1px solid #ffffff;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 16px;
+    text-align: center;
+    z-index: 5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 /* ===== Channel List ===== */
@@ -215,6 +235,8 @@ body {
     cursor: pointer;
     background: #d4d0c8;
     border: 1px solid #808080;
+    position: relative;
+    padding-right: 34px;
 }
 
 .dm-item:hover {
@@ -266,6 +288,25 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.dm-unread-badge {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #d6212b;
+    color: #ffffff;
+    border: 1px solid #ffffff;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 16px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 /* ===== Invite Section ===== */
@@ -1116,6 +1157,26 @@ body {
     margin: 0;
 }
 
+.message-mention {
+    background: transparent;
+    color: #1b5fbf;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    font-weight: normal;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.message-mention:hover {
+    color: #0f4ea3;
+    text-decoration: underline;
+}
+
+.message-mention:active {
+    color: #083a80;
+}
+
 .message-gif {
     max-width: 300px;
     max-height: 300px;
@@ -1207,13 +1268,136 @@ body {
     outline: none;
 }
 
+/* ===== Mention Picker ===== */
+.mention-picker {
+    position: absolute;
+    left: 56px;
+    bottom: 52px;
+    width: 280px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #f0f0f0;
+    border: 2px outset #d4d0c8;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+    z-index: 1001;
+    padding: 4px;
+}
+
+.mention-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #808080;
+    background: #d4d0c8;
+    padding: 6px;
+    margin: 2px 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'MS Sans Serif', sans-serif;
+    font-size: 11px;
+}
+
+.mention-item:hover,
+.mention-item.selected {
+    background: #ffffff;
+    border: 2px inset #d4d0c8;
+}
+
+.mention-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid #808080;
+    background: linear-gradient(135deg, #316ac5 0%, #1e4088 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.mention-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mention-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mention-name {
+    font-weight: bold;
+    color: #000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mention-username {
+    color: #444;
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ===== Image Upload Preview ===== */
+.image-upload-preview {
+    padding: 8px 12px;
+    background: #e8e8e0;
+    border-bottom: 1px solid #c0c0c0;
+}
+
+.image-preview-content {
+    position: relative;
+    display: inline-block;
+    max-width: 200px;
+}
+
+.image-preview-content img {
+    max-width: 200px;
+    max-height: 150px;
+    border: 2px inset #d4d0c8;
+    display: block;
+}
+
+.image-preview-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    background: #c0392b;
+    color: white;
+    border: 1px solid #922b21;
+    border-radius: 0;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-preview-remove:hover {
+    background: #e74c3c;
+}
+
 /* ===== Emoji Picker ===== */
 .emoji-picker {
     position: absolute;
     bottom: 100%;
-    left: 0;
-    width: 300px;
-    height: 350px;
+    right: 0;
+    width: 350px;
+    height: 420px;
     background: #f0f0f0;
     border: 2px outset #d4d0c8;
     z-index: 1000;
@@ -1229,6 +1413,67 @@ body {
     font-weight: bold;
     font-size: 11px;
     border-bottom: 2px solid #000080;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.emoji-close {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 2px outset #d4d0c8;
+    color: black;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    line-height: 1;
+}
+
+.emoji-close:hover {
+    background: linear-gradient(to bottom, #f2efea 0%, #ddd9d4 100%);
+}
+
+.emoji-close:active {
+    border: 2px inset #d4d0c8;
+}
+
+.emoji-search {
+    margin: 8px;
+    padding: 4px 8px;
+    border: 2px inset #d4d0c8;
+    background: white;
+    font-size: 11px;
+    font-family: 'MS Sans Serif', sans-serif;
+    outline: none;
+}
+
+.emoji-categories {
+    display: flex;
+    gap: 2px;
+    padding: 0 8px 4px 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    border-bottom: 1px solid #c0c0c0;
+}
+
+.emoji-category-btn {
+    background: linear-gradient(to bottom, #ece9d8 0%, #d6d3ce 100%);
+    border: 1px outset #d4d0c8;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.emoji-category-btn:hover {
+    background: linear-gradient(to bottom, #f2efea 0%, #ddd9d4 100%);
+}
+
+.emoji-category-btn.active {
+    background: white;
+    border: 1px inset #d4d0c8;
 }
 
 .emoji-grid {
@@ -1241,10 +1486,20 @@ body {
     align-content: start;
 }
 
+.emoji-grid-label {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    font-weight: bold;
+    color: #555;
+    padding: 6px 2px 2px 2px;
+    font-family: 'MS Sans Serif', sans-serif;
+    text-transform: uppercase;
+}
+
 .emoji-item {
-    font-size: 24px;
+    font-size: 22px;
     cursor: pointer;
-    padding: 4px;
+    padding: 3px;
     text-align: center;
     background: white;
     border: 1px solid #c0c0c0;
@@ -1253,6 +1508,20 @@ body {
 .emoji-item:hover {
     background: #e0e0e0;
     border: 1px solid #808080;
+}
+
+/* ===== Message Image ===== */
+.message-image {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 2px;
+    margin-top: 4px;
+    cursor: pointer;
+    border: 1px solid #c0c0c0;
+}
+
+.message-image:hover {
+    border-color: #0078d4;
 }
 
 /* ===== GIF Picker ===== */

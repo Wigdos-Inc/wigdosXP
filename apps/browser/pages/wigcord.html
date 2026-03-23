@@ -174,8 +174,16 @@
                     </div>
                     <button class="reply-bar-close" id="reply-bar-close" title="Cancel Reply">×</button>
                 </div>
+                <!-- Image upload preview -->
+                <div class="image-upload-preview" id="image-upload-preview" style="display: none;">
+                    <div class="image-preview-content">
+                        <img id="image-preview-img" src="" alt="Preview">
+                        <button class="image-preview-remove" id="image-preview-remove" title="Remove">×</button>
+                    </div>
+                </div>
                 <div class="message-input-row">
-                    <button class="attach-btn" title="Attach File"><img src="../../../assets/images/icons/wigcord/gallery.svg" class="wc-icon-xs" alt="Attach"></button>
+                    <button class="attach-btn" id="attach-btn" title="Attach Image"><img src="../../../assets/images/icons/wigcord/gallery.svg" class="wc-icon-xs" alt="Attach"></button>
+                    <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
                     <input type="text" class="message-input" id="message-input" placeholder="Message #general">
                     <button class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
                     <button class="gif-btn" id="gif-btn" title="GIF">GIF</button>
@@ -183,7 +191,12 @@
                 
                 <!-- Emoji Picker -->
                 <div class="emoji-picker" id="emoji-picker" style="display: none;">
-                    <div class="emoji-picker-header">Emoji</div>
+                    <div class="emoji-picker-header">
+                        <span>Emoji</span>
+                        <button class="emoji-close" id="emoji-close">×</button>
+                    </div>
+                    <input type="text" class="emoji-search" id="emoji-search" placeholder="Search emoji...">
+                    <div class="emoji-categories" id="emoji-categories"></div>
                     <div class="emoji-grid" id="emoji-grid"></div>
                 </div>
 
