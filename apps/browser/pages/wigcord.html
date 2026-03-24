@@ -92,6 +92,7 @@
                 <span class="channel-icon" id="header-icon">#</span>
                 <span class="channel-title" id="current-channel">Friends</span>
                 <div class="chat-header-actions">
+                    <button class="header-action-btn" id="open-pinned-btn" title="Pinned Messages" style="display: none;">📌</button>
                     <button class="header-action-btn" id="toggle-members" title="Toggle Member List"><img src="../../../assets/images/icons/wigcord/people.svg" class="wc-icon-xs" alt="Members"></button>
                 </div>
             </div>
@@ -186,6 +187,7 @@
                     <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
                     <input type="text" class="message-input" id="message-input" placeholder="Message #general">
                     <button class="emoji-btn" id="emoji-btn" title="Emoji">😀</button>
+                    <button class="sticker-btn" id="sticker-btn" title="Stickers">🗂️</button>
                     <button class="gif-btn" id="gif-btn" title="GIF">GIF</button>
                 </div>
                 
@@ -212,6 +214,15 @@
                     </div>
                     <input type="text" class="gif-search" id="gif-search" placeholder="Search Tenor">
                     <div class="gif-grid" id="gif-grid"></div>
+                </div>
+
+                <!-- Sticker Picker -->
+                <div class="sticker-picker" id="sticker-picker" style="display: none;">
+                    <div class="sticker-picker-header">
+                        <span>Stickers</span>
+                        <button class="sticker-close" id="sticker-close">×</button>
+                    </div>
+                    <div class="sticker-grid" id="sticker-grid"></div>
                 </div>
             </div>
         </div>
@@ -295,18 +306,10 @@
             <span>Create Category</span>
             <span class="ctx-icon">📁</span>
         </div>
-        <div class="context-menu-item" id="ctx-create-event">
-            <span>Create Event</span>
-            <span class="ctx-icon">📅</span>
-        </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="ctx-notification-settings">
             <span>Notification Settings</span>
             <span class="ctx-icon">🔔</span>
-        </div>
-        <div class="context-menu-item" id="ctx-privacy-settings">
-            <span>Privacy Settings</span>
-            <span class="ctx-icon">🛡️</span>
         </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="ctx-edit-profile">
@@ -322,6 +325,11 @@
             <span>Delete Server</span>
             <span class="ctx-icon">🗑️</span>
         </div>
+    </div>
+
+    <!-- Message Context Menu -->
+    <div class="message-context-menu" id="message-context-menu" style="display: none;">
+        <div id="message-context-items"></div>
     </div>
 
     <!-- Server Settings Modal -->
@@ -362,6 +370,19 @@
                     <div class="settings-content-area" id="settings-content-area"></div>
                 </div>
                 <div class="settings-preview" id="settings-preview" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pinned Messages Modal -->
+    <div class="modal" id="pinned-messages-modal">
+        <div class="modal-content pinned-messages-content">
+            <div class="modal-header">
+                <h2>Pinned Messages</h2>
+                <button class="modal-close" id="close-pinned-messages">×</button>
+            </div>
+            <div class="modal-body pinned-messages-body" id="pinned-messages-list">
+                <p class="pinned-empty">No pinned messages in this conversation yet.</p>
             </div>
         </div>
     </div>
@@ -582,6 +603,35 @@
         </div>
     </div>
 
+    <!-- Profile Image Editor Modal -->
+    <div class="modal" id="profile-image-editor-modal">
+        <div class="modal-content profile-image-editor-content">
+            <div class="modal-header">
+                <h2 id="profile-image-editor-title">Edit Image</h2>
+                <button class="modal-close" id="close-profile-image-editor">X</button>
+            </div>
+            <div class="modal-body profile-image-editor-body">
+                <div class="profile-image-editor-stage" id="profile-image-editor-stage">
+                    <img id="profile-image-editor-preview" alt="Edit preview">
+                    <div class="profile-image-editor-focus" id="profile-image-editor-focus"></div>
+                </div>
+                <div class="profile-image-editor-controls">
+                    <button class="modal-btn secondary profile-editor-icon-btn" id="profile-image-upload-btn" title="Upload Image">🖼️</button>
+                    <button class="modal-btn secondary profile-editor-icon-btn" id="profile-image-rotate-btn" title="Rotate">↻</button>
+                    <div class="profile-image-editor-sliders">
+                        <label class="form-label-sm" for="profile-image-editor-zoom">Zoom: <span id="profile-image-editor-zoom-value">100%</span></label>
+                        <input type="range" id="profile-image-editor-zoom" min="20" max="300" step="1" value="100">
+                    </div>
+                    <input type="file" id="profile-image-editor-input" accept="image/*" style="display:none;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" id="cancel-profile-image-editor">Cancel</button>
+                <button class="modal-btn primary" id="apply-profile-image-editor">Apply</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Profile Viewer Modal (read-only, for viewing other users) -->
     <div class="modal" id="profile-viewer-modal">
         <div class="modal-content profile-viewer-content">
@@ -650,6 +700,13 @@
                         <div class="pv-section" id="viewer-roles-section" style="display:none;">
                             <div class="pv-label">Roles</div>
                             <div class="pv-roles" id="viewer-roles"></div>
+                        </div>
+                        <div class="pv-section" id="viewer-role-manager-section" style="display:none;">
+                            <div class="pv-label">Manage Role</div>
+                            <div class="pv-role-manager-row">
+                                <select id="viewer-role-select" class="modal-input pv-role-select"></select>
+                                <button id="viewer-assign-role" class="pv-action-btn">Save Role</button>
+                            </div>
                         </div>
                         <!-- Member Since -->
                         <div class="pv-section" id="viewer-membersince-section" style="display:none;">

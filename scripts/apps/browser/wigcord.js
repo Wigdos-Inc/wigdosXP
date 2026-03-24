@@ -71,7 +71,10 @@ class WigCord {
 
         // Limits
         MSG_PAGE_SIZE: 50,
+        MESSAGE_STACK_WINDOW_MS: 3 * 60 * 1000,
         BIO_MAX_LENGTH: 190,
+        MAX_CUSTOM_EMOJIS_PER_SERVER: 10,
+        MAX_CUSTOM_STICKERS_PER_SERVER: 5,
         SERVER_SAVE_DEBOUNCE_MS: 1500,
         INIT_FALLBACK_TIMEOUT_MS: 1500,
         GIF_SEARCH_DEBOUNCE_MS: 500,
@@ -130,6 +133,49 @@ class WigCord {
         IMAGE_MAX_WIDTH: 800,
         IMAGE_MAX_HEIGHT: 800,
         IMAGE_QUALITY: 0.7,
+
+        // Message action menu config (kept data-driven for easy future extension)
+        MESSAGE_ACTION_MENU: {
+            order: ['reply', 'pin', 'edit', 'reaction', 'delete'],
+            actions: {
+                reply: {
+                    label: 'Reply',
+                    icon: '↩',
+                    handler: '_runReplyMessageAction',
+                    enabledWhen: '_canReplyToMessage'
+                },
+                pin: {
+                    label: 'Pin Message',
+                    icon: '📌',
+                    handler: '_runPinMessageAction',
+                    enabledWhen: '_canPinMessage'
+                },
+                edit: {
+                    label: 'Edit Message',
+                    icon: '✎',
+                    handler: '_runEditMessageAction',
+                    enabledWhen: '_canEditMessage'
+                },
+                reaction: {
+                    label: 'Add Reaction',
+                    icon: '🙂',
+                    handler: '_runReactionMessageAction',
+                    enabledWhen: '_canReactToMessage'
+                },
+                delete: {
+                    label: 'Delete Message',
+                    icon: '✕',
+                    handler: '_deleteMessage',
+                    enabledWhen: '_canDeleteMessage'
+                }
+            }
+        },
+
+        PINNED_MESSAGES: {
+            maxItems: 100,
+            fallbackScanLimit: 300,
+            previewLength: 140,
+        },
     };
 
     // =========================================================================
@@ -168,6 +214,7 @@ class WigCord {
 
         // Profile data
         this.myProfile = {};
+        this._profileImageEditor = null;
 
         this.currentServerImage = null;
         this.currentSettingsServer = null;
@@ -181,6 +228,8 @@ class WigCord {
 
         // Emoji data (loaded from CDN)
         this._emojiData = null; // { group: [{ emoji, name }, ...] }
+        this._serverCustomEmoji = [];
+        this._serverCustomStickers = [];
 
         // Notification sound
         this._notifSound = null;
@@ -206,6 +255,12 @@ class WigCord {
         // Global Spotify polling (user panel now-playing)
         this._globalSpotifyPollTimer = null;
         this._currentTrack = null;
+
+        // Message action menu and pinning state
+        this._messageContextMenuEl = null;
+        this._messageContextTarget = null;
+        this._reactionProviders = [];
+        this._activePinnedMessages = [];
 
         // Flags to skip notifications on initial snapshot load
         this._channelInitialized = false;
@@ -373,7 +428,10 @@ class WigCord {
         if (nameEl) nameEl.textContent = displayName;
         if (avatarEl) {
             if (this.userPfp) {
-                avatarEl.innerHTML = `<img src="${this.userPfp}" class="user-avatar-img" alt="pfp">`;
+                const avatarPos = this._getAvatarObjectPosition(this.myProfile);
+                const avatarScale = this._getAvatarZoomScale(this.myProfile);
+                const avatarFit = this._getAvatarObjectFit(this.myProfile);
+                avatarEl.innerHTML = `<img src="${this.userPfp}" class="user-avatar-img" alt="pfp" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarScale});transform-origin:center;">`;
             } else {
                 avatarEl.textContent = this.username.charAt(0).toUpperCase();
             }
@@ -780,7 +838,7 @@ class WigCord {
                     }
                 });
 
-                this.servers = Array.from(allServersMap.values());
+                this.servers = Array.from(allServersMap.values()).map(s => this._normalizeServerData(s));
 
                 // Cache to localStorage for offline fallback
                 this._cacheServersLocally();
@@ -798,7 +856,7 @@ class WigCord {
     _getLocalServers() {
         try {
             const saved = localStorage.getItem('wigcord-servers');
-            return saved ? JSON.parse(saved) : [];
+            return saved ? JSON.parse(saved).map(s => this._normalizeServerData(s)) : [];
         } catch(e) { return []; }
     }
 
@@ -828,16 +886,26 @@ class WigCord {
         try {
             const saved = localStorage.getItem('wigcord-servers');
             if (saved) {
-                this.servers = JSON.parse(saved);
+                this.servers = JSON.parse(saved).map(s => this._normalizeServerData(s));
             } else {
                 // Legacy fallback
                 const legacy = localStorage.getItem('wigcord-data');
                 if (legacy) {
                     const data = JSON.parse(legacy);
-                    this.servers = data.servers || [];
+                    this.servers = (data.servers || []).map(s => this._normalizeServerData(s));
                 }
             }
         } catch(e) { this.servers = []; }
+    }
+
+    _normalizeServerData(server) {
+        const normalized = { ...(server || {}) };
+        if (!Array.isArray(normalized.channels)) normalized.channels = [];
+        if (!Array.isArray(normalized.roles)) normalized.roles = [];
+        if (!normalized.members || typeof normalized.members !== 'object') normalized.members = {};
+        if (!Array.isArray(normalized.customEmojis)) normalized.customEmojis = [];
+        if (!Array.isArray(normalized.customStickers)) normalized.customStickers = [];
+        return normalized;
     }
 
     _cacheServersLocally() {
@@ -873,6 +941,8 @@ class WigCord {
             channels: defaultChannels,
             roles: defaultRoles,
             members: { [this.username]: { role: 'owner', joinedAt: Date.now() } },
+            customEmojis: [],
+            customStickers: [],
             createdAt: Date.now()
         };
 
@@ -991,6 +1061,7 @@ class WigCord {
         this.currentChannel = null;
         this.currentView = 'dm';
         this.currentDmPartner = null;
+        this._hideMessageContextMenu();
 
         document.querySelectorAll('.server-item, .server-home').forEach(el => el.classList.remove('active'));
         document.getElementById('home-server').classList.add('active');
@@ -1004,6 +1075,9 @@ class WigCord {
         document.getElementById('messages-container').style.display = 'none';
         document.getElementById('dm-chat-view').style.display = 'none';
         document.getElementById('member-list').classList.add('hidden');
+        this._updateServerActionVisibility(null);
+
+        this._updatePinnedButtonVisibility();
 
         this._showDMFriends();
     }
@@ -1016,6 +1090,9 @@ class WigCord {
         this.currentServer = serverId;
         this.currentView = 'server';
         this.currentDmPartner = null;
+        this._hideMessageContextMenu();
+        this._serverCustomEmoji = this._getServerCustomEmoji(serverId);
+        this._serverCustomStickers = this._getServerCustomStickers(serverId);
 
         document.querySelectorAll('.server-item, .server-home').forEach(el => el.classList.remove('active'));
         const el = document.querySelector(`[data-server-id="${serverId}"]`);
@@ -1036,6 +1113,7 @@ class WigCord {
         document.getElementById('voice-category').style.display = 'block';
         document.getElementById('member-list').classList.remove('hidden');
         document.getElementById('message-input-area').classList.remove('hidden');
+        this._updateServerActionVisibility(serverId);
 
         this._renderChannels(server);
         this._renderMemberList(server);
@@ -1047,6 +1125,7 @@ class WigCord {
         } else {
             document.getElementById('welcome-screen').style.display = 'flex';
             document.getElementById('messages-container').style.display = 'none';
+            this._updatePinnedButtonVisibility();
         }
     }
 
@@ -1070,6 +1149,7 @@ class WigCord {
         }
 
         this.currentChannel = channelId;
+        this._hideMessageContextMenu();
         this._clearChannelMention(this.currentServer, channelId);
 
         // Update active channel in sidebar
@@ -1103,6 +1183,7 @@ class WigCord {
 
         // Load messages
         this._loadChannelMessages(this.currentServer, channelId);
+        this._updatePinnedButtonVisibility();
     }
 
     _renderChannels(server) {
@@ -1405,8 +1486,7 @@ class WigCord {
                 this._allOlderLoaded = true;
             }
 
-            messagesEl.innerHTML = '';
-            msgs.forEach(msg => this._renderMessage(messagesEl, msg));
+            this._renderMessageList(messagesEl, msgs);
 
             // Scroll to bottom
             const container = document.getElementById('messages-container');
@@ -1431,6 +1511,39 @@ class WigCord {
             }
         }, { root: container, threshold: 0.1 });
         this._scrollObserver.observe(sentinel);
+    }
+
+    _toTimestampMs(timestamp) {
+        if (!timestamp) return NaN;
+        if (timestamp.toDate) return timestamp.toDate().getTime();
+        if (timestamp.seconds) return Number(timestamp.seconds) * 1000;
+        if (typeof timestamp === 'number') return timestamp;
+        const parsed = new Date(timestamp).getTime();
+        return Number.isFinite(parsed) ? parsed : NaN;
+    }
+
+    _shouldStackWithPreviousMessage(prevMsg, msg) {
+        if (!prevMsg || !msg) return false;
+        if (prevMsg.isSystem || msg.isSystem) return false;
+        if (prevMsg.author !== msg.author) return false;
+        if (prevMsg.replyTo || msg.replyTo) return false;
+
+        const prevTs = this._toTimestampMs(prevMsg.timestamp);
+        const currTs = this._toTimestampMs(msg.timestamp);
+        if (!Number.isFinite(prevTs) || !Number.isFinite(currTs)) return false;
+
+        const delta = currTs - prevTs;
+        return delta >= 0 && delta <= this._c.MESSAGE_STACK_WINDOW_MS;
+    }
+
+    _renderMessageList(container, msgs) {
+        container.innerHTML = '';
+        let prevMsg = null;
+        msgs.forEach(msg => {
+            const stackWithPrevious = this._shouldStackWithPreviousMessage(prevMsg, msg);
+            this._renderMessage(container, msg, { stackWithPrevious });
+            prevMsg = msg;
+        });
     }
 
     async _loadOlderMessages() {
@@ -1458,7 +1571,12 @@ class WigCord {
                 this._oldestMsgSnap = snap.docs[snap.docs.length - 1];
                 // Prepend messages
                 const fragment = document.createDocumentFragment();
-                olderMsgs.forEach(msg => this._renderMessage(fragment, msg));
+                let prevOlder = null;
+                olderMsgs.forEach(msg => {
+                    const stackWithPrevious = this._shouldStackWithPreviousMessage(prevOlder, msg);
+                    this._renderMessage(fragment, msg, { stackWithPrevious });
+                    prevOlder = msg;
+                });
                 messagesEl.insertBefore(fragment, messagesEl.firstChild);
                 // Maintain scroll position
                 container.scrollTop = container.scrollHeight - prevScrollHeight;
@@ -1475,9 +1593,13 @@ class WigCord {
         document.getElementById('loading-older').style.display = 'none';
     }
 
-    _renderMessage(container, msg) {
+    _renderMessage(container, msg, options = {}) {
+        const stackWithPrevious = !!options.stackWithPrevious;
         const el = document.createElement('div');
-        el.className = 'message' + (msg.isSystem ? ' system-message' : '') + (msg.replyTo ? ' has-reply' : '');
+        el.className = 'message'
+            + (msg.isSystem ? ' system-message' : '')
+            + (msg.replyTo ? ' has-reply' : '')
+            + (stackWithPrevious ? ' message-stacked' : '');
         el.dataset.msgId = msg.id;
 
         // Reply reference (if replying to another message)
@@ -1575,6 +1697,7 @@ class WigCord {
         // Linkify any remaining URLs in message text (not just YouTube/WigTube)
         messageHTML = this._highlightMentionsInEscapedHtml(messageHTML);
         messageHTML = this._linkifyEscapedHtml(messageHTML);
+        messageHTML = this._parseCustomServerEmojis(messageHTML);
 
         messageHTML = this._parseEmojis(messageHTML);
 
@@ -1589,35 +1712,46 @@ class WigCord {
 
         const timeStr = msg.timestamp ? this._formatTime(msg.timestamp) : '';
         const authorName = msg.author || 'System';
+        const editedHtml = msg.editedAt ? '<span class="message-edited-tag">(edited)</span>' : '';
+        const pinnedHtml = msg.isPinned ? '<span class="message-pinned-indicator" title="Pinned message">📌</span>' : '';
+        const actionsHTML = '';
 
-        // Hover actions (reply button)
-        const canDelete = this._canDeleteMessage(msg);
-        const actionsHTML = msg.isSystem ? '' : `
-            <div class="message-actions">
-                <button class="msg-action-btn msg-reply-btn" title="Reply">↩</button>
-                ${canDelete ? '<button class="msg-action-btn msg-delete-btn" title="Delete">✕</button>' : ''}
-            </div>
-        `;
-
-        el.innerHTML = `
-            ${replyHTML}
-            <div class="message-row">
-                ${avatarHTML}
-                <div class="message-content">
-                    <div class="message-header">
-                        <span class="message-author" data-username="${this._esc(authorName)}">${this._esc(authorName)}</span>
-                        <span class="message-time">${timeStr}</span>
-                        ${actionsHTML}
+        if (stackWithPrevious) {
+            el.innerHTML = `
+                <div class="message-row message-row-stacked">
+                    <div class="message-content message-content-stacked">
+                        <div class="message-stack-line">
+                            <div class="message-text">${messageHTML}${editedHtml}${pinnedHtml}</div>
+                            ${actionsHTML}
+                        </div>
+                        ${imageHTML}
+                        ${embedsHTML}
                     </div>
-                    <div class="message-text">${messageHTML}</div>
-                    ${imageHTML}
-                    ${embedsHTML}
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            el.innerHTML = `
+                ${replyHTML}
+                <div class="message-row">
+                    ${avatarHTML}
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author" data-username="${this._esc(authorName)}">${this._esc(authorName)}</span>
+                            <span class="message-time">${timeStr}</span>
+                            ${editedHtml}
+                            ${pinnedHtml}
+                            ${actionsHTML}
+                        </div>
+                        <div class="message-text">${messageHTML}</div>
+                        ${imageHTML}
+                        ${embedsHTML}
+                    </div>
+                </div>
+            `;
+        }
 
         // Click on author name or avatar to view profile
-        if (!msg.isSystem) {
+        if (!msg.isSystem && !stackWithPrevious) {
             const authorEl = el.querySelector('.message-author');
             if (authorEl) {
                 authorEl.addEventListener('click', () => this._openProfileViewer(authorName));
@@ -1627,20 +1761,14 @@ class WigCord {
                 avatarEl.style.cursor = 'pointer';
                 avatarEl.addEventListener('click', () => this._openProfileViewer(authorName));
             }
-            // Reply button
-            const replyBtn = el.querySelector('.msg-reply-btn');
-            if (replyBtn) {
-                replyBtn.addEventListener('click', () => {
-                    this._setReplyTo(msg);
-                });
-            }
-            const deleteBtn = el.querySelector('.msg-delete-btn');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    await this._deleteMessage(msg);
-                });
-            }
+        }
+
+        if (!msg.isSystem) {
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this._showMessageContextMenu(msg, e.clientX, e.clientY);
+            });
         }
 
         // Click reply ref to scroll to original message
@@ -1674,7 +1802,11 @@ class WigCord {
             this._getUserPfp(msg.author).then(pfp => {
                 const avEl = document.getElementById(avatarId);
                 if (avEl && pfp) {
-                    avEl.innerHTML = `<img src="${pfp}" class="msg-avatar-img" alt="pfp">`;
+                    const profile = msg.author === this.username ? this.myProfile : (this.friendProfiles[msg.author] || {});
+                    const avatarPos = this._getAvatarObjectPosition(profile);
+                    const avatarScale = this._getAvatarZoomScale(profile);
+                    const avatarFit = this._getAvatarObjectFit(profile);
+                    avEl.innerHTML = `<img src="${pfp}" class="msg-avatar-img" alt="pfp" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarScale});transform-origin:center;">`;
                     avEl.classList.remove('msg-avatar-letter');
                 }
             });
@@ -1685,7 +1817,11 @@ class WigCord {
             this._getUserPfp(msg.replyTo.author).then(pfp => {
                 const refAvEl = document.getElementById(`reply-avatar-${msg.id}`);
                 if (refAvEl && pfp) {
-                    refAvEl.innerHTML = `<img src="${pfp}" class="reply-ref-avatar-img" alt="">`;
+                    const profile = msg.replyTo.author === this.username ? this.myProfile : (this.friendProfiles[msg.replyTo.author] || {});
+                    const avatarPos = this._getAvatarObjectPosition(profile);
+                    const avatarScale = this._getAvatarZoomScale(profile);
+                    const avatarFit = this._getAvatarObjectFit(profile);
+                    refAvEl.innerHTML = `<img src="${pfp}" class="reply-ref-avatar-img" alt="" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarScale});transform-origin:center;">`;
                 }
             });
         }
@@ -1702,6 +1838,377 @@ class WigCord {
         nameEl.textContent = msg.author;
         bar.style.display = 'flex';
         document.getElementById('message-input').focus();
+    }
+
+    _setupMessageContextMenu() {
+        this._messageContextMenuEl = document.getElementById('message-context-menu');
+        if (!this._messageContextMenuEl) return;
+
+        document.addEventListener('click', (e) => {
+            if (!this._messageContextMenuEl) return;
+            if (this._messageContextMenuEl.style.display !== 'block') return;
+            if (!this._messageContextMenuEl.contains(e.target)) {
+                this._hideMessageContextMenu();
+            }
+        });
+
+        window.addEventListener('resize', () => this._hideMessageContextMenu());
+        window.addEventListener('scroll', () => this._hideMessageContextMenu(), true);
+    }
+
+    _hideMessageContextMenu() {
+        if (this._messageContextMenuEl) this._messageContextMenuEl.style.display = 'none';
+        this._messageContextTarget = null;
+    }
+
+    _canReplyToMessage(msg) {
+        return !!msg && !msg.isSystem;
+    }
+
+    _canPinMessage(msg) {
+        if (!msg || msg.isSystem) return false;
+        if (this.currentView === 'server' && this.currentServer) {
+            return this._hasPermission(this.currentServer, 'manageMessages');
+        }
+        if (this.currentView === 'dm-chat') {
+            return true;
+        }
+        return false;
+    }
+
+    _canEditMessage(msg) {
+        if (!msg || msg.isSystem) return false;
+        return msg.author === this.username;
+    }
+
+    _canReactToMessage(msg) {
+        return !!msg && !msg.isSystem;
+    }
+
+    _getMessageActionLabel(actionId, msg) {
+        if (actionId === 'pin') {
+            return msg && msg.isPinned ? 'Unpin Message' : 'Pin Message';
+        }
+        const def = this._c.MESSAGE_ACTION_MENU.actions[actionId];
+        return (def && def.label) || actionId;
+    }
+
+    _buildMessageContextActions(msg) {
+        const menu = this._c.MESSAGE_ACTION_MENU || {};
+        const order = menu.order || [];
+        const defs = menu.actions || {};
+
+        return order
+            .map((actionId) => {
+                const def = defs[actionId];
+                if (!def) return null;
+
+                const enabledCheck = def.enabledWhen;
+                if (enabledCheck && typeof this[enabledCheck] === 'function' && !this[enabledCheck](msg)) {
+                    return null;
+                }
+
+                return {
+                    id: actionId,
+                    label: this._getMessageActionLabel(actionId, msg),
+                    icon: def.icon || '',
+                    handler: def.handler,
+                };
+            })
+            .filter(Boolean);
+    }
+
+    _showMessageContextMenu(msg, x, y) {
+        if (!this._messageContextMenuEl || !msg || msg.isSystem) return;
+
+        const actions = this._buildMessageContextActions(msg);
+        if (!actions.length) return;
+
+        this._messageContextTarget = msg;
+
+        const itemsEl = document.getElementById('message-context-items');
+        if (!itemsEl) return;
+        itemsEl.innerHTML = '';
+
+        actions.forEach(action => {
+            const item = document.createElement('div');
+            item.className = 'context-menu-item';
+            item.innerHTML = `
+                <span class="ctx-label">${this._esc(action.label)}</span>
+                <span class="ctx-icon">${this._esc(action.icon)}</span>
+            `;
+            item.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                this._hideMessageContextMenu();
+                const handlerName = action.handler;
+                if (handlerName && typeof this[handlerName] === 'function') {
+                    await this[handlerName](msg);
+                }
+            });
+            itemsEl.appendChild(item);
+        });
+
+        const menu = this._messageContextMenuEl;
+        menu.style.display = 'block';
+        menu.style.left = '0px';
+        menu.style.top = '0px';
+
+        const rect = menu.getBoundingClientRect();
+        const maxX = Math.max(0, window.innerWidth - rect.width - 4);
+        const maxY = Math.max(0, window.innerHeight - rect.height - 4);
+        menu.style.left = `${Math.min(x, maxX)}px`;
+        menu.style.top = `${Math.min(y, maxY)}px`;
+    }
+
+    _getActiveMessageCollectionPath() {
+        if (this.currentView === 'server' && this.currentServer && this.currentChannel) {
+            const channelKey = this._getChannelKey(this.currentServer, this.currentChannel);
+            return `${this._cols.messages}/${channelKey}/msgs`;
+        }
+        if (this.currentView === 'dm-chat' && this.currentDmPartner) {
+            const dmId = this._getDmId(this.username, this.currentDmPartner);
+            return `${this._cols.dms}/${dmId}/messages`;
+        }
+        return '';
+    }
+
+    _getActiveMessageDocumentPath(messageId) {
+        const colPath = this._getActiveMessageCollectionPath();
+        if (!colPath || !messageId) return '';
+        return `${colPath}/${messageId}`;
+    }
+
+    async _setMessagePinned(messageId, shouldPin) {
+        const docPath = this._getActiveMessageDocumentPath(messageId);
+        if (!docPath) return;
+
+        const patch = shouldPin
+            ? { isPinned: true, pinnedAt: Date.now(), pinnedBy: this.username }
+            : { isPinned: false, pinnedAt: null, pinnedBy: null };
+
+        await this._fbUpdate(docPath, patch);
+    }
+
+    async _runReplyMessageAction(msg) {
+        if (!this._canReplyToMessage(msg)) return;
+        this._setReplyTo(msg);
+    }
+
+    async _runPinMessageAction(msg) {
+        if (!this._canPinMessage(msg)) return;
+        await this._setMessagePinned(msg.id, !msg.isPinned);
+        if (document.getElementById('pinned-messages-modal')?.classList.contains('active')) {
+            await this._refreshPinnedMessagesModal();
+        }
+    }
+
+    async _runEditMessageAction(msg) {
+        if (!this._canEditMessage(msg)) return;
+
+        const existing = String(msg.content || msg.text || '');
+        const next = prompt('Edit message', existing);
+        if (next === null) return;
+
+        const trimmed = next.trim();
+        if (!trimmed) {
+            if (confirm('Edited message cannot be empty. Delete this message instead?')) {
+                await this._deleteMessage(msg);
+            }
+            return;
+        }
+        if (trimmed === existing) return;
+
+        const path = this._getActiveMessageDocumentPath(msg.id);
+        if (!path) return;
+
+        await this._fbUpdate(path, {
+            content: trimmed,
+            editedAt: Date.now(),
+            editedBy: this.username,
+        });
+    }
+
+    registerMessageReactionProvider(providerFn) {
+        if (typeof providerFn !== 'function') return;
+        this._reactionProviders.push(providerFn);
+    }
+
+    async _runReactionMessageAction(msg) {
+        if (!this._canReactToMessage(msg)) return;
+
+        for (const provider of this._reactionProviders) {
+            try {
+                const handled = await provider({
+                    message: msg,
+                    context: {
+                        view: this.currentView,
+                        serverId: this.currentServer,
+                        channelId: this.currentChannel,
+                        dmPartner: this.currentDmPartner,
+                    }
+                });
+                if (handled) return;
+            } catch (err) {
+                console.error('[WigCord] Reaction provider error:', err);
+            }
+        }
+
+        document.dispatchEvent(new CustomEvent('wigcord:reaction-requested', {
+            detail: {
+                messageId: msg.id,
+                serverId: this.currentServer,
+                channelId: this.currentChannel,
+                dmPartner: this.currentDmPartner,
+                author: msg.author,
+            }
+        }));
+    }
+
+    _setupPinnedMessagesUI() {
+        const openBtn = document.getElementById('open-pinned-btn');
+        const modal = document.getElementById('pinned-messages-modal');
+        const closeBtn = document.getElementById('close-pinned-messages');
+        if (!openBtn || !modal || !closeBtn) return;
+
+        openBtn.addEventListener('click', async () => {
+            await this._openPinnedMessagesModal();
+        });
+
+        closeBtn.addEventListener('click', () => this._closePinnedMessagesModal());
+        modal.addEventListener('click', (e) => {
+            const content = modal.querySelector('.pinned-messages-content');
+            if (content && !content.contains(e.target)) {
+                this._closePinnedMessagesModal();
+            }
+        });
+    }
+
+    _updatePinnedButtonVisibility() {
+        const btn = document.getElementById('open-pinned-btn');
+        if (!btn) return;
+
+        const inServerThread = this.currentView === 'server' && !!this.currentServer && !!this.currentChannel;
+        const inDmThread = this.currentView === 'dm-chat' && !!this.currentDmPartner;
+        btn.style.display = (inServerThread || inDmThread) ? 'inline-flex' : 'none';
+    }
+
+    async _openPinnedMessagesModal() {
+        const modal = document.getElementById('pinned-messages-modal');
+        if (!modal) return;
+        await this._refreshPinnedMessagesModal();
+        modal.classList.add('active');
+    }
+
+    _closePinnedMessagesModal() {
+        const modal = document.getElementById('pinned-messages-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    async _loadPinnedMessagesForActiveThread() {
+        if (!this._online || !this._fb) return [];
+
+        const colPath = this._getActiveMessageCollectionPath();
+        if (!colPath) return [];
+
+        const { collection, query, orderBy, limit, getDocs, where } = this._fb;
+        if (!collection || !query || !getDocs || !orderBy || !limit) return [];
+
+        const colRef = collection(this._fb.db, ...colPath.split('/'));
+        const pinned = [];
+
+        if (where) {
+            try {
+                const qPinned = query(
+                    colRef,
+                    where('isPinned', '==', true),
+                    orderBy('pinnedAt', 'desc'),
+                    limit(this._c.PINNED_MESSAGES.maxItems)
+                );
+                const snap = await getDocs(qPinned);
+                snap.forEach(doc => pinned.push({ id: doc.id, ...doc.data() }));
+            } catch (err) {
+                console.warn('[WigCord] Pinned query fallback:', err);
+            }
+        }
+
+        if (!pinned.length) {
+            const scanQuery = query(colRef, orderBy('timestamp', 'desc'), limit(this._c.PINNED_MESSAGES.fallbackScanLimit));
+            const scanSnap = await getDocs(scanQuery);
+            scanSnap.forEach(doc => {
+                const data = doc.data() || {};
+                if (data.isPinned) pinned.push({ id: doc.id, ...data });
+            });
+            pinned.sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
+        }
+
+        return pinned;
+    }
+
+    async _refreshPinnedMessagesModal() {
+        const listEl = document.getElementById('pinned-messages-list');
+        if (!listEl) return;
+
+        const pinned = await this._loadPinnedMessagesForActiveThread();
+        this._activePinnedMessages = pinned;
+
+        if (!pinned.length) {
+            listEl.innerHTML = '<p class="pinned-empty">No pinned messages in this conversation yet.</p>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        pinned.forEach((msg) => {
+            const item = document.createElement('div');
+            item.className = 'pinned-message-item';
+
+            const content = String(msg.content || msg.text || msg.imageUrl || '').trim();
+            const preview = content.length > this._c.PINNED_MESSAGES.previewLength
+                ? `${content.slice(0, this._c.PINNED_MESSAGES.previewLength)}...`
+                : content || '[Attachment]';
+
+            item.innerHTML = `
+                <div class="pinned-message-main">
+                    <div class="pinned-message-meta">
+                        <span class="pinned-message-author">${this._esc(msg.author || 'Unknown')}</span>
+                        <span class="pinned-message-time">${this._esc(this._formatTime(msg.timestamp || msg.pinnedAt || Date.now()))}</span>
+                    </div>
+                    <div class="pinned-message-preview">${this._esc(preview)}</div>
+                </div>
+                <div class="pinned-message-actions">
+                    <button class="pinned-jump-btn" data-action="jump">Jump</button>
+                    <button class="pinned-remove-btn" data-action="unpin" title="Unpin">×</button>
+                </div>
+            `;
+
+            const jumpBtn = item.querySelector('[data-action="jump"]');
+            const unpinBtn = item.querySelector('[data-action="unpin"]');
+
+            if (jumpBtn) {
+                jumpBtn.addEventListener('click', () => this._jumpToMessageById(msg.id));
+            }
+            if (unpinBtn) {
+                unpinBtn.addEventListener('click', async () => {
+                    await this._setMessagePinned(msg.id, false);
+                    await this._refreshPinnedMessagesModal();
+                });
+            }
+
+            listEl.appendChild(item);
+        });
+    }
+
+    _jumpToMessageById(messageId) {
+        if (!messageId) return;
+
+        const target = Array.from(document.querySelectorAll('.message')).find(el => el.dataset.msgId === messageId);
+        if (!target) {
+            alert('Message is not loaded yet. Scroll up to load older messages and try again.');
+            return;
+        }
+
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('message-highlight');
+        setTimeout(() => target.classList.remove('message-highlight'), 1500);
     }
 
     _canDeleteMessage(msg) {
@@ -1880,6 +2387,60 @@ class WigCord {
         return !!roleData.permissions[permission];
     }
 
+    _canOpenServerSettings(serverId) {
+        const server = this.servers.find(s => s.id === serverId);
+        if (!server) return false;
+        if (server.ownerId === this.username) return true;
+        return this._hasPermission(serverId, 'manageRoles') || this._hasPermission(serverId, 'manageChannels');
+    }
+
+    _canManageMemberRoles(serverId, targetUsername) {
+        const server = this.servers.find(s => s.id === serverId);
+        if (!server || !targetUsername) return false;
+        if (!server.members || !server.members[targetUsername]) return false;
+        if (targetUsername === server.ownerId) return false;
+        if (targetUsername === this.username) return false;
+        return server.ownerId === this.username || this._hasPermission(serverId, 'manageRoles');
+    }
+
+    async _assignMemberRole(serverId, targetUsername, roleId) {
+        const server = this.servers.find(s => s.id === serverId);
+        if (!server) return;
+        if (!this._canManageMemberRoles(serverId, targetUsername)) {
+            alert('You do not have permission to manage this member role.');
+            return;
+        }
+
+        const roleExists = (server.roles || []).some(r => r.id === roleId);
+        if (!roleExists || roleId === 'owner') {
+            alert('Invalid role selection.');
+            return;
+        }
+
+        server.members[targetUsername].role = roleId;
+        await this._saveServer(server);
+        if (this.currentServer === serverId) {
+            this._renderMemberList(server);
+        }
+    }
+
+    _getServerCustomEmoji(serverId) {
+        const server = this.servers.find(s => s.id === serverId);
+        return Array.isArray(server && server.customEmojis) ? server.customEmojis : [];
+    }
+
+    _getServerCustomStickers(serverId) {
+        const server = this.servers.find(s => s.id === serverId);
+        return Array.isArray(server && server.customStickers) ? server.customStickers : [];
+    }
+
+    _updateServerActionVisibility(serverId) {
+        const canManageChannels = !!serverId && this._hasPermission(serverId, 'manageChannels');
+        document.querySelectorAll('.add-channel-btn').forEach(btn => {
+            btn.style.display = canManageChannels ? 'inline-flex' : 'none';
+        });
+    }
+
     // =========================================================================
     // Channel Creation
     // =========================================================================
@@ -1977,8 +2538,11 @@ class WigCord {
         const displayName = profile.displayName || username;
         const pfp = profile.pfpUrl || ((username === this.username && this.userPfp) ? this.userPfp : null);
         const letter = displayName.charAt(0).toUpperCase();
+        const avatarPos = this._getAvatarObjectPosition(profile);
+        const avatarScale = this._getAvatarZoomScale(profile);
+        const avatarFit = this._getAvatarObjectFit(profile);
         const avatarContent = pfp
-            ? `<img src="${pfp}" class="member-avatar-img" alt="pfp">`
+            ? `<img src="${pfp}" class="member-avatar-img" alt="pfp" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarScale});transform-origin:center;">`
             : letter;
         const ownerBadge = isOwner
             ? `<span class="member-badge"><img src="${this._c.ASSET_BASE}/crown.svg" class="wc-icon-xs" alt="Owner"></span>`
@@ -2166,6 +2730,7 @@ class WigCord {
     // =========================================================================
 
     _showDMFriends() {
+        this._hideMessageContextMenu();
         document.querySelectorAll('.dm-nav-item').forEach(i => i.classList.remove('active'));
         document.getElementById('dm-friends-nav').classList.add('active');
 
@@ -2178,6 +2743,7 @@ class WigCord {
         document.getElementById('header-icon').innerHTML = `<img src="${this._c.ASSET_BASE}/people.svg" class="wc-icon-xs" alt="Friends">`;
         document.getElementById('message-input-area').classList.add('hidden');
         document.getElementById('member-list').classList.add('hidden');
+        this._updatePinnedButtonVisibility();
 
         this._renderFriendsTab();
     }
@@ -2447,6 +3013,7 @@ class WigCord {
         this.currentDmPartner = username;
         this.currentServer = null;
         this.currentChannel = null;
+        this._hideMessageContextMenu();
         this._clearDmUnread(username);
 
         document.querySelectorAll('.server-item, .server-home').forEach(el => el.classList.remove('active'));
@@ -2480,6 +3047,7 @@ class WigCord {
 
         // Load DM messages
         this._loadDMMessages(username);
+        this._updatePinnedButtonVisibility();
     }
 
     async _loadDMMessages(username) {
@@ -2530,8 +3098,7 @@ class WigCord {
                 this._dmAllOlderLoaded = true;
             }
 
-            dmMsgsEl.innerHTML = '';
-            msgs.forEach(msg => this._renderMessage(dmMsgsEl, msg));
+            this._renderMessageList(dmMsgsEl, msgs);
 
             const container = document.getElementById('dm-chat-view');
             container.scrollTop = container.scrollHeight;
@@ -2577,7 +3144,12 @@ class WigCord {
             if (older.length > 0) {
                 this._oldestDmSnap = snap.docs[snap.docs.length - 1];
                 const frag = document.createDocumentFragment();
-                older.forEach(msg => this._renderMessage(frag, msg));
+                let prevOlder = null;
+                older.forEach(msg => {
+                    const stackWithPrevious = this._shouldStackWithPreviousMessage(prevOlder, msg);
+                    this._renderMessage(frag, msg, { stackWithPrevious });
+                    prevOlder = msg;
+                });
                 dmMsgsEl.insertBefore(frag, dmMsgsEl.firstChild);
                 container.scrollTop = container.scrollHeight - prevHeight;
             }
@@ -2672,6 +3244,10 @@ class WigCord {
             img.src = pfp;
             img.className = 'pv-avatar-img';
             img.alt = 'pfp';
+            img.style.objectFit = this._getAvatarObjectFit(profile);
+            img.style.objectPosition = this._getAvatarObjectPosition(profile);
+            img.style.transform = `scale(${this._getAvatarZoomScale(profile)})`;
+            img.style.transformOrigin = 'center';
             avatarEl.appendChild(img);
         } else {
             avatarEl.appendChild(document.createTextNode(username.charAt(0).toUpperCase()));
@@ -2682,8 +3258,13 @@ class WigCord {
         const primary = theme.primary || this._c.THEME_DEFAULTS.primary;
         const accent  = theme.accent  || this._c.THEME_DEFAULTS.accent;
         const bannerEl = document.getElementById('viewer-banner');
+        const bannerPos = this._getBannerBackgroundPosition(profile);
+        const bannerSize = this._getBannerBackgroundSize(profile);
         if (profile.bannerUrl) {
-            bannerEl.style.background = `url(${profile.bannerUrl}) center/cover`;
+            bannerEl.style.backgroundImage = `url(${profile.bannerUrl})`;
+            bannerEl.style.backgroundSize = bannerSize;
+            bannerEl.style.backgroundPosition = bannerPos;
+            bannerEl.style.backgroundRepeat = 'no-repeat';
         } else {
             bannerEl.style.background = `linear-gradient(to bottom, ${this._adjustBrightness(accent, 30)} 0%, ${accent} 100%)`;
         }
@@ -2709,6 +3290,9 @@ class WigCord {
         // Roles — show roles for this user from the current server context
         const rolesSection = document.getElementById('viewer-roles-section');
         const rolesEl = document.getElementById('viewer-roles');
+        const roleManagerSection = document.getElementById('viewer-role-manager-section');
+        const roleSelect = document.getElementById('viewer-role-select');
+        const assignRoleBtn = document.getElementById('viewer-assign-role');
         rolesEl.innerHTML = '';
         let hasRoles = false;
         if (this.currentView === 'server' && this.currentServer) {
@@ -2728,7 +3312,31 @@ class WigCord {
                     tag.innerHTML = `<span class="pv-role-dot" style="background:${this._esc(userRole.color || '#808080')}"></span>${this._esc(userRole.name)}`;
                     rolesEl.appendChild(tag);
                 }
+
+                if (roleManagerSection && roleSelect && assignRoleBtn) {
+                    const canManageRole = this._canManageMemberRoles(server.id, username);
+                    if (canManageRole) {
+                        const selectableRoles = server.roles.filter(r => r.id !== 'owner');
+                        roleSelect.innerHTML = selectableRoles.map(r => {
+                            const selected = r.id === userRoleId ? 'selected' : '';
+                            return `<option value="${this._esc(r.id)}" ${selected}>${this._esc(r.name)}</option>`;
+                        }).join('');
+                        assignRoleBtn.onclick = async () => {
+                            await this._assignMemberRole(server.id, username, roleSelect.value);
+                            modal.classList.remove('active');
+                            this._openProfileViewer(username);
+                        };
+                        roleManagerSection.style.display = 'block';
+                    } else {
+                        roleManagerSection.style.display = 'none';
+                        roleSelect.innerHTML = '';
+                        assignRoleBtn.onclick = null;
+                    }
+                }
             }
+        }
+        if (roleManagerSection && (!this.currentServer || this.currentView !== 'server')) {
+            roleManagerSection.style.display = 'none';
         }
         rolesSection.style.display = hasRoles ? 'block' : 'none';
 
@@ -2893,6 +3501,10 @@ class WigCord {
         const name = document.getElementById('profile-display-name').value || this.username;
         const pronouns = document.getElementById('profile-pronouns').value;
         const bio = document.getElementById('profile-bio').value;
+        const bannerPos = this._getBannerBackgroundPosition(this.myProfile);
+        const avatarPos = this._getAvatarObjectPosition(this.myProfile);
+        const bannerZoom = this._getImageZoomPercent(this.myProfile.bannerZoom, 100);
+        const avatarZoomScale = this._getAvatarZoomScale(this.myProfile);
 
         document.getElementById('preview-name').textContent = name;
         document.getElementById('preview-pronouns').textContent = pronouns;
@@ -2908,6 +3520,10 @@ class WigCord {
             img.src = this.userPfp;
             img.className = 'profile-card-avatar-img';
             img.alt = 'pfp';
+            img.style.objectFit = this._getAvatarObjectFit(this.myProfile);
+            img.style.objectPosition = avatarPos;
+            img.style.transform = `scale(${avatarZoomScale})`;
+            img.style.transformOrigin = 'center';
             avatarEl.appendChild(img);
         } else {
             const dot = avatarEl.querySelector('.avatar-status-dot');
@@ -2924,9 +3540,9 @@ class WigCord {
 
         if (bannerImg) {
             bannerEl.style.backgroundImage = `url(${bannerImg})`;
-            bannerEl.style.backgroundSize = 'cover';
-            bannerEl.style.backgroundPosition = 'center';
-            bannerEl.style.background = `url(${bannerImg}) center/cover`;
+            bannerEl.style.backgroundSize = `${bannerZoom}%`;
+            bannerEl.style.backgroundPosition = bannerPos;
+            bannerEl.style.backgroundRepeat = 'no-repeat';
         } else {
             bannerEl.style.backgroundImage = 'none';
             bannerEl.style.background = `linear-gradient(to right, ${primaryColor}, ${accentColor})`;
@@ -2948,7 +3564,8 @@ class WigCord {
         if (nameplateName) nameplateName.textContent = name;
         if (nameplateAvatar) {
             if (this.userPfp) {
-                nameplateAvatar.innerHTML = `<img src="${this.userPfp}" class="nameplate-avatar-img" alt="pfp">`;
+                const avatarFit = this._getAvatarObjectFit(this.myProfile);
+                nameplateAvatar.innerHTML = `<img src="${this.userPfp}" class="nameplate-avatar-img" alt="pfp" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarZoomScale});transform-origin:center;">`;
             } else {
                 nameplateAvatar.textContent = name.charAt(0).toUpperCase();
             }
@@ -2995,6 +3612,56 @@ class WigCord {
         g = Math.max(0, Math.min(255, g));
         b = Math.max(0, Math.min(255, b));
         return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    }
+
+    _getImagePositionPercent(value, fallback = 50) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(0, Math.min(100, Math.round(n)));
+    }
+
+    _getImageZoomPercent(value, fallback = 100, min = 20, max = 300) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, Math.round(n)));
+    }
+
+    _getAvatarZoomScaleFromPercent(zoomPercent) {
+        const zoom = this._getImageZoomPercent(zoomPercent, 100);
+        // Keep zooming responsive above 100% but avoid an abrupt over-zoom feel.
+        if (zoom <= 100) return zoom / 100;
+        return 1 + ((zoom - 100) / 200);
+    }
+
+    _getAvatarObjectPosition(profile = {}) {
+        const x = this._getImagePositionPercent(profile.avatarPositionX, 50);
+        const y = this._getImagePositionPercent(
+            profile.avatarPositionY !== undefined ? profile.avatarPositionY : profile.avatarPosition,
+            50
+        );
+        return `${x}% ${y}%`;
+    }
+
+    _getAvatarZoomScale(profile = {}) {
+        return this._getAvatarZoomScaleFromPercent(profile.avatarZoom);
+    }
+
+    _getAvatarObjectFit(profile = {}) {
+        return 'cover';
+    }
+
+    _getBannerBackgroundPosition(profile = {}) {
+        const x = this._getImagePositionPercent(profile.bannerPositionX, 50);
+        const y = this._getImagePositionPercent(
+            profile.bannerPositionY !== undefined ? profile.bannerPositionY : profile.bannerPosition,
+            50
+        );
+        return `${x}% ${y}%`;
+    }
+
+    _getBannerBackgroundSize(profile = {}) {
+        const zoom = this._getImageZoomPercent(profile.bannerZoom, 100);
+        return `${zoom}%`;
     }
 
     /**
@@ -3134,12 +3801,210 @@ class WigCord {
         });
     }
 
+    _openProfileImageEditor(target) {
+        const isAvatar = target === 'avatar';
+        this._profileImageEditor = {
+            target,
+            image: isAvatar ? this.userPfp : (this.myProfile.bannerUrl || null),
+            positionX: this._getImagePositionPercent(isAvatar ? this.myProfile.avatarPositionX : this.myProfile.bannerPositionX, 50),
+            positionY: this._getImagePositionPercent(
+                isAvatar
+                    ? (this.myProfile.avatarPositionY !== undefined ? this.myProfile.avatarPositionY : this.myProfile.avatarPosition)
+                    : (this.myProfile.bannerPositionY !== undefined ? this.myProfile.bannerPositionY : this.myProfile.bannerPosition),
+                50
+            ),
+            zoom: this._getImageZoomPercent(isAvatar ? this.myProfile.avatarZoom : this.myProfile.bannerZoom, 100),
+            rotation: 0,
+            dragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            dragStartPositionX: 50,
+            dragStartPositionY: 50
+        };
+
+        const title = document.getElementById('profile-image-editor-title');
+        if (title) title.textContent = isAvatar ? 'Edit Avatar' : 'Edit Banner';
+
+        const focus = document.getElementById('profile-image-editor-focus');
+        if (focus) {
+            focus.classList.toggle('avatar', isAvatar);
+            focus.classList.toggle('banner', !isAvatar);
+        }
+
+        const stage = document.getElementById('profile-image-editor-stage');
+        if (stage) {
+            stage.classList.toggle('avatar-target', isAvatar);
+            stage.classList.toggle('banner-target', !isAvatar);
+        }
+
+        this._renderProfileImageEditor();
+        document.getElementById('profile-image-editor-modal').classList.add('active');
+    }
+
+    _closeProfileImageEditor() {
+        document.getElementById('profile-image-editor-modal').classList.remove('active');
+        this._profileImageEditor = null;
+        const fileInput = document.getElementById('profile-image-editor-input');
+        if (fileInput) fileInput.value = '';
+    }
+
+    _renderProfileImageEditor() {
+        const st = this._profileImageEditor;
+        if (!st) return;
+
+        const stage = document.getElementById('profile-image-editor-stage');
+        const preview = document.getElementById('profile-image-editor-preview');
+        const zoomInput = document.getElementById('profile-image-editor-zoom');
+        const zoomValue = document.getElementById('profile-image-editor-zoom-value');
+        const applyBtn = document.getElementById('apply-profile-image-editor');
+
+        if (zoomInput) zoomInput.value = String(st.zoom);
+        if (zoomValue) zoomValue.textContent = `${st.zoom}%`;
+
+        if (!preview || !stage) return;
+
+        if (!st.image) {
+            preview.removeAttribute('src');
+            preview.style.display = 'none';
+            stage.style.background = 'linear-gradient(to right, #316ac5, #1e4088)';
+            if (applyBtn) applyBtn.disabled = true;
+            return;
+        }
+
+        preview.style.display = 'block';
+        preview.src = st.image;
+        preview.draggable = false;
+        const fit = st.target === 'avatar'
+            ? 'cover'
+            : (st.zoom <= 100 ? 'contain' : 'cover');
+        const scale = st.target === 'avatar'
+            ? this._getAvatarZoomScaleFromPercent(st.zoom)
+            : (st.zoom / 100);
+        preview.style.objectFit = fit;
+        preview.style.objectPosition = `${st.positionX}% ${st.positionY}%`;
+        preview.style.transform = `scale(${scale}) rotate(${st.rotation}deg)`;
+        stage.style.background = '#1a1f2b';
+        stage.style.cursor = st.dragging ? 'grabbing' : 'grab';
+        if (applyBtn) applyBtn.disabled = false;
+    }
+
+    _startProfileImageEditorDrag(clientX, clientY) {
+        const st = this._profileImageEditor;
+        if (!st || !st.image) return;
+        st.dragging = true;
+        st.dragStartX = clientX;
+        st.dragStartY = clientY;
+        st.dragStartPositionX = st.positionX;
+        st.dragStartPositionY = st.positionY;
+        this._renderProfileImageEditor();
+    }
+
+    _moveProfileImageEditorDrag(clientX, clientY) {
+        const st = this._profileImageEditor;
+        if (!st || !st.dragging) return;
+        const stage = document.getElementById('profile-image-editor-stage');
+        if (!stage) return;
+        const stageWidth = Math.max(stage.clientWidth, 1);
+        const stageHeight = Math.max(stage.clientHeight, 1);
+        const deltaX = clientX - st.dragStartX;
+        const deltaPx = clientY - st.dragStartY;
+        const deltaXPct = (deltaX / stageWidth) * 100;
+        const deltaPct = (deltaPx / stageHeight) * 100;
+        st.positionX = this._getImagePositionPercent(st.dragStartPositionX + deltaXPct, st.dragStartPositionX);
+        st.positionY = this._getImagePositionPercent(st.dragStartPositionY + deltaPct, st.dragStartPositionY);
+        this._renderProfileImageEditor();
+    }
+
+    _endProfileImageEditorDrag() {
+        const st = this._profileImageEditor;
+        if (!st) return;
+        st.dragging = false;
+        this._renderProfileImageEditor();
+    }
+
+    async _rotateDataUrl(dataUrl, degrees) {
+        const norm = ((degrees % 360) + 360) % 360;
+        if (!norm) return dataUrl;
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const radians = norm * Math.PI / 180;
+                const swapSides = norm === 90 || norm === 270;
+                const canvas = document.createElement('canvas');
+                canvas.width = swapSides ? img.height : img.width;
+                canvas.height = swapSides ? img.width : img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(radians);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        });
+    }
+
+    async _applyProfileImageEditor() {
+        const st = this._profileImageEditor;
+        if (!st) return;
+        if (!st.image) {
+            alert('Please upload an image first.');
+            return;
+        }
+
+        const finalImage = await this._rotateDataUrl(st.image, st.rotation);
+
+        if (st.target === 'avatar') {
+            await this._fbSet(`${this._cols.profiles}/${this.username}`, { pfpUrl: finalImage });
+            try { localStorage.setItem(`wigcord-pfp-${this.username}`, finalImage); } catch(e) {}
+            try { localStorage.setItem(`wigcord-pfp-cache-${this.username}`, finalImage); } catch(e) {}
+            this._pfpCache[this.username] = finalImage;
+            this.userPfp = finalImage;
+            this.myProfile.pfpUrl = finalImage;
+            this.myProfile.avatarPositionX = st.positionX;
+            this.myProfile.avatarPositionY = st.positionY;
+            this.myProfile.avatarPosition = st.positionY;
+            this.myProfile.avatarZoom = st.zoom;
+        } else {
+            this.myProfile.bannerUrl = finalImage;
+            this.myProfile.bannerPositionX = st.positionX;
+            this.myProfile.bannerPositionY = st.positionY;
+            this.myProfile.bannerPosition = st.positionY;
+            this.myProfile.bannerZoom = st.zoom;
+        }
+
+        this._updateProfilePreview();
+        this._updateUserPanel();
+        this._closeProfileImageEditor();
+    }
+
     async _saveProfileFromEditor() {
         const td = this._c.THEME_DEFAULTS;
+        const bannerPositionX = this._getImagePositionPercent(this.myProfile.bannerPositionX, 50);
+        const bannerPositionY = this._getImagePositionPercent(
+            this.myProfile.bannerPositionY !== undefined ? this.myProfile.bannerPositionY : this.myProfile.bannerPosition,
+            50
+        );
+        const avatarPositionX = this._getImagePositionPercent(this.myProfile.avatarPositionX, 50);
+        const avatarPositionY = this._getImagePositionPercent(
+            this.myProfile.avatarPositionY !== undefined ? this.myProfile.avatarPositionY : this.myProfile.avatarPosition,
+            50
+        );
+        const bannerZoom = this._getImageZoomPercent(this.myProfile.bannerZoom, 100);
+        const avatarZoom = this._getImageZoomPercent(this.myProfile.avatarZoom, 100);
         const profileData = {
             displayName: document.getElementById('profile-display-name').value.trim() || this.username,
             pronouns: document.getElementById('profile-pronouns').value.trim(),
             bio: document.getElementById('profile-bio').value.trim().substring(0, this._c.BIO_MAX_LENGTH),
+            bannerPositionX,
+            bannerPositionY,
+            bannerPosition: bannerPositionY,
+            avatarPositionX,
+            avatarPositionY,
+            avatarPosition: avatarPositionY,
+            bannerZoom,
+            avatarZoom,
             theme: {
                 primary: document.getElementById('theme-primary-input').value || td.primary,
                 accent: document.getElementById('theme-accent-input').value || td.accent
@@ -3256,6 +4121,8 @@ class WigCord {
 
         // Context menu
         this._setupContextMenu();
+        this._setupMessageContextMenu();
+        this._setupPinnedMessagesUI();
 
         // Server menu dropdown button (▼)
         document.getElementById('server-menu-btn').addEventListener('click', (e) => {
@@ -3281,6 +4148,7 @@ class WigCord {
 
         // Emoji and GIF pickers
         this._setupEmojiPicker();
+        this._setupStickerPicker();
         this._setupGifPicker();
         this._setupImageUpload();
 
@@ -3316,26 +4184,89 @@ class WigCord {
             this._updateProfilePreview();
         });
 
-        // Banner upload/remove
+        // Avatar/banner image editor popup
         document.getElementById('profile-change-banner').addEventListener('click', () => {
-            document.getElementById('profile-banner-input').click();
+            this._openProfileImageEditor('banner');
         });
-        document.getElementById('profile-banner-input').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    // Compress banner image to avoid exceeding Firestore/localStorage limits
-                    this._compressImage(ev.target.result, 600, 240, 0.7).then(compressed => {
-                        this.myProfile.bannerUrl = compressed;
-                        this._updateProfilePreview();
-                    });
-                };
-                reader.readAsDataURL(file);
+        document.getElementById('profile-change-avatar').addEventListener('click', () => {
+            this._openProfileImageEditor('avatar');
+        });
+
+        document.getElementById('close-profile-image-editor').addEventListener('click', () => this._closeProfileImageEditor());
+        document.getElementById('cancel-profile-image-editor').addEventListener('click', () => this._closeProfileImageEditor());
+        document.getElementById('apply-profile-image-editor').addEventListener('click', () => this._applyProfileImageEditor());
+        document.getElementById('profile-image-editor-modal').addEventListener('click', (e) => {
+            const content = document.querySelector('#profile-image-editor-modal .profile-image-editor-content');
+            if (content && !content.contains(e.target)) {
+                this._closeProfileImageEditor();
             }
         });
+
+        document.getElementById('profile-image-editor-zoom').addEventListener('input', (e) => {
+            if (!this._profileImageEditor) return;
+            this._profileImageEditor.zoom = this._getImageZoomPercent(e.target.value, 100);
+            this._renderProfileImageEditor();
+        });
+
+        document.getElementById('profile-image-rotate-btn').addEventListener('click', () => {
+            if (!this._profileImageEditor) return;
+            this._profileImageEditor.rotation = (this._profileImageEditor.rotation + 90) % 360;
+            this._renderProfileImageEditor();
+        });
+
+        document.getElementById('profile-image-upload-btn').addEventListener('click', () => {
+            document.getElementById('profile-image-editor-input').click();
+        });
+
+        document.getElementById('profile-image-editor-input').addEventListener('change', (e) => {
+            if (!this._profileImageEditor) return;
+            const file = e.target.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const isAvatar = this._profileImageEditor.target === 'avatar';
+                const maxW = isAvatar ? 512 : 600;
+                const maxH = isAvatar ? 512 : 240;
+                this._compressImage(ev.target.result, maxW, maxH, 0.85).then(compressed => {
+                    this._profileImageEditor.image = compressed;
+                    this._profileImageEditor.positionX = 50;
+                    this._profileImageEditor.positionY = 50;
+                    this._profileImageEditor.zoom = 100;
+                    this._profileImageEditor.rotation = 0;
+                    this._renderProfileImageEditor();
+                });
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+
+        const imageEditorStage = document.getElementById('profile-image-editor-stage');
+        if (imageEditorStage) {
+            imageEditorStage.addEventListener('pointerdown', (e) => {
+                if (!this._profileImageEditor || !this._profileImageEditor.image) return;
+                this._startProfileImageEditorDrag(e.clientX, e.clientY);
+                try { imageEditorStage.setPointerCapture(e.pointerId); } catch (err) {}
+            });
+            imageEditorStage.addEventListener('pointermove', (e) => {
+                this._moveProfileImageEditorDrag(e.clientX, e.clientY);
+            });
+            imageEditorStage.addEventListener('pointerup', () => {
+                this._endProfileImageEditorDrag();
+            });
+            imageEditorStage.addEventListener('pointercancel', () => {
+                this._endProfileImageEditorDrag();
+            });
+        }
+
         document.getElementById('profile-remove-banner').addEventListener('click', () => {
             delete this.myProfile.bannerUrl;
+            this.myProfile.bannerPositionX = 50;
+            this.myProfile.bannerPositionY = 50;
+            this.myProfile.bannerPosition = 50;
+            this.myProfile.bannerZoom = 100;
             this._updateProfilePreview();
         });
 
@@ -3346,11 +4277,6 @@ class WigCord {
         document.getElementById('profile-remove-effect').addEventListener('click', () => {
             delete this.myProfile.profileEffect;
             this._updateProfilePreview();
-        });
-
-        // Profile avatar change
-        document.getElementById('profile-change-avatar').addEventListener('click', () => {
-            document.getElementById('profile-avatar-input').click();
         });
 
         // Spotify connect/disconnect
@@ -3392,27 +4318,6 @@ class WigCord {
             this._currentTrack = null;
             this._updateUserPanelNowPlaying(null);
         });
-        document.getElementById('profile-avatar-input').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const dataUrl = ev.target.result;
-                    // Save ONLY to wigcord_profiles (Wigcord pfp is separate from WigTube)
-                    await this._fbSet(`${this._cols.profiles}/${this.username}`, { pfpUrl: dataUrl });
-                    // Cache in wigcord-specific localStorage key
-                    try { localStorage.setItem(`wigcord-pfp-${this.username}`, dataUrl); } catch(e) {}
-                    // Update pfp cache so rendered messages pick it up
-                    this._pfpCache[this.username] = dataUrl;
-                    try { localStorage.setItem(`wigcord-pfp-cache-${this.username}`, dataUrl); } catch(e) {}
-                    this.userPfp = dataUrl;
-                    this._updateProfilePreview();
-                    this._updateUserPanel();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
         // Profile viewer close
         document.getElementById('close-profile-viewer').addEventListener('click', () => {
             document.getElementById('profile-viewer-modal').classList.remove('active');
@@ -3439,8 +4344,11 @@ class WigCord {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+                this._hideMessageContextMenu();
             }
         });
+
+        this._updatePinnedButtonVisibility();
     }
 
     // =========================================================================
@@ -3464,6 +4372,10 @@ class WigCord {
     _openServerSettings(serverId) {
         const server = this.servers.find(s => s.id === serverId);
         if (!server) return;
+        if (!this._canOpenServerSettings(serverId)) {
+            alert('You do not have permission to view server settings.');
+            return;
+        }
         this.currentSettingsServer = serverId;
         document.getElementById('settings-server-name').textContent = server.name;
         document.getElementById('server-settings-modal').classList.add('active');
@@ -3491,6 +4403,18 @@ class WigCord {
                 preview.style.display = 'block';
                 contentArea.innerHTML = this._getRolesContent();
                 this._initRoleManagement();
+                break;
+            case 'emoji':
+                title.textContent = 'EMOJI';
+                preview.style.display = 'none';
+                contentArea.innerHTML = this._getEmojiSettingsContent();
+                this._initCustomEmojiSettings();
+                break;
+            case 'stickers':
+                title.textContent = 'STICKERS';
+                preview.style.display = 'none';
+                contentArea.innerHTML = this._getStickersSettingsContent();
+                this._initCustomStickerSettings();
                 break;
             default:
                 title.textContent = tab.toUpperCase().replace(/-/g, ' ');
@@ -3540,6 +4464,231 @@ class WigCord {
                 </div>
             </div>
         `;
+    }
+
+    _getEmojiSettingsContent() {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server) return '<p>Server not found.</p>';
+
+        const max = this._c.MAX_CUSTOM_EMOJIS_PER_SERVER;
+        const custom = this._getServerCustomEmoji(server.id);
+        const canAdd = custom.length < max;
+
+        const items = custom.length
+            ? custom.map(item => `
+                <div class="custom-asset-item" data-emoji-id="${this._esc(item.id)}">
+                    <div class="custom-asset-preview"><img src="${this._esc(item.imageUrl)}" alt="${this._esc(item.name)}"></div>
+                    <div class="custom-asset-meta">
+                        <div class="custom-asset-name">${this._esc(item.name)}</div>
+                        <div class="custom-asset-token">:${this._esc(item.name)}:</div>
+                    </div>
+                    <button class="choose-image-btn custom-asset-remove" data-remove-emoji="${this._esc(item.id)}">Remove</button>
+                </div>
+            `).join('')
+            : '<div class="settings-subtitle">No custom emojis yet.</div>';
+
+        return `
+            <div class="custom-assets-header">
+                <div>
+                    <h3 style="font-size: 12px; margin: 0;">Custom Emojis</h3>
+                    <div class="settings-subtitle">Upload custom emojis for this server.</div>
+                </div>
+                <div class="custom-assets-count">${custom.length}/${max}</div>
+            </div>
+            <div class="custom-assets-upload">
+                <input id="custom-emoji-name" class="modal-input" maxlength="32" placeholder="emoji_name">
+                <input id="custom-emoji-file" type="file" accept="image/*">
+                <button id="add-custom-emoji-btn" class="choose-image-btn" ${canAdd ? '' : 'disabled'}>Add Emoji</button>
+            </div>
+            <div class="custom-assets-list">${items}</div>
+        `;
+    }
+
+    _getStickersSettingsContent() {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server) return '<p>Server not found.</p>';
+
+        const max = this._c.MAX_CUSTOM_STICKERS_PER_SERVER;
+        const custom = this._getServerCustomStickers(server.id);
+        const canAdd = custom.length < max;
+
+        const items = custom.length
+            ? custom.map(item => `
+                <div class="custom-asset-item" data-sticker-id="${this._esc(item.id)}">
+                    <div class="custom-asset-preview"><img src="${this._esc(item.imageUrl)}" alt="${this._esc(item.name)}"></div>
+                    <div class="custom-asset-meta">
+                        <div class="custom-asset-name">${this._esc(item.name)}</div>
+                    </div>
+                    <button class="choose-image-btn custom-asset-remove" data-remove-sticker="${this._esc(item.id)}">Remove</button>
+                </div>
+            `).join('')
+            : '<div class="settings-subtitle">No custom stickers yet.</div>';
+
+        return `
+            <div class="custom-assets-header">
+                <div>
+                    <h3 style="font-size: 12px; margin: 0;">Custom Stickers</h3>
+                    <div class="settings-subtitle">Upload up to ${max} stickers for this server.</div>
+                </div>
+                <div class="custom-assets-count">${custom.length}/${max}</div>
+            </div>
+            <div class="custom-assets-upload">
+                <input id="custom-sticker-name" class="modal-input" maxlength="32" placeholder="Sticker name">
+                <input id="custom-sticker-file" type="file" accept="image/*">
+                <button id="add-custom-sticker-btn" class="choose-image-btn" ${canAdd ? '' : 'disabled'}>Add Sticker</button>
+            </div>
+            <div class="custom-assets-list">${items}</div>
+        `;
+    }
+
+    _initCustomEmojiSettings() {
+        const addBtn = document.getElementById('add-custom-emoji-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this._addCustomEmojiFromSettings());
+        }
+        document.querySelectorAll('[data-remove-emoji]').forEach(btn => {
+            btn.addEventListener('click', () => this._removeCustomEmojiFromSettings(btn.dataset.removeEmoji));
+        });
+    }
+
+    _initCustomStickerSettings() {
+        const addBtn = document.getElementById('add-custom-sticker-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this._addCustomStickerFromSettings());
+        }
+        document.querySelectorAll('[data-remove-sticker]').forEach(btn => {
+            btn.addEventListener('click', () => this._removeCustomStickerFromSettings(btn.dataset.removeSticker));
+        });
+    }
+
+    _fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async _addCustomEmojiFromSettings() {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server) return;
+        if (!this._canOpenServerSettings(server.id)) {
+            alert('You do not have permission to add custom emojis.');
+            return;
+        }
+
+        server.customEmojis = this._getServerCustomEmoji(server.id);
+        if (server.customEmojis.length >= this._c.MAX_CUSTOM_EMOJIS_PER_SERVER) {
+            alert(`This server already has ${this._c.MAX_CUSTOM_EMOJIS_PER_SERVER} custom emojis.`);
+            return;
+        }
+
+        const nameInput = document.getElementById('custom-emoji-name');
+        const fileInput = document.getElementById('custom-emoji-file');
+        const rawName = (nameInput && nameInput.value || '').trim().toLowerCase();
+        const file = fileInput && fileInput.files && fileInput.files[0];
+
+        if (!/^[a-z0-9_]{2,32}$/.test(rawName)) {
+            alert('Emoji name must be 2-32 characters and use letters, numbers, or underscore.');
+            return;
+        }
+        if (server.customEmojis.some(e => String(e.name || '').toLowerCase() === rawName)) {
+            alert('An emoji with that name already exists.');
+            return;
+        }
+        if (!file || !file.type.startsWith('image/')) {
+            alert('Please choose an image file for the emoji.');
+            return;
+        }
+
+        const dataUrl = await this._fileToDataUrl(file);
+        const imageUrl = await this._compressImage(dataUrl, 128, 128, 0.9);
+        server.customEmojis.push({
+            id: `ce-${Date.now()}`,
+            name: rawName,
+            imageUrl,
+            createdBy: this.username,
+            createdAt: Date.now()
+        });
+
+        await this._saveServer(server);
+        if (this.currentServer === server.id) this._serverCustomEmoji = server.customEmojis;
+        this._loadSettingsTab('emoji');
+    }
+
+    async _removeCustomEmojiFromSettings(emojiId) {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server || !emojiId) return;
+        if (!this._canOpenServerSettings(server.id)) {
+            alert('You do not have permission to remove custom emojis.');
+            return;
+        }
+        server.customEmojis = this._getServerCustomEmoji(server.id).filter(e => e.id !== emojiId);
+        await this._saveServer(server);
+        if (this.currentServer === server.id) this._serverCustomEmoji = server.customEmojis;
+        this._loadSettingsTab('emoji');
+    }
+
+    async _addCustomStickerFromSettings() {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server) return;
+        if (!this._canOpenServerSettings(server.id)) {
+            alert('You do not have permission to add stickers.');
+            return;
+        }
+
+        server.customStickers = this._getServerCustomStickers(server.id);
+        if (server.customStickers.length >= this._c.MAX_CUSTOM_STICKERS_PER_SERVER) {
+            alert(`This server already has ${this._c.MAX_CUSTOM_STICKERS_PER_SERVER} stickers.`);
+            return;
+        }
+
+        const nameInput = document.getElementById('custom-sticker-name');
+        const fileInput = document.getElementById('custom-sticker-file');
+        const rawName = (nameInput && nameInput.value || '').trim();
+        const stickerName = rawName || `sticker-${server.customStickers.length + 1}`;
+        const file = fileInput && fileInput.files && fileInput.files[0];
+
+        if (stickerName.length > 32) {
+            alert('Sticker name must be 32 characters or fewer.');
+            return;
+        }
+        if (server.customStickers.some(s => String(s.name || '').toLowerCase() === stickerName.toLowerCase())) {
+            alert('A sticker with that name already exists.');
+            return;
+        }
+        if (!file || !file.type.startsWith('image/')) {
+            alert('Please choose an image file for the sticker.');
+            return;
+        }
+
+        const dataUrl = await this._fileToDataUrl(file);
+        const imageUrl = await this._compressImage(dataUrl, 320, 320, 0.9);
+        server.customStickers.push({
+            id: `cs-${Date.now()}`,
+            name: stickerName,
+            imageUrl,
+            createdBy: this.username,
+            createdAt: Date.now()
+        });
+
+        await this._saveServer(server);
+        if (this.currentServer === server.id) this._serverCustomStickers = server.customStickers;
+        this._loadSettingsTab('stickers');
+    }
+
+    async _removeCustomStickerFromSettings(stickerId) {
+        const server = this.servers.find(s => s.id === this.currentSettingsServer);
+        if (!server || !stickerId) return;
+        if (!this._canOpenServerSettings(server.id)) {
+            alert('You do not have permission to remove stickers.');
+            return;
+        }
+        server.customStickers = this._getServerCustomStickers(server.id).filter(s => s.id !== stickerId);
+        await this._saveServer(server);
+        if (this.currentServer === server.id) this._serverCustomStickers = server.customStickers;
+        this._loadSettingsTab('stickers');
     }
 
     _initRoleManagement() {
@@ -3725,6 +4874,10 @@ class WigCord {
 
     _setupContextMenu() {
         const contextMenu = document.getElementById('server-context-menu');
+        const serverSettingsItem = document.getElementById('ctx-server-settings');
+        const createChannelItem = document.getElementById('ctx-create-channel');
+        const createCategoryItem = document.getElementById('ctx-create-category');
+        const deleteServerItem = document.getElementById('ctx-delete-server');
         let currentCtxServer = null;
 
         document.addEventListener('click', (e) => {
@@ -3735,11 +4888,11 @@ class WigCord {
             this._openInviteModal();
             contextMenu.style.display = 'none';
         });
-        document.getElementById('ctx-server-settings').addEventListener('click', () => {
+        serverSettingsItem.addEventListener('click', () => {
             this._openServerSettings(currentCtxServer);
             contextMenu.style.display = 'none';
         });
-        document.getElementById('ctx-create-channel').addEventListener('click', () => {
+        createChannelItem.addEventListener('click', () => {
             if (currentCtxServer && this._hasPermission(currentCtxServer, 'manageChannels')) {
                 this.openChannelCreationModal();
             } else {
@@ -3747,22 +4900,30 @@ class WigCord {
             }
             contextMenu.style.display = 'none';
         });
-        document.getElementById('ctx-create-category').addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
-        document.getElementById('ctx-create-event').addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
+        createCategoryItem.addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
         document.getElementById('ctx-notification-settings').addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
-        document.getElementById('ctx-privacy-settings').addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
         document.getElementById('ctx-edit-profile').addEventListener('click', () => {
             this._openProfileEditor();
             contextMenu.style.display = 'none';
         });
         document.getElementById('ctx-hide-muted').addEventListener('click', () => { alert('Coming soon!'); contextMenu.style.display = 'none'; });
-        document.getElementById('ctx-delete-server').addEventListener('click', () => {
+        deleteServerItem.addEventListener('click', () => {
             this.deleteServer(currentCtxServer);
             contextMenu.style.display = 'none';
         });
 
         this._showContextMenu = (serverId, x, y) => {
             currentCtxServer = serverId;
+            const server = this.servers.find(s => s.id === serverId);
+            const canManageChannels = this._hasPermission(serverId, 'manageChannels');
+            const canOpenSettings = this._canOpenServerSettings(serverId);
+            const canDeleteServer = !!server && server.ownerId === this.username;
+
+            serverSettingsItem.style.display = canOpenSettings ? 'flex' : 'none';
+            createChannelItem.style.display = canManageChannels ? 'flex' : 'none';
+            createCategoryItem.style.display = canManageChannels ? 'flex' : 'none';
+            deleteServerItem.style.display = canDeleteServer ? 'flex' : 'none';
+
             // Clamp position to viewport
             const menuW = 220, menuH = 350;
             const maxX = window.innerWidth - menuW;
@@ -4114,6 +5275,7 @@ class WigCord {
     // =========================================================================
 
     _showMessageRequests() {
+        this._hideMessageContextMenu();
         document.querySelectorAll('.dm-nav-item').forEach(i => i.classList.remove('active'));
         document.getElementById('dm-requests-nav').classList.add('active');
 
@@ -4125,6 +5287,7 @@ class WigCord {
         document.getElementById('header-icon').textContent = '📨';
         document.getElementById('message-input-area').classList.add('hidden');
         document.getElementById('member-list').classList.add('hidden');
+        this._updatePinnedButtonVisibility();
     }
 
     // =========================================================================
@@ -4412,6 +5575,7 @@ class WigCord {
             e.stopPropagation();
             const isVisible = emojiPicker.style.display === 'flex';
             document.getElementById('gif-picker').style.display = 'none';
+            document.getElementById('sticker-picker').style.display = 'none';
             emojiPicker.style.display = isVisible ? 'none' : 'flex';
         });
 
@@ -4491,11 +5655,13 @@ class WigCord {
 
     _buildEmojiCategories(container, grid) {
         container.innerHTML = '';
-        const groups = Object.keys(this._emojiData);
+        const groups = Object.keys(this._getEmojiGroupsForPicker());
         groups.forEach((group, i) => {
             const btn = document.createElement('button');
             btn.className = 'emoji-category-btn' + (i === 0 ? ' active' : '');
-            btn.textContent = this._c.EMOJI_CATEGORY_ICONS[group] || '📦';
+            btn.textContent = group === 'Custom'
+                ? '✨'
+                : (this._c.EMOJI_CATEGORY_ICONS[group] || '📦');
             btn.title = group;
             btn.addEventListener('click', () => {
                 container.querySelectorAll('.emoji-category-btn').forEach(b => b.classList.remove('active'));
@@ -4507,13 +5673,30 @@ class WigCord {
         });
     }
 
+    _getEmojiGroupsForPicker() {
+        const groups = { ...(this._emojiData || {}) };
+        if (this.currentServer) {
+            const custom = this._getServerCustomEmoji(this.currentServer);
+            if (custom.length > 0) {
+                groups.Custom = custom.map(item => ({
+                    emoji: item.imageUrl,
+                    name: item.name,
+                    isCustom: true,
+                    token: `:${item.name}:`
+                }));
+            }
+        }
+        return groups;
+    }
+
     _renderEmojiGrid(grid, category, searchQuery) {
         grid.innerHTML = '';
-        const groups = category ? { [category]: this._emojiData[category] } : this._emojiData;
+        const allGroups = this._getEmojiGroupsForPicker();
+        const groups = category ? { [category]: allGroups[category] || [] } : allGroups;
 
         for (const [group, emojis] of Object.entries(groups)) {
             const filtered = searchQuery
-                ? emojis.filter(e => e.name.toLowerCase().includes(searchQuery))
+                ? emojis.filter(e => (e.name || '').toLowerCase().includes(searchQuery))
                 : emojis;
             if (filtered.length === 0) continue;
 
@@ -4525,12 +5708,20 @@ class WigCord {
                 grid.appendChild(label);
             }
 
-            filtered.forEach(({ emoji }) => {
+            filtered.forEach(({ emoji, isCustom, token }) => {
                 const el = document.createElement('div');
                 el.className = 'emoji-item';
-                el.textContent = emoji;
+                if (isCustom) {
+                    const img = document.createElement('img');
+                    img.src = emoji;
+                    img.alt = token || ':custom:';
+                    img.className = 'message-custom-emoji';
+                    el.appendChild(img);
+                } else {
+                    el.textContent = emoji;
+                }
                 el.addEventListener('click', () => {
-                    this._insertEmoji(emoji);
+                    this._insertEmoji(isCustom ? token : emoji);
                     document.getElementById('emoji-picker').style.display = 'none';
                 });
                 grid.appendChild(el);
@@ -4564,6 +5755,7 @@ class WigCord {
             e.stopPropagation();
             const isVisible = gifPicker.style.display === 'flex';
             document.getElementById('emoji-picker').style.display = 'none';
+            document.getElementById('sticker-picker').style.display = 'none';
             gifPicker.style.display = isVisible ? 'none' : 'flex';
             if (!isVisible) {
                 gifSearch.value = '';
@@ -4589,6 +5781,69 @@ class WigCord {
         document.addEventListener('click', (e) => {
             if (!gifPicker.contains(e.target) && e.target !== gifBtn) {
                 gifPicker.style.display = 'none';
+            }
+        });
+    }
+
+    // =========================================================================
+    // Sticker Picker
+    // =========================================================================
+
+    _setupStickerPicker() {
+        const stickerBtn = document.getElementById('sticker-btn');
+        const stickerPicker = document.getElementById('sticker-picker');
+        const stickerGrid = document.getElementById('sticker-grid');
+        const stickerClose = document.getElementById('sticker-close');
+        if (!stickerBtn || !stickerPicker || !stickerGrid || !stickerClose) return;
+
+        const renderStickers = () => {
+            stickerGrid.innerHTML = '';
+            if (!this.currentServer) {
+                stickerGrid.innerHTML = '<div class="sticker-empty">Open a server to use stickers.</div>';
+                return;
+            }
+
+            const stickers = this._getServerCustomStickers(this.currentServer);
+            if (!stickers.length) {
+                stickerGrid.innerHTML = '<div class="sticker-empty">No custom stickers uploaded for this server.</div>';
+                return;
+            }
+
+            stickers.forEach(sticker => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'sticker-item';
+                item.title = sticker.name || 'Sticker';
+                item.innerHTML = `<img src="${this._esc(sticker.imageUrl)}" alt="${this._esc(sticker.name || 'Sticker')}">`;
+                item.addEventListener('click', async () => {
+                    this._pendingImage = sticker.imageUrl;
+                    await this.sendMessage();
+                    stickerPicker.style.display = 'none';
+                });
+                stickerGrid.appendChild(item);
+            });
+        };
+
+        stickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = stickerPicker.style.display === 'flex';
+            document.getElementById('emoji-picker').style.display = 'none';
+            document.getElementById('gif-picker').style.display = 'none';
+            if (isVisible) {
+                stickerPicker.style.display = 'none';
+                return;
+            }
+            renderStickers();
+            stickerPicker.style.display = 'flex';
+        });
+
+        stickerClose.addEventListener('click', () => {
+            stickerPicker.style.display = 'none';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!stickerPicker.contains(e.target) && e.target !== stickerBtn) {
+                stickerPicker.style.display = 'none';
             }
         });
     }
@@ -4755,6 +6010,23 @@ class WigCord {
     _parseEmojis(html) {
         return html.replace(/([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])/gu,
             '<span style="font-size: 16px;">$1</span>');
+    }
+
+    _parseCustomServerEmojis(html) {
+        if (!html || !this.currentServer) return html;
+        const custom = this._getServerCustomEmoji(this.currentServer);
+        if (!custom.length) return html;
+
+        let output = html;
+        custom.forEach(item => {
+            const rawName = String(item && item.name || '').trim();
+            const imageUrl = String(item && item.imageUrl || '').trim();
+            if (!rawName || !imageUrl) return;
+            const tokenPattern = new RegExp(`:${rawName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`, 'g');
+            const imgTag = `<img src="${this._esc(imageUrl)}" class="message-custom-emoji" alt=":${this._esc(rawName)}:">`;
+            output = output.replace(tokenPattern, imgTag);
+        });
+        return output;
     }
 }
 
