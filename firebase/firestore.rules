@@ -86,6 +86,11 @@ service cloud.firestore {
       match /profiles/{username} {
         allow read, write: if true;
       }
+
+      // Voice channel presence
+      match /voicePresence/{channelKey} {
+        allow read, write: if true;
+      }
     }
 
     // Allow access to other wigcord documents

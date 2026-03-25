@@ -69,6 +69,17 @@
                 <div id="voice-channels"></div>
             </div>
 
+            <div class="voice-room-panel" id="voice-room-panel" style="display: none;">
+                <div class="voice-room-header">
+                    <div class="voice-room-heading">
+                        <span class="voice-room-title" id="voice-room-title">Voice Channel</span>
+                        <span class="voice-room-subtitle" id="voice-room-subtitle">0 connected</span>
+                    </div>
+                    <span class="voice-room-count" id="voice-room-count">0</span>
+                </div>
+                <div class="voice-room-members" id="voice-room-members"></div>
+            </div>
+
             <div class="user-panel">
                 <div id="user-panel-now-playing" class="up-now-playing" style="display:none"></div>
                 <div class="user-info">
@@ -81,6 +92,7 @@
                 <div class="user-controls">
                     <button class="control-btn" title="Mute" id="btn-mute">🔇</button>
                     <button class="control-btn" title="Deafen" id="btn-deafen">🎧</button>
+                    <button class="control-btn" title="Leave Voice Channel" id="btn-leave-vc">⏏</button>
                     <button class="control-btn" title="User Settings" id="btn-user-settings"><img src="../../../assets/images/icons/wigcord/paintbrush.svg" class="wc-icon-xs" alt="Settings"></button>
                 </div>
             </div>
@@ -127,6 +139,10 @@
                         <div class="dm-empty-text">When someone sends you a message request, it will appear here.</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="voice-channel-view" id="voice-channel-view" style="display: none;">
+                <div class="voice-stage-grid" id="voice-stage-grid"></div>
             </div>
 
             <div class="welcome-screen" id="welcome-screen" style="display: none;">
@@ -732,6 +748,7 @@
 
     <script src="../../../scripts/firebase/firebaseconfig.js"></script>
     <script src="../../../scripts/apps/browser/spotify-api.js"></script>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
     <script src="../../../scripts/apps/browser/wigcord.js"></script>
 </body>
 </html>

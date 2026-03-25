@@ -26,6 +26,7 @@ class WigCord {
             friends:   'wigcord/data/friends',
             dms:       'wigcord/data/dms',
             profiles:  'wigcord/data/profiles',
+            voicePresence: 'wigcord/data/voicePresence',
             users:     'users',           // global user docs (pfp etc.)
         },
 
@@ -88,6 +89,21 @@ class WigCord {
 
         // Notification ping sound (user-provided file)
         NOTIFICATION_SOUND_SRC: '../../../assets/audio/misc/Reverse Piano Sample - Piano Playing Backwards Effect (mp3cut.net).mp3',
+
+        // Agora voice configuration
+        AGORA: {
+            ENABLED: true,
+            APP_ID: 'c629354328614f25b6448169ab3ed43b',
+            TOKEN_ENDPOINT: '',
+            TOKEN_SHARED_SECRET: '',
+            PTT_KEY: 'Alt',
+            SPEAKING_LEVEL_THRESHOLD: 5,
+            HEARTBEAT_INTERVAL_MS: 15000,
+            STALE_TIMEOUT_MS: 45000,
+            STALE_CLEANUP_COOLDOWN_MS: 10000,
+            INACTIVITY_DISCONNECT_MS: 5 * 60 * 1000,
+            INACTIVITY_CHECK_INTERVAL_MS: 15000,
+        },
 
         // Emoji data URL — loaded at runtime from unicode-emoji-json
         EMOJI_DATA_URL: 'https://cdn.jsdelivr.net/npm/unicode-emoji-json@0.6.0/data-by-group.json',
@@ -261,6 +277,26 @@ class WigCord {
         this._messageContextTarget = null;
         this._reactionProviders = [];
         this._activePinnedMessages = [];
+
+        // Agora voice runtime state
+        this._agoraClient = null;
+        this._agoraJoinedChannel = null;
+        this._localAudioTrack = null;
+        this._remoteAudioUsers = {};
+        this._voiceMuted = false;
+        this._voiceDeafened = false;
+        this._pushToTalkEnabled = true;
+        this._pttKeyDown = false;
+        this._speakingUsers = new Set();
+        this._voiceJoinInFlight = false;
+        this._voicePresenceUnsubs = {};
+        this._voicePresenceByChannel = {};
+        this._joinedVoiceServerId = null;
+        this._joinedVoiceChannelId = null;
+        this._voiceHeartbeatTimer = null;
+        this._voiceStaleCleanupAt = {};
+        this._voiceInactivityTimer = null;
+        this._lastVoiceActivityAt = 0;
 
         // Flags to skip notifications on initial snapshot load
         this._channelInitialized = false;
@@ -1073,9 +1109,11 @@ class WigCord {
         document.getElementById('voice-category').style.display = 'none';
         document.getElementById('welcome-screen').style.display = 'none';
         document.getElementById('messages-container').style.display = 'none';
+        document.getElementById('voice-channel-view').style.display = 'none';
         document.getElementById('dm-chat-view').style.display = 'none';
         document.getElementById('member-list').classList.add('hidden');
         this._updateServerActionVisibility(null);
+        this._renderVoiceRoomPanel();
 
         this._updatePinnedButtonVisibility();
 
@@ -1107,6 +1145,7 @@ class WigCord {
         document.getElementById('dm-main-view').style.display = 'none';
         document.getElementById('dm-requests-view').style.display = 'none';
         document.getElementById('dm-chat-view').style.display = 'none';
+        document.getElementById('voice-channel-view').style.display = 'none';
 
         // Show channel list + member list
         document.getElementById('channel-category').style.display = 'block';
@@ -1117,6 +1156,8 @@ class WigCord {
 
         this._renderChannels(server);
         this._renderMemberList(server);
+        this._startVoicePresenceWatchers(server);
+        this._renderVoiceRoomPanel();
 
         // Default to general text channel
         const firstText = (server.channels || []).find(c => c.type === 'text');
@@ -1129,7 +1170,7 @@ class WigCord {
         }
     }
 
-    switchToChannel(channelId) {
+    async switchToChannel(channelId) {
         this._unsubMessages();
         const server = this.servers.find(s => s.id === this.currentServer);
         if (!server) return;
@@ -1166,10 +1207,24 @@ class WigCord {
 
         document.getElementById('message-input').placeholder = `Message #${channel.name}`;
         document.getElementById('welcome-screen').style.display = 'none';
-        document.getElementById('messages-container').style.display = 'block';
         document.getElementById('dm-main-view').style.display = 'none';
         document.getElementById('dm-requests-view').style.display = 'none';
         document.getElementById('dm-chat-view').style.display = 'none';
+
+        if (channel.type === 'voice') {
+            document.getElementById('messages-container').style.display = 'none';
+            document.getElementById('voice-channel-view').style.display = 'flex';
+            document.getElementById('message-input-area').classList.add('no-send');
+            document.getElementById('message-input').placeholder = 'Connected to voice channel';
+            document.getElementById('message-input').disabled = true;
+            await this._joinVoiceChannel(channelId);
+            await this._renderVoiceChannelView(channelId);
+            this._updatePinnedButtonVisibility();
+            return;
+        }
+
+        document.getElementById('messages-container').style.display = 'block';
+        document.getElementById('voice-channel-view').style.display = 'none';
 
         // Check sendMessages permission
         if (!this._hasPermission(this.currentServer, 'sendMessages')) {
@@ -1198,7 +1253,11 @@ class WigCord {
             chEl.dataset.channel = ch.id;
 
             if (ch.type === 'voice') {
-                chEl.innerHTML = `<span class="channel-icon"><img src="${this._c.ASSET_BASE}/speaker.svg" class="wc-icon-xs" alt="Voice"></span><span class="channel-name">${this._esc(ch.name)}</span>`;
+                const connectedMembers = this._getConnectedVoiceMembers(ch.id);
+                const countHtml = connectedMembers.length > 0
+                    ? `<span class="channel-voice-count">${connectedMembers.length}</span>`
+                    : '';
+                chEl.innerHTML = `<span class="channel-icon"><img src="${this._c.ASSET_BASE}/speaker.svg" class="wc-icon-xs" alt="Voice"></span><span class="channel-name">${this._esc(ch.name)}</span>${countHtml}`;
                 voiceContainer.appendChild(chEl);
             } else {
                 chEl.innerHTML = `<span class="channel-icon">#</span><span class="channel-name">${this._esc(ch.name)}</span>`;
@@ -1207,6 +1266,681 @@ class WigCord {
 
             chEl.addEventListener('click', () => this.switchToChannel(ch.id));
         });
+    }
+
+    _getJoinedVoiceContext() {
+        if (!this._joinedVoiceServerId || !this._joinedVoiceChannelId) return null;
+        const server = this.servers.find((s) => s.id === this._joinedVoiceServerId);
+        if (!server) return null;
+        const channel = (server.channels || []).find((c) => c.id === this._joinedVoiceChannelId);
+        if (!channel) return null;
+        return { server, channel };
+    }
+
+    _renderVoiceAvatarContent(username, profile = {}) {
+        const displayName = profile.displayName || username;
+        const pfp = profile.pfpUrl || ((username === this.username && this.userPfp) ? this.userPfp : null);
+        const letter = String(displayName || '?').charAt(0).toUpperCase();
+        const avatarPos = this._getAvatarObjectPosition(profile);
+        const avatarScale = this._getAvatarZoomScale(profile);
+        const avatarFit = this._getAvatarObjectFit(profile);
+
+        if (!pfp) return this._esc(letter || '?');
+
+        return `<img src="${pfp}" alt="avatar" style="object-fit:${avatarFit};object-position:${avatarPos};transform:scale(${avatarScale});transform-origin:center;">`;
+    }
+
+    async _renderVoiceRoomPanel() {
+        const panel = document.getElementById('voice-room-panel');
+        const titleEl = document.getElementById('voice-room-title');
+        const subtitleEl = document.getElementById('voice-room-subtitle');
+        const countEl = document.getElementById('voice-room-count');
+        const membersEl = document.getElementById('voice-room-members');
+        if (!panel || !titleEl || !subtitleEl || !countEl || !membersEl) return;
+
+        const context = this._getJoinedVoiceContext();
+        if (!context) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        panel.style.display = 'block';
+        titleEl.textContent = `${context.channel.name}`;
+
+        let members = this._getConnectedVoiceMembers(context.channel.id);
+        if (this.username && !members.some((m) => m.username === this.username)) {
+            members = [{ username: this.username }, ...members];
+        }
+
+        const uniqueMembers = Array.from(new Map(members.map((m) => [m.username, m])).values());
+        countEl.textContent = String(uniqueMembers.length);
+        subtitleEl.textContent = `${uniqueMembers.length} connected`;
+
+        if (!uniqueMembers.length) {
+            membersEl.innerHTML = '<div class="voice-room-empty">No one is connected.</div>';
+            return;
+        }
+
+        const profileMap = {};
+        await Promise.all(uniqueMembers.map(async (entry) => {
+            profileMap[entry.username] = await this._loadUserProfile(entry.username);
+        }));
+
+        membersEl.innerHTML = uniqueMembers.map((entry) => {
+            const username = entry.username;
+            const profile = profileMap[username] || {};
+            const displayName = profile.displayName || username;
+            const speaking = this._speakingUsers.has(String(username || '').toLowerCase());
+            return `
+                <div class="voice-room-member${speaking ? ' speaking' : ''}" data-username="${this._esc(username)}">
+                    <div class="voice-room-avatar">${this._renderVoiceAvatarContent(username, profile)}</div>
+                    <div class="voice-room-member-name">${this._esc(displayName)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async _renderVoiceChannelView(channelId = null) {
+        const viewEl = document.getElementById('voice-channel-view');
+        const gridEl = document.getElementById('voice-stage-grid');
+        if (!viewEl || !gridEl) return;
+
+        if (!this.currentServer || !this.currentChannel) {
+            viewEl.style.display = 'none';
+            return;
+        }
+
+        const server = this.servers.find((s) => s.id === this.currentServer);
+        const resolvedId = channelId || this.currentChannel;
+        const channel = (server?.channels || []).find((c) => c.id === resolvedId);
+        if (!server || !channel || channel.type !== 'voice') {
+            viewEl.style.display = 'none';
+            return;
+        }
+
+        viewEl.style.display = 'flex';
+
+        let members = this._getConnectedVoiceMembers(channel.id);
+        if (this.username && !members.some((m) => m.username === this.username) && this._joinedVoiceChannelId === channel.id) {
+            members = [{ username: this.username }, ...members];
+        }
+
+        const uniqueMembers = Array.from(new Map(members.map((m) => [m.username, m])).values());
+
+        if (!uniqueMembers.length) {
+            gridEl.innerHTML = '<div class="voice-stage-empty">No one is in this voice channel yet.</div>';
+            return;
+        }
+
+        const profileMap = {};
+        await Promise.all(uniqueMembers.map(async (entry) => {
+            profileMap[entry.username] = await this._loadUserProfile(entry.username);
+        }));
+
+        gridEl.innerHTML = uniqueMembers.map((entry) => {
+            const username = entry.username;
+            const profile = profileMap[username] || {};
+            const displayName = profile.displayName || username;
+            const speaking = this._speakingUsers.has(String(username || '').toLowerCase());
+
+            return `
+                <div class="voice-stage-card${speaking ? ' speaking' : ''}" data-username="${this._esc(username)}">
+                    <div class="voice-stage-avatar">${this._renderVoiceAvatarContent(username, profile)}</div>
+                    <div class="voice-stage-name">${this._esc(displayName)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    _getVoicePresenceDocId(serverId, channelId) {
+        const raw = `${serverId || ''}__${channelId || ''}`;
+        return raw.replace(/[^A-Za-z0-9_-]/g, '_') || 'voice_presence';
+    }
+
+    _getVoicePresencePath(serverId, channelId) {
+        const docId = this._getVoicePresenceDocId(serverId, channelId);
+        return `${this._cols.voicePresence}/${docId}`;
+    }
+
+    _clearVoicePresenceWatchers() {
+        Object.values(this._voicePresenceUnsubs || {}).forEach((unsub) => {
+            try { if (typeof unsub === 'function') unsub(); } catch (e) {}
+        });
+        this._voicePresenceUnsubs = {};
+        this._voicePresenceByChannel = {};
+        this._voiceStaleCleanupAt = {};
+    }
+
+    _isVoicePresenceFresh(state, now = Date.now()) {
+        if (!state || !state.connected) return false;
+        const updatedAt = Number(state.updatedAt || 0);
+        if (!updatedAt) return false;
+        return (now - updatedAt) <= this._c.AGORA.STALE_TIMEOUT_MS;
+    }
+
+    _scheduleStaleVoiceCleanup(serverId, channelId, staleUsernames) {
+        if (!Array.isArray(staleUsernames) || !staleUsernames.length) return;
+        const key = `${serverId}__${channelId}`;
+        const now = Date.now();
+        const lastAt = Number(this._voiceStaleCleanupAt[key] || 0);
+        if (now - lastAt < this._c.AGORA.STALE_CLEANUP_COOLDOWN_MS) return;
+
+        this._voiceStaleCleanupAt[key] = now;
+        this._cleanupStaleVoiceMembers(serverId, channelId, staleUsernames).catch((error) => {
+            console.warn('[WigCord] Stale voice cleanup failed:', error);
+        });
+    }
+
+    async _cleanupStaleVoiceMembers(serverId, channelId, usernames) {
+        if (!this._online || !this._fb || !serverId || !channelId) return;
+        const members = this._voicePresenceByChannel[channelId] || {};
+        const now = Date.now();
+        const patch = {};
+
+        usernames.forEach((username) => {
+            const prev = members[username];
+            if (!prev || !prev.connected) return;
+            patch[username] = {
+                ...prev,
+                connected: false,
+                updatedAt: now,
+                staleClearedAt: now,
+            };
+        });
+
+        if (!Object.keys(patch).length) return;
+
+        this._voicePresenceByChannel[channelId] = {
+            ...members,
+            ...patch,
+        };
+
+        const path = this._getVoicePresencePath(serverId, channelId);
+        await this._fbSet(path, { members: patch }, true);
+    }
+
+    _startVoicePresenceWatchers(server) {
+        this._clearVoicePresenceWatchers();
+        if (!this._online || !this._fb || !server) return;
+
+        const voiceChannels = (server.channels || []).filter((ch) => ch.type === 'voice');
+        if (!voiceChannels.length) return;
+
+        const { doc, onSnapshot } = this._fb;
+
+        voiceChannels.forEach((channel) => {
+            const path = this._getVoicePresencePath(server.id, channel.id);
+            const docRef = doc(this._fb.db, ...path.split('/'));
+
+            this._voicePresenceUnsubs[channel.id] = onSnapshot(docRef, (snapshot) => {
+                const data = snapshot.exists() ? snapshot.data() : {};
+                const members = (data && typeof data.members === 'object' && data.members) ? data.members : {};
+                this._voicePresenceByChannel[channel.id] = members;
+
+                const now = Date.now();
+                const staleUsers = Object.entries(members)
+                    .filter(([uname, state]) => {
+                        if (!state || !state.connected) return false;
+                        const isSelfConnected = uname === this.username
+                            && this._joinedVoiceServerId === server.id
+                            && this._joinedVoiceChannelId === channel.id;
+                        if (isSelfConnected) return false;
+                        return !this._isVoicePresenceFresh(state, now);
+                    })
+                    .map(([uname]) => uname);
+
+                this._scheduleStaleVoiceCleanup(server.id, channel.id, staleUsers);
+
+                if (this.currentServer === server.id) {
+                    this._renderChannels(server);
+                    this._renderMemberList(server);
+                }
+
+                this._renderVoiceRoomPanel();
+                if (this.currentServer === server.id && this.currentChannel === channel.id) {
+                    this._renderVoiceChannelView(channel.id);
+                }
+            }, (error) => {
+                console.error('[WigCord] Voice presence listener error:', error);
+            });
+        });
+    }
+
+    _getConnectedVoiceMembers(channelId) {
+        const members = this._voicePresenceByChannel[channelId] || {};
+        return Object.entries(members)
+            .filter(([, state]) => this._isVoicePresenceFresh(state))
+            .map(([username, state]) => ({ username, ...state }));
+    }
+
+    _getUserVoiceChannelInServer(server, username) {
+        if (!server || !username) return null;
+        const voiceChannels = (server.channels || []).filter((ch) => ch.type === 'voice');
+        for (const channel of voiceChannels) {
+            const members = this._voicePresenceByChannel[channel.id] || {};
+            const state = members[username];
+            if (this._isVoicePresenceFresh(state)) {
+                return { id: channel.id, name: channel.name, ...state };
+            }
+        }
+        return null;
+    }
+
+    async _setMyVoicePresenceState(serverId, channelId, connected) {
+        if (!this._online || !this._fb || !serverId || !channelId || !this.username) return;
+
+        const path = this._getVoicePresencePath(serverId, channelId);
+        const members = this._voicePresenceByChannel[channelId] || {};
+        const previous = members[this.username] || {};
+
+        const payload = {
+            username: this.username,
+            channelId,
+            connected: !!connected,
+            muted: !!this._voiceMuted,
+            deafened: !!this._voiceDeafened,
+            ptt: !!this._pushToTalkEnabled,
+            updatedAt: Date.now(),
+            joinedAt: previous.joinedAt || Date.now(),
+        };
+
+        this._voicePresenceByChannel[channelId] = {
+            ...members,
+            [this.username]: payload,
+        };
+
+        await this._fbSet(path, { members: { [this.username]: payload } }, true);
+    }
+
+    _syncMyVoicePresenceState() {
+        if (!this._joinedVoiceServerId || !this._joinedVoiceChannelId) return;
+        this._setMyVoicePresenceState(this._joinedVoiceServerId, this._joinedVoiceChannelId, true).catch((error) => {
+            console.error('[WigCord] Voice presence sync error:', error);
+        });
+        this._renderVoiceRoomPanel();
+    }
+
+    _startVoicePresenceHeartbeat() {
+        this._stopVoicePresenceHeartbeat();
+        if (!this._joinedVoiceServerId || !this._joinedVoiceChannelId) return;
+
+        this._voiceHeartbeatTimer = setInterval(() => {
+            this._syncMyVoicePresenceState();
+        }, this._c.AGORA.HEARTBEAT_INTERVAL_MS);
+    }
+
+    _stopVoicePresenceHeartbeat() {
+        if (!this._voiceHeartbeatTimer) return;
+        clearInterval(this._voiceHeartbeatTimer);
+        this._voiceHeartbeatTimer = null;
+    }
+
+    _noteVoiceActivity() {
+        this._lastVoiceActivityAt = Date.now();
+    }
+
+    _startVoiceInactivityMonitor() {
+        this._stopVoiceInactivityMonitor();
+        if (!this._agoraJoinedChannel) return;
+
+        this._noteVoiceActivity();
+        this._voiceInactivityTimer = setInterval(() => {
+            if (!this._agoraJoinedChannel) return;
+            const timeoutMs = Number(this._c.AGORA.INACTIVITY_DISCONNECT_MS || 0);
+            if (timeoutMs <= 0) return;
+            if ((Date.now() - this._lastVoiceActivityAt) < timeoutMs) return;
+
+            this._leaveVoiceChannel().then(() => {
+                this._updateVoiceButtonsUI();
+                alert('Disconnected from voice due to inactivity.');
+            }).catch((error) => {
+                console.warn('[WigCord] Voice inactivity disconnect warning:', error);
+            });
+        }, this._c.AGORA.INACTIVITY_CHECK_INTERVAL_MS);
+    }
+
+    _stopVoiceInactivityMonitor() {
+        if (!this._voiceInactivityTimer) return;
+        clearInterval(this._voiceInactivityTimer);
+        this._voiceInactivityTimer = null;
+    }
+
+    _getAgoraUid() {
+        const cleaned = String(this.username || 'guest')
+            .trim()
+            .replace(/[^A-Za-z0-9_-]/g, '_')
+            .slice(0, 64);
+        return cleaned || 'guest';
+    }
+
+    _getAgoraChannelName(serverId, channelId) {
+        const base = `${serverId || ''}__${channelId || ''}`;
+        return base.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || 'wigcord_voice';
+    }
+
+    _getAgoraTokenEndpointCandidates() {
+        const cfg = this._c.AGORA || {};
+        const candidates = [];
+
+        const runtimeOverride = String(localStorage.getItem('wigcordAgoraTokenEndpoint') || '').trim();
+        if (runtimeOverride) return [runtimeOverride];
+
+        const configured = String(cfg.TOKEN_ENDPOINT || '').trim();
+        if (configured) candidates.push(configured);
+
+        try {
+            const loc = window.location;
+            const pageProtocol = loc.protocol === 'https:' ? 'https:' : 'http:';
+            const pageHostname = loc.hostname || 'localhost';
+
+            if (pageHostname.endsWith('github.dev')) {
+                const forwardedHost = pageHostname.replace(/-\d+\./, '-3010.');
+                candidates.push(`https://${forwardedHost}/agora/token`);
+            } else {
+                candidates.push(`${pageProtocol}//${pageHostname}:3010/agora/token`);
+                if (pageHostname === 'localhost') {
+                    candidates.push('http://127.0.0.1:3010/agora/token');
+                }
+            }
+        } catch (e) {
+            candidates.push('http://localhost:3010/agora/token');
+            candidates.push('http://127.0.0.1:3010/agora/token');
+        }
+
+        return Array.from(new Set(candidates.filter(Boolean)));
+    }
+
+    async _fetchAgoraJoinToken(channelName, uid) {
+        const cfg = this._c.AGORA || {};
+        const endpoints = this._getAgoraTokenEndpointCandidates();
+        if (!endpoints.length) throw new Error('Agora token endpoint is not configured.');
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (cfg.TOKEN_SHARED_SECRET) {
+            headers['x-wigcord-token-secret'] = cfg.TOKEN_SHARED_SECRET;
+        }
+
+        let lastError = null;
+        for (const endpoint of endpoints) {
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ channelName, uid }),
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data?.ok || !data?.token) {
+                    const reason = data?.error || `HTTP ${res.status}`;
+                    throw new Error(`${reason} (${endpoint})`);
+                }
+
+                return {
+                    token: data.token,
+                    appId: data.appId || cfg.APP_ID,
+                };
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        const suffix = lastError ? ` Last error: ${lastError.message || String(lastError)}` : '';
+        throw new Error(`Unable to reach Agora token server.${suffix}`);
+    }
+
+    async _ensureAgoraClient() {
+        if (this._agoraClient) return this._agoraClient;
+        if (!window.AgoraRTC) throw new Error('Agora SDK is not loaded.');
+
+        this._agoraClient = window.AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+        this._agoraClient.on('user-published', async (user, mediaType) => {
+            try {
+                await this._agoraClient.subscribe(user, mediaType);
+                if (mediaType === 'audio' && user.audioTrack) {
+                    this._remoteAudioUsers[String(user.uid)] = user;
+                    user.audioTrack.play();
+                    if (this._voiceDeafened) {
+                        user.audioTrack.setVolume(0);
+                    }
+                }
+            } catch (error) {
+                console.error('[WigCord] Agora subscribe error:', error);
+            }
+        });
+
+        this._agoraClient.on('user-unpublished', (user, mediaType) => {
+            if (mediaType === 'audio') {
+                delete this._remoteAudioUsers[String(user.uid)];
+                this._markSpeakingState(String(user.uid), false);
+            }
+        });
+
+        this._agoraClient.on('user-left', (user) => {
+            delete this._remoteAudioUsers[String(user.uid)];
+            this._markSpeakingState(String(user.uid), false);
+        });
+
+        this._agoraClient.enableAudioVolumeIndicator();
+        this._agoraClient.on('volume-indicator', (volumes) => {
+            (volumes || []).forEach((entry) => {
+                const uid = String(entry.uid);
+                const isSpeaking = Number(entry.level || 0) >= this._c.AGORA.SPEAKING_LEVEL_THRESHOLD;
+                this._markSpeakingState(uid, isSpeaking);
+            });
+        });
+
+        return this._agoraClient;
+    }
+
+    _syncLocalTrackEnabled() {
+        if (!this._localAudioTrack) return;
+        const shouldEnable = !this._voiceMuted && (!this._pushToTalkEnabled || this._pttKeyDown);
+        this._localAudioTrack.setEnabled(shouldEnable);
+    }
+
+    async _joinVoiceChannel(channelId) {
+        if (!this._c.AGORA?.ENABLED) return;
+        if (this._voiceJoinInFlight) return;
+        if (!this._online) {
+            alert('Voice channels require an online connection.');
+            return;
+        }
+
+        const serverId = this.currentServer;
+        if (!serverId || !channelId) return;
+        const channelName = this._getAgoraChannelName(serverId, channelId);
+
+        if (this._agoraJoinedChannel === channelName) {
+            this._updateVoiceButtonsUI();
+            return;
+        }
+
+        this._voiceJoinInFlight = true;
+        try {
+            await this._leaveVoiceChannel();
+
+            const uid = this._getAgoraUid();
+            const tokenData = await this._fetchAgoraJoinToken(channelName, uid);
+            const appId = tokenData.appId || this._c.AGORA.APP_ID;
+
+            const client = await this._ensureAgoraClient();
+            await client.join(appId, channelName, tokenData.token, uid);
+
+            this._localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
+            this._syncLocalTrackEnabled();
+            await client.publish([this._localAudioTrack]);
+
+            this._agoraJoinedChannel = channelName;
+            this._joinedVoiceServerId = serverId;
+            this._joinedVoiceChannelId = channelId;
+            this._noteVoiceActivity();
+            this._updateVoiceButtonsUI();
+            await this._setMyVoicePresenceState(serverId, channelId, true);
+            this._startVoicePresenceHeartbeat();
+            this._startVoiceInactivityMonitor();
+            await this._renderVoiceRoomPanel();
+            await this._renderVoiceChannelView(channelId);
+        } catch (error) {
+            console.error('[WigCord] Voice join failed:', error);
+            alert(`Voice connect failed. ${error?.message || 'Check token server on port 3010.'}`);
+        } finally {
+            this._voiceJoinInFlight = false;
+        }
+    }
+
+    async _leaveVoiceChannel() {
+        const previousServerId = this._joinedVoiceServerId;
+        const previousChannelId = this._joinedVoiceChannelId;
+
+        this._stopVoicePresenceHeartbeat();
+        this._stopVoiceInactivityMonitor();
+
+        if (this._agoraClient && this._agoraJoinedChannel) {
+            try {
+                if (this._localAudioTrack) {
+                    this._localAudioTrack.stop();
+                    this._localAudioTrack.close();
+                    this._localAudioTrack = null;
+                }
+                await this._agoraClient.leave();
+            } catch (error) {
+                console.warn('[WigCord] Agora leave warning:', error);
+            } finally {
+                this._agoraJoinedChannel = null;
+                this._remoteAudioUsers = {};
+                this._speakingUsers.clear();
+                this._joinedVoiceServerId = null;
+                this._joinedVoiceChannelId = null;
+                document.querySelectorAll('.member-item.voice-speaking').forEach((node) => {
+                    node.classList.remove('voice-speaking');
+                });
+            }
+        } else {
+            this._agoraJoinedChannel = null;
+            this._remoteAudioUsers = {};
+            this._speakingUsers.clear();
+            this._joinedVoiceServerId = null;
+            this._joinedVoiceChannelId = null;
+            document.querySelectorAll('.member-item.voice-speaking').forEach((node) => {
+                node.classList.remove('voice-speaking');
+            });
+        }
+
+        if (previousServerId && previousChannelId) {
+            await this._setMyVoicePresenceState(previousServerId, previousChannelId, false);
+        }
+
+        this._renderVoiceRoomPanel();
+        this._renderVoiceChannelView();
+    }
+
+    _markSpeakingState(uid, isSpeaking) {
+        const normalized = String(uid || '').toLowerCase();
+        if (!normalized) return;
+
+        if (isSpeaking && normalized === this._getAgoraUid().toLowerCase()) {
+            this._noteVoiceActivity();
+        }
+
+        if (isSpeaking) {
+            this._speakingUsers.add(normalized);
+        } else {
+            this._speakingUsers.delete(normalized);
+        }
+
+        const node = document.querySelector(`.member-item[data-username="${this._esc(uid)}"]`) ||
+            Array.from(document.querySelectorAll('.member-item[data-username]')).find((el) =>
+                String(el.dataset.username || '').toLowerCase() === normalized
+            );
+
+        if (node) {
+            node.classList.toggle('voice-speaking', !!isSpeaking);
+        }
+
+        const voiceRoomNode = Array.from(document.querySelectorAll('.voice-room-member[data-username]')).find((el) =>
+            String(el.dataset.username || '').toLowerCase() === normalized
+        );
+        if (voiceRoomNode) {
+            voiceRoomNode.classList.toggle('speaking', !!isSpeaking);
+        }
+
+        const stageNode = Array.from(document.querySelectorAll('.voice-stage-card[data-username]')).find((el) =>
+            String(el.dataset.username || '').toLowerCase() === normalized
+        );
+        if (stageNode) {
+            stageNode.classList.toggle('speaking', !!isSpeaking);
+        }
+    }
+
+    _updateVoiceButtonsUI() {
+        const muteBtn = document.getElementById('btn-mute');
+        const deafenBtn = document.getElementById('btn-deafen');
+        const leaveBtn = document.getElementById('btn-leave-vc');
+        const inVoice = !!this._agoraJoinedChannel;
+        if (muteBtn) muteBtn.classList.toggle('active', !!this._voiceMuted);
+        if (deafenBtn) deafenBtn.classList.toggle('active', !!this._voiceDeafened);
+        if (leaveBtn) leaveBtn.disabled = !inVoice;
+    }
+
+    async _leaveVoiceFromControl() {
+        if (!this._agoraJoinedChannel) return;
+        await this._leaveVoiceChannel();
+
+        if (this.currentView === 'server' && this.currentServer) {
+            const server = this.servers.find((s) => s.id === this.currentServer);
+            const activeChannel = (server && server.channels || []).find((c) => c.id === this.currentChannel);
+            if (activeChannel && activeChannel.type === 'voice') {
+                const firstText = (server.channels || []).find((c) => c.type === 'text');
+                if (firstText) {
+                    await this.switchToChannel(firstText.id);
+                } else {
+                    document.getElementById('welcome-screen').style.display = 'flex';
+                    document.getElementById('messages-container').style.display = 'none';
+                }
+            }
+        }
+
+        this._updateVoiceButtonsUI();
+    }
+
+    async _toggleVoiceMute() {
+        if (!this._localAudioTrack) {
+            alert('Join a voice channel first.');
+            return;
+        }
+        this._voiceMuted = !this._voiceMuted;
+        this._syncLocalTrackEnabled();
+        this._updateVoiceButtonsUI();
+        this._syncMyVoicePresenceState();
+    }
+
+    _toggleVoiceDeafen() {
+        this._voiceDeafened = !this._voiceDeafened;
+        Object.values(this._remoteAudioUsers).forEach((user) => {
+            if (user && user.audioTrack) {
+                user.audioTrack.setVolume(this._voiceDeafened ? 0 : 100);
+            }
+        });
+        this._updateVoiceButtonsUI();
+        this._syncMyVoicePresenceState();
+    }
+
+    _handlePushToTalkKeyDown(event) {
+        if (!this._pushToTalkEnabled) return;
+        if (!this._localAudioTrack) return;
+        if (event.key !== this._c.AGORA.PTT_KEY) return;
+        if (event.repeat) return;
+        this._pttKeyDown = true;
+        this._noteVoiceActivity();
+        this._syncLocalTrackEnabled();
+    }
+
+    _handlePushToTalkKeyUp(event) {
+        if (!this._pushToTalkEnabled) return;
+        if (!this._localAudioTrack) return;
+        if (event.key !== this._c.AGORA.PTT_KEY) return;
+        this._pttKeyDown = false;
+        this._syncLocalTrackEnabled();
     }
 
     // =========================================================================
@@ -2466,6 +3200,7 @@ class WigCord {
         server.channels.push(newChannel);
         await this._saveServer(server);
         this._renderChannels(server);
+        this._startVoicePresenceWatchers(server);
         this.closeChannelCreationModal();
 
         if (channelType === 'text') {
@@ -2495,8 +3230,9 @@ class WigCord {
 
         // For now, current user is online, everyone else is offline
         Object.entries(members).forEach(([uname, data]) => {
-            const entry = { username: uname, ...data, profile: profileMap[uname] || {} };
-            if (uname === this.username) {
+            const voiceChannel = this._getUserVoiceChannelInServer(server, uname);
+            const entry = { username: uname, ...data, profile: profileMap[uname] || {}, voiceChannel };
+            if (uname === this.username || !!voiceChannel) {
                 onlineMembers.push(entry);
             } else {
                 offlineMembers.push(entry);
@@ -2506,13 +3242,13 @@ class WigCord {
         let html = `<div class="member-header">ONLINE — ${onlineMembers.length}</div>`;
         onlineMembers.forEach(m => {
             const isOwner = m.role === 'owner' || server.ownerId === m.username;
-            html += this._renderMemberItem(m.username, true, isOwner, m.role, m.profile);
+            html += this._renderMemberItem(m.username, true, isOwner, m.role, m.profile, m.voiceChannel);
         });
 
         html += `<div class="member-header">OFFLINE — ${offlineMembers.length}</div>`;
         offlineMembers.forEach(m => {
             const isOwner = m.role === 'owner' || server.ownerId === m.username;
-            html += this._renderMemberItem(m.username, false, isOwner, m.role, m.profile);
+            html += this._renderMemberItem(m.username, false, isOwner, m.role, m.profile, m.voiceChannel);
         });
 
         content.innerHTML = html;
@@ -2534,9 +3270,10 @@ class WigCord {
      * @param {string}  role      – role id
      * @param {object}  [profile] – cached profile (displayName, pfpUrl…)
      */
-    _renderMemberItem(username, online, isOwner, role, profile = {}) {
+    _renderMemberItem(username, online, isOwner, role, profile = {}, voiceChannel = null) {
         const displayName = profile.displayName || username;
         const pfp = profile.pfpUrl || ((username === this.username && this.userPfp) ? this.userPfp : null);
+        const inVoice = !!voiceChannel;
         const letter = displayName.charAt(0).toUpperCase();
         const avatarPos = this._getAvatarObjectPosition(profile);
         const avatarScale = this._getAvatarZoomScale(profile);
@@ -2550,13 +3287,18 @@ class WigCord {
 
         const roleData = this.servers.find(s => s.id === this.currentServer)?.roles?.find(r => r.id === role);
         const nameColor = roleData ? `style="color:${roleData.color}"` : '';
+        const voiceTag = inVoice
+            ? `<span class="member-voice-tag"><img src="${this._c.ASSET_BASE}/speaker.svg" class="wc-icon-xs" alt="Voice"> ${this._esc(voiceChannel.name)}</span>`
+            : '';
+        const speakingClass = this._speakingUsers.has(String(username || '').toLowerCase()) ? ' voice-speaking' : '';
 
         return `
-            <div class="member-item" data-username="${this._esc(username)}">
+            <div class="member-item${inVoice ? ' in-voice' : ''}${speakingClass}" data-username="${this._esc(username)}">
                 <div class="member-avatar ${online ? 'online' : ''}">${avatarContent}</div>
                 <div class="member-info">
                     <span class="member-name" ${nameColor}>${this._esc(displayName)}</span>
                     ${ownerBadge}
+                    ${voiceTag}
                 </div>
             </div>
         `;
@@ -3032,6 +3774,7 @@ class WigCord {
         document.getElementById('dm-requests-view').style.display = 'none';
         document.getElementById('welcome-screen').style.display = 'none';
         document.getElementById('messages-container').style.display = 'none';
+        document.getElementById('voice-channel-view').style.display = 'none';
         document.getElementById('channel-category').style.display = 'none';
         document.getElementById('voice-category').style.display = 'none';
         document.getElementById('member-list').classList.add('hidden');
@@ -3047,6 +3790,7 @@ class WigCord {
 
         // Load DM messages
         this._loadDMMessages(username);
+        this._renderVoiceRoomPanel();
         this._updatePinnedButtonVisibility();
     }
 
@@ -4132,12 +4876,15 @@ class WigCord {
             }
         });
 
-        // Mute/Deafen buttons (cosmetic toggles)
-        document.getElementById('btn-mute').addEventListener('click', (e) => {
-            e.target.classList.toggle('active');
+        // Mute/Deafen voice controls
+        document.getElementById('btn-mute').addEventListener('click', async () => {
+            await this._toggleVoiceMute();
         });
-        document.getElementById('btn-deafen').addEventListener('click', (e) => {
-            e.target.classList.toggle('active');
+        document.getElementById('btn-deafen').addEventListener('click', () => {
+            this._toggleVoiceDeafen();
+        });
+        document.getElementById('btn-leave-vc').addEventListener('click', async () => {
+            await this._leaveVoiceFromControl();
         });
 
         // Server settings
@@ -4346,6 +5093,11 @@ class WigCord {
                 document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
                 this._hideMessageContextMenu();
             }
+            this._handlePushToTalkKeyDown(e);
+        });
+        document.addEventListener('keyup', (e) => this._handlePushToTalkKeyUp(e));
+        window.addEventListener('beforeunload', () => {
+            this._leaveVoiceChannel();
         });
 
         this._updatePinnedButtonVisibility();
@@ -5283,10 +6035,12 @@ class WigCord {
         document.getElementById('dm-requests-view').style.display = 'flex';
         document.getElementById('dm-chat-view').style.display = 'none';
         document.getElementById('messages-container').style.display = 'none';
+        document.getElementById('voice-channel-view').style.display = 'none';
         document.getElementById('current-channel').textContent = 'Message Requests';
         document.getElementById('header-icon').textContent = '📨';
         document.getElementById('message-input-area').classList.add('hidden');
         document.getElementById('member-list').classList.add('hidden');
+        this._renderVoiceRoomPanel();
         this._updatePinnedButtonVisibility();
     }
 

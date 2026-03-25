@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start-large-upload-server": "node scripts/api/wigtube-large-upload-server.js"
+    "start-large-upload-server": "node scripts/api/wigtube-large-upload-server.js",
+    "start-agora-token-server": "node scripts/api/agora-token-server.js"
   },
   "dependencies": {
+    "agora-access-token": "^2.0.4",
     "cors": "^2.8.5",
     "express": "^4.19.2"
   }
