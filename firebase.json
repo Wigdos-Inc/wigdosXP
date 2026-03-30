@@ -8,6 +8,9 @@
   "storage": {
     "rules": "firebase/storage.rules"
   },
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "site": "wigdos-inc",
     "public": ".",

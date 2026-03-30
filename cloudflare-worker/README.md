@@ -1,3 +1,49 @@
+Cloudflare Worker: Agora Token Endpoint
+
+This worker provides a lightweight `/agora/token` endpoint that mints Agora RTC tokens.
+
+Prerequisites
+- Install Wrangler (Cloudflare CLI): `npm install -g wrangler`
+- A Cloudflare account and a configured Cloudflare Worker namespace / service.
+
+Files added
+- `cloudflare-worker/index.js` — Worker script that accepts POST /agora/token and returns JSON `{ ok:true, token, appId }`.
+- `cloudflare-worker/package.json` — lists `agora-access-token` dependency.
+
+How it works
+- The worker expects these environment bindings (set via `wrangler secret put` or `wrangler.toml`):
+  - `AGORA_APP_ID` — your Agora App ID
+  - `AGORA_APP_CERTIFICATE` — your Agora App Certificate (keep secret)
+  - `AGORA_TOKEN_SHARED_SECRET` — optional shared secret to protect token endpoint
+  - `AGORA_TOKEN_TTL_SECONDS` — optional TTL (default 3600)
+
+Deploy (recommended with Wrangler)
+1. From this folder, install dependencies (optional — Wrangler will bundle for you):
+```bash
+cd cloudflare-worker
+npm install
+```
+
+2. Configure secrets (recommended):
+```bash
+# set interactively; do not commit these
+wrangler secret put AGORA_APP_ID
+wrangler secret put AGORA_APP_CERTIFICATE
+wrangler secret put AGORA_TOKEN_SHARED_SECRET
+```
+
+3. Publish the worker (assumes you have `wrangler.toml` configured):
+```bash
+wrangler publish
+```
+
+Notes
+- The script uses `agora-access-token`; Wrangler/esbuild should bundle it. If bundling errors occur due to node builtins, install a small polyfill or use the `format: 'service-worker'` build option.
+- After publishing, set `AGORA.TOKEN_ENDPOINT` in `scripts/apps/browser/wigcord.js` to `https://<your-worker-domain>/agora/token` or use the same-origin `/agora/token` if you configure a proxy/route.
+
+Security
+- Keep `AGORA_APP_CERTIFICATE` secret. Use `wrangler secret put` or Cloudflare dashboard to store the value.
+- Use `AGORA_TOKEN_SHARED_SECRET` to reject unauthenticated requests from unknown origins.
 # WigTube Cloudflare Worker Setup
 
 Single, simple guide to connect WigTube to a Cloudflare Worker that uploads videos to your GitHub repo.

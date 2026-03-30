@@ -75,19 +75,39 @@ Testing steps
 bash scripts/api/ensure-servers-running.sh
 ```
 
-If your site is deployed as static hosting (for example `https://your-site.web.app`), it cannot reach a local token server on port `3010`. In that case you must either:
+Token endpoint behavior on public hosting
 
-- Deploy the token server to a reachable public endpoint and set `TOKEN_ENDPOINT` in the AGORA config near the top of `scripts/apps/browser/wigcord.js`:
+- The client now defaults `AGORA.TOKEN_ENDPOINT` to the same-origin path `/agora/token`. That means on the live site `https://wigdos-inc.web.app` the client will first attempt `https://wigdos-inc.web.app/agora/token` (no port required). This makes it simple to use a Hosting rewrite, a serverless function, or a Cloudflare Worker to serve tokens from the same origin.
+
+- If the same-origin endpoint isn't available the client still falls back to other development candidates (for example `http://localhost:3010/agora/token` when running locally). You can also override the token endpoint at runtime using the browser console:
+
+```js
+localStorage.setItem('wigcordAgoraTokenEndpoint','https://your-token-endpoint.example/agora/token');
+location.reload();
+```
+
+- To configure the client permanently, set `TOKEN_ENDPOINT` in the AGORA config near the top of `scripts/apps/browser/wigcord.js`:
 
 ```js
 AGORA: {
-  TOKEN_ENDPOINT: 'https://your-host.example.com/agora/token',
+  TOKEN_ENDPOINT: 'https://your-worker.example.workers.dev/agora/token',
   TOKEN_SHARED_SECRET: 'optional-secret-if-configured',
   ...
 }
 ```
 
-- Or proxy requests to a token service at the same origin path (`/agora/token`) via your hosting provider (e.g., Firebase Functions, Netlify Functions, or a reverse proxy). The client will try `https://<your-host>/agora/token` before falling back to `:3010`.
+- Cloudflare Worker option: this repository includes a lightweight Cloudflare Worker scaffold at `cloudflare-worker/index.js` that implements `/agora/token`. Deploy the worker, store your Agora App Certificate as a secret (see `wrangler secret put AGORA_APP_CERTIFICATE`), and then point the client at the worker URL or rely on a same-origin rewrite.
+
+Example curl test (include shared secret header if configured):
+
+```bash
+curl -X POST 'https://wigdos-inc.web.app/agora/token' \
+  -H 'Content-Type: application/json' \
+  -H 'x-wigcord-token-secret: YOUR_SECRET_IF_SET' \
+  -d '{"channelName":"test_channel","uid":"Danny"}'
+```
+
+If successful, the endpoint returns JSON `{ ok: true, token: "...", appId: "..." }`.
 
 2. Open the app in your browser, open DevTools → Console, then join a voice channel and speak.
 3. Look for `"[Agora volume-indicator]"` logs and note the numeric `entry.level` values for your microphone.

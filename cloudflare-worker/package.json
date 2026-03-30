@@ -1,0 +1,8 @@
+{
+  "name": "wigdosxp-agora-worker",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "agora-access-token": "^2.0.4"
+  }
+}

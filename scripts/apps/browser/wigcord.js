@@ -94,7 +94,10 @@ class WigCord {
         AGORA: {
             ENABLED: true,
             APP_ID: 'c629354328614f25b6448169ab3ed43b',
-            TOKEN_ENDPOINT: '',
+            // Default to same-origin /agora/token (works on https://wigdos-inc.web.app/)
+            TOKEN_ENDPOINT: (typeof window !== 'undefined' && window.location)
+                ? `${window.location.protocol}//${window.location.hostname}/agora/token`
+                : 'https://wigdos-inc.web.app/agora/token',
             TOKEN_SHARED_SECRET: '',
             PTT_KEY: 'Alt',
             SPEAKING_LEVEL_THRESHOLD: 5,
