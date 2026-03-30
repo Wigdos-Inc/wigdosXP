@@ -103,6 +103,11 @@ class WigCord {
             STALE_CLEANUP_COOLDOWN_MS: 10000,
             INACTIVITY_DISCONNECT_MS: 5 * 60 * 1000,
             INACTIVITY_CHECK_INTERVAL_MS: 15000,
+            // Encoder/profile hints for audio quality. SDK-specific strings may vary
+            ENCODER_CONFIG: 'high_quality',
+            // If true, preprocess raw mic with WebAudio GainNode before sending
+            USE_WEBAUDIO_PREPROCESSOR: false,
+            PREPROCESSOR_GAIN: 1.5,
         },
 
         // Emoji data URL — loaded at runtime from unicode-emoji-json
@@ -1633,10 +1638,14 @@ class WigCord {
             const pageProtocol = loc.protocol === 'https:' ? 'https:' : 'http:';
             const pageHostname = loc.hostname || 'localhost';
 
+            // Try same-origin serverless or proxied endpoint first (e.g. https://your-site/agora/token)
+            candidates.push(`${pageProtocol}//${pageHostname}/agora/token`);
+
             if (pageHostname.endsWith('github.dev')) {
                 const forwardedHost = pageHostname.replace(/-\d+\./, '-3010.');
                 candidates.push(`https://${forwardedHost}/agora/token`);
             } else {
+                // Legacy local dev fallback on port 3010
                 candidates.push(`${pageProtocol}//${pageHostname}:3010/agora/token`);
                 if (pageHostname === 'localhost') {
                     candidates.push('http://127.0.0.1:3010/agora/token');
@@ -1722,9 +1731,24 @@ class WigCord {
 
         this._agoraClient.enableAudioVolumeIndicator();
         this._agoraClient.on('volume-indicator', (volumes) => {
+            // Lightweight debug to inspect raw levels in DevTools
+            if (typeof console !== 'undefined' && console.debug) {
+                console.debug('[Agora volume-indicator]', volumes);
+            }
+
             (volumes || []).forEach((entry) => {
                 const uid = String(entry.uid);
-                const isSpeaking = Number(entry.level || 0) >= this._c.AGORA.SPEAKING_LEVEL_THRESHOLD;
+                const rawLevel = Number(entry.level || 0);
+
+                // Use configured threshold but auto-convert if scales are mismatched (0..1 vs 0..100)
+                let threshold = Number(this._c.AGORA.SPEAKING_LEVEL_THRESHOLD || 0);
+                if (threshold > 1 && rawLevel <= 1) {
+                    threshold = threshold / 100;
+                } else if (threshold <= 1 && rawLevel > 1) {
+                    threshold = threshold * 100;
+                }
+
+                const isSpeaking = rawLevel >= threshold;
                 this._markSpeakingState(uid, isSpeaking);
             });
         });
@@ -1736,6 +1760,27 @@ class WigCord {
         if (!this._localAudioTrack) return;
         const shouldEnable = !this._voiceMuted && (!this._pushToTalkEnabled || this._pttKeyDown);
         this._localAudioTrack.setEnabled(shouldEnable);
+    }
+
+    async _createPreprocessedTrack(mediaStreamTrack) {
+        // Creates a small WebAudio pipeline to apply gain before sending to Agora.
+        // Returns an AudioMediaStreamTrack suitable for Agora.createCustomAudioTrack.
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const srcStream = new MediaStream([mediaStreamTrack]);
+            const source = audioCtx.createMediaStreamSource(srcStream);
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = Number(this._c.AGORA.PREPROCESSOR_GAIN || 1.0);
+            source.connect(gainNode);
+            const dest = audioCtx.createMediaStreamDestination();
+            gainNode.connect(dest);
+            // Keep references to allow cleanup on leave
+            this._audioProcessing = { audioCtx, gainNode, dest };
+            return dest.stream.getAudioTracks()[0];
+        } catch (err) {
+            console.warn('[WigCord] _createPreprocessedTrack failed:', err);
+            return mediaStreamTrack;
+        }
     }
 
     async _joinVoiceChannel(channelId) {
@@ -1766,7 +1811,45 @@ class WigCord {
             const client = await this._ensureAgoraClient();
             await client.join(appId, channelName, tokenData.token, uid);
 
-            this._localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
+            // Prefer explicit getUserMedia so we can disable browser AGC/NS and control encoder
+            let mediaStream = null;
+            try {
+                const chosenDeviceId = this._selectedMicDeviceId || undefined;
+                const audioConstraints = {
+                    sampleRate: 48000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                };
+                if (chosenDeviceId) audioConstraints.deviceId = { exact: chosenDeviceId };
+
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                this._localRawMediaStream = mediaStream;
+            } catch (err) {
+                console.warn('[WigCord] getUserMedia failed, falling back to Agora helper:', err);
+            }
+
+            if (!mediaStream) {
+                // Fallback to SDK helper if getUserMedia failed or isn't supported
+                this._localAudioTrack = await window.AgoraRTC.createMicrophoneAudioTrack();
+            } else {
+                const rawTrack = mediaStream.getAudioTracks()[0];
+                let trackToSend = rawTrack;
+                if (this._c.AGORA?.USE_WEBAUDIO_PREPROCESSOR) {
+                    try {
+                        trackToSend = await this._createPreprocessedTrack(rawTrack);
+                    } catch (err) {
+                        console.warn('[WigCord] Preprocessor failed, using raw track', err);
+                        trackToSend = rawTrack;
+                    }
+                }
+
+                const createParams = { mediaStreamTrack: trackToSend };
+                if (this._c.AGORA?.ENCODER_CONFIG) createParams.encoderConfig = this._c.AGORA.ENCODER_CONFIG;
+                this._localAudioTrack = await window.AgoraRTC.createCustomAudioTrack(createParams);
+            }
+
             this._syncLocalTrackEnabled();
             await client.publish([this._localAudioTrack]);
 
@@ -1782,7 +1865,7 @@ class WigCord {
             await this._renderVoiceChannelView(channelId);
         } catch (error) {
             console.error('[WigCord] Voice join failed:', error);
-            alert(`Voice connect failed. ${error?.message || 'Check token server on port 3010.'}`);
+            alert(`Voice connect failed. ${error?.message || 'Check Agora token server or set AGORA.TOKEN_ENDPOINT.'}`);
         } finally {
             this._voiceJoinInFlight = false;
         }
@@ -1801,6 +1884,22 @@ class WigCord {
                     this._localAudioTrack.stop();
                     this._localAudioTrack.close();
                     this._localAudioTrack = null;
+                }
+                if (this._localRawMediaStream) {
+                    try {
+                        this._localRawMediaStream.getTracks().forEach((t) => t.stop());
+                    } catch (e) {
+                        console.warn('[WigCord] Error stopping raw media stream:', e);
+                    }
+                    this._localRawMediaStream = null;
+                }
+                if (this._audioProcessing && this._audioProcessing.audioCtx) {
+                    try {
+                        await this._audioProcessing.audioCtx.close();
+                    } catch (e) {
+                        /* ignore */
+                    }
+                    this._audioProcessing = null;
                 }
                 await this._agoraClient.leave();
             } catch (error) {

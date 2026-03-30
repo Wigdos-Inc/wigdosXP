@@ -18,6 +18,10 @@
     ],
     "rewrites": [
       {
+        "source": "/agora/token",
+        "function": "agoraToken"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
