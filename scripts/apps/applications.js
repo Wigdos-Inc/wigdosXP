@@ -51,9 +51,9 @@ const EMPTY_ICON_SET = new Set();
 const GAME_ICON_MANIFEST = {
     carl: new Set(['carl']),
     fnaf: new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
-    jeff: new Set(['jeff', 'ggJeff']),
+    jeff: new Set(['jeff', 'ggJeff', 'kJeff', 'oddJeff']),
     ofes: new Set(['breakout', 'sublimator']),
-    other: new Set(['cmd', 'gspot', 'hlf', 'pHub', 'sm64', 'su', 'wigshell']),
+    other: new Set(['cmd', 'gspot', 'hlf', 'pHub', 'sm64', 'su', 'wigshell', 'banjo_icon', 'ConkerIcon', 'dk64', 'dkRacing', 'marpar3Icon', 'wEngine', 'YoshiIcon', 'zootIcon']),
     ut: new Set(['dt', 'ut']),
 };
 
@@ -248,14 +248,14 @@ const applications = {
     ),
        
     banjo: new Application(
-        ["banjo", "Banjo-Kazooie", "Banjo-Kazooie"],
+        ["banjo_icon", "Banjo-Kazooie", "Banjo-Kazooie"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=bk"],
     ),
 
     conker: new Application(
-        ["conker", "Conker", "Conker's Bad Fur Day"],
+        ["ConkerIcon", "Conker", "Conker's Bad Fur Day"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=cbfd"],
@@ -276,21 +276,21 @@ const applications = {
     ),
 
      zoot: new Application(
-        ["zoot", "Zoot", "Zoot"],
+        ["zootIcon", "Zoot", "Zoot"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=zoot"],
     ),
 
      mp3: new Application(
-        ["mp3", "MP3", "MP3 (not the file extension)"],
+        ["marpar3Icon", "MP3", "MP3 (not the file extension)"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=mp3"],
     ),
 
     yoshi: new Application(
-        ["yoshi", "Yoshi Story", "Yoshi story (stupid ass dino)"],
+        ["YoshiIcon", "Yoshi Story", "Yoshi story (stupid ass dino)"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=ys"],
