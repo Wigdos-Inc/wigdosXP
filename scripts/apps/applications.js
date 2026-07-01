@@ -228,14 +228,14 @@ const applications = {
 
     carl2D: new Application(
         ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
-        "other",
+        "carl",
         true,
         ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
     ),
 
     carlNet: new Application(
         ["carlNet", "CarlNet", "CarlNet Engine"],
-        "other",
+        "carl",
         true,
         ["external", "https://wigdos-inc.github.io/SloppyCarlGames/engine/v1/testGame/output.html"]
     ),
