@@ -49,7 +49,7 @@ class Application {
 const EMPTY_ICON_SET = new Set();
 
 const GAME_ICON_MANIFEST = {
-    carl: new Set(['carl']),
+    carl: new Set(['carl2D', 'carlNet']),
     fnaf: new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
     jeff: new Set(['jeff', 'ggJeff', 'kJeff', 'oddJeff']),
     ofes: new Set(['breakout', 'sublimator']),
