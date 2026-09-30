@@ -358,7 +358,7 @@ const applications = {
     ),
 
 
-    oddJeff: new Application(
+    jeffJmoon: new Application(
         ["oddJeff", "Super Jeff Jmoonshine"],
         "jeff",
         true,
