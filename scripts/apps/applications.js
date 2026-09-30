@@ -357,6 +357,14 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey_V2/"]
     ),
 
+
+    oddJeff: new Application(
+        ["oddJeff", "Super Jeff Jmoonshine"],
+        "jeff",
+        true,
+        ["external", "https://wigdos-inc.github.io/102462_wigDos/JeffJmoonshine/"]
+    ),
+
     // Carl the Urgent Slug Urchin
     carl2D: new Application(
         ["carl2D", "Carl Mobile", "Carl is Mobile (Carl 2D)"],
