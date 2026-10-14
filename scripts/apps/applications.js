@@ -49,12 +49,13 @@ class Application {
 const EMPTY_ICON_SET = new Set();
 
 const GAME_ICON_MANIFEST = {
-    carl: new Set(['carl2D', 'carlNet']),
-    fnaf: new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
-    jeff: new Set(['jeff', 'ggJeff', 'kJeff', 'oddJeff']),
-    ofes: new Set(['breakout', 'sublimator']),
+    scg  : new Set(['carlMobile', 'carlNet', 'shittyMansion']),
+    ssb  : new Set(['shittyMansion', 'shittyMario']),
+    fnaf : new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
+    jeff : new Set(['jeff', 'ggJeff', 'kJeff', 'oddJeff']),
+    ofes : new Set(['breakout', 'sublimator']),
     other: new Set(['cmd', 'gspot', 'hlf', 'pHub', 'sm64', 'su', 'wigshell', 'banjo_icon', 'ConkerIcon', 'dk64', 'dkRacing', 'marpar3Icon', 'wEngine', 'YoshiIcon', 'zootIcon']),
-    ut: new Set(['dt', 'ut']),
+    ut   : new Set(['dt', 'ut']),
 };
 
 const ICON_SIZE_MANIFEST = {
@@ -98,7 +99,6 @@ const applications = {
         true, 
         ["internal", "apps/browser/"]
     ),
-
 
 
     /* BUILT-IN */
@@ -193,6 +193,7 @@ const applications = {
         ["external", "https://danie-glr.github.io/wigdos_games/ucn/"]
     ),
 
+
     // Undertale Series
     ut: new Application(
         ["ut", "Undertale"],
@@ -224,20 +225,6 @@ const applications = {
         true, 
         ["external", "https://wigdos-inc.github.io/102462_wigDos/sm64/"],
         true
-    ),
-
-    carl2D: new Application(
-        ["carl2D", "Carl 2D", "Carl the Urgent Slug Urchin 2D"],
-        "carl",
-        true,
-        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
-    ),
-
-    carlNet: new Application(
-        ["carlNet", "CarlNet", "CarlNet Engine"],
-        "carl",
-        true,
-        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/engine/v1/testGame/output.html"]
     ),
    
     uh: new Application(
@@ -275,14 +262,14 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=dkr"],
     ),
 
-     zoot: new Application(
+    zoot: new Application(
         ["zootIcon", "Zoot", "Zoot"],
         "other",
         true,
         ["external", "https://wigdos-inc.github.io/102462_wigDos/64emulator/index.html?game=zoot"],
     ),
 
-     mp3: new Application(
+    mp3: new Application(
         ["marpar3Icon", "MP3", "MP3 (not the file extension)"],
         "other",
         true,
@@ -328,7 +315,8 @@ const applications = {
         ["internal", "apps/games/"]
     ),
     
-    // Super Jeff
+
+    // Super Jeff (Rejeffanimated Studios)
     jeff: new Application(
         ["jeff", "Super Jeff"],
         "jeff",
@@ -357,7 +345,6 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/SuperJeffOdyssey_V2/"]
     ),
 
-
     jeffJmoon: new Application(
         ["oddJeff", "Super Jeff Jmoonshine"],
         "jeff",
@@ -365,15 +352,43 @@ const applications = {
         ["external", "https://wigdos-inc.github.io/102462_wigDos/JeffJmoonshine/"]
     ),
 
-    // Carl the Urgent Slug Urchin
-    carl2D: new Application(
-        ["carl2D", "Carl Mobile", "Carl is Mobile (Carl 2D)"],
-        "carl",
+
+    // Sloppy Carl Games (102871)
+    carlMobile: new Application(
+        ["carlMobile", "Carl Mobile", "Carl is Mobile"],
+        "scg",
         true,
         ["external", "https://wigdos-inc.github.io/SloppyCarlGames/carlGames/carl2D/"],
     ),
+
+    carlNet: new Application(
+        ["carlNet", "CarlNet", "CarlNet Engine"],
+        "scg",
+        true,
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/engine/v1/testGame/output.html"]
+    ),
+
+
+    // SeaStench Bros
+    shittyMansion: new Application(
+        ["shittyMansion", "Shitty Mansion", "Luigi's Shitty Mansion"],
+        "ssb",
+        true,
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/bootleg/luigishittymansion/"]
+    ),
+
+    shittyMario: new Application(
+        ["shittyMario", "Shitty Mario", "Super Shitty Mario"],
+        "ssb",
+        true,
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/bootleg/super/"]
+    ),
+
+
+    // Beats by my G (aziaat)
     
-    // Stu102871
+
+    // 102871
     pHub: new Application(
         ["pHub", "PokeHub"],
         "other",
