@@ -49,8 +49,8 @@ class Application {
 const EMPTY_ICON_SET = new Set();
 
 const GAME_ICON_MANIFEST = {
-    scg  : new Set(['carlMobile', 'carlNet', 'shittyMansion']),
-    ssb  : new Set(['shittyMansion', 'shittyMario']),
+    scg  : new Set(['carlMobile', 'carlNet']),
+    ssb  : new Set(['shittyMansion', 'shittyMario', 'gloorbio']),
     fnaf : new Set(['feddy1', 'feddy2', 'feddy3', 'feddy4', 'feddyPS', 'feddyUCN', 'feddyWorld']),
     jeff : new Set(['jeff', 'ggJeff', 'kJeff', 'oddJeff']),
     ofes : new Set(['breakout', 'sublimator']),
@@ -211,6 +211,7 @@ const applications = {
         true
     ),
     
+    
     // s102462
     hlf: new Application(
         ["hlf", "Half-Life"],
@@ -299,6 +300,7 @@ const applications = {
         ["internal", "apps/su/"],
         true
     ),
+
     
     // OFES Games
     breakout: new Application(
@@ -353,7 +355,7 @@ const applications = {
     ),
 
 
-    // Sloppy Carl Games (102871)
+    // Sloppy Carl Games
     carlMobile: new Application(
         ["carlMobile", "Carl Mobile", "Carl is Mobile"],
         "scg",
@@ -381,11 +383,18 @@ const applications = {
         ["shittyMario", "Shitty Mario", "Super Shitty Mario"],
         "ssb",
         true,
-        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/bootleg/super/"]
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/bootleg/shittyMario/"]
+    ),
+
+    gloorbio: new Application(
+        ["gloorbio", "Gloorbio", "Gloorbio's Poopy Land"],
+        "ssb",
+        true,
+        ["external", "https://wigdos-inc.github.io/SloppyCarlGames/bootleg/gloorbio/"]
     ),
 
 
-    // Beats by my G (aziaat)
+    // Bootprint Games (chao min)
     
 
     // 102871
